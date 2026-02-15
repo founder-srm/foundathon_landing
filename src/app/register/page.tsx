@@ -318,7 +318,7 @@ const Register = () => {
             </div>
 
             <div className="mt-6 rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 shadow-sm">
-              <p className="ext-sm md:text-base font-bold uppercase tracking-[0.08em] mb-3 text-fnblue">Team Type</p>
+              <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] mb-3 text-fnblue">Team Type</p>
               <label className="block">
                 <p className="text-[11px] uppercase tracking-[0.2em] text-foreground/70 font-semibold mb-2">Select Team Category</p>
                 {/* <select

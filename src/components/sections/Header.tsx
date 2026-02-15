@@ -1,16 +1,43 @@
-import Link from "next/link";
+"use client";
+
 import Image from "next/image";
+import Link from "next/link";
+import { useState } from "react";
+import { signInWithOAuth } from "@/app/(auth)/actions";
 import { FnButton } from "@/components/ui/fn-button";
 import { LineShadowText } from "@/components/ui/line-shadow-text";
+import { Button } from "../ui/button";
 import { ConfettiButton } from "../ui/confetti-button";
 
 const Header = () => {
+  const [isSigningIn, setIsSigningIn] = useState(false);
   const navLinks = [
     { href: "/#overview", label: "Overview" },
     { href: "/#rules", label: "Rules" },
     { href: "/#release", label: "Release" },
     { href: "/#champion", label: "Goodies" },
   ];
+
+  const handleSignIn = async () => {
+    if (isSigningIn) return;
+    setIsSigningIn(true);
+
+    try {
+      const nextPath = `${window.location.pathname}${window.location.search}`;
+      const { data, error } = await signInWithOAuth("google", nextPath);
+
+      if (error) {
+        console.error("Google sign-in failed:", error.message);
+        return;
+      }
+
+      if (data?.url) {
+        window.location.assign(data.url);
+      }
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
 
   return (
     <div className="border-b border-foreground/10 shadow-sm p-4 font-semibold sticky top-0 z-50 bg-background/60 backdrop-blur supports-backdrop-filter:bg-background/60">
@@ -24,12 +51,25 @@ const Header = () => {
             }}
             className="bg-transparent hover:bg-transparent"
           >
-            <Link href="https://www.thefoundersclub.in/" target="_blank" rel="noopener noreferrer">
-              <Image src="/logo.svg" alt="alt" width={40} height={40} className="h-8 w-auto" />
+            <Link
+              href="https://www.thefoundersclub.in/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Image
+                src="/logo.svg"
+                alt="alt"
+                width={40}
+                height={40}
+                className="h-8 w-auto"
+              />
             </Link>
           </ConfettiButton>
         </div>
-        <Link href="/#overview" className="text-xl md:text-3xl ml-2 flex items-start gap-2 font-mono uppercase font-extrabold italic">
+        <Link
+          href="/#overview"
+          className="text-xl md:text-3xl ml-2 flex items-start gap-2 font-mono uppercase font-extrabold italic"
+        >
           <LineShadowText>Foundathon</LineShadowText>
           {""}
           <LineShadowText>3.0</LineShadowText>
@@ -52,7 +92,7 @@ const Header = () => {
               <Link href="/register">Register Team</Link>
             </FnButton>
             <FnButton asChild tone="yellow">
-              <Link href="/register">Sign In</Link>
+              <Link href="/api/auth/login">Sign In</Link>
             </FnButton>
           </div>
         </div>

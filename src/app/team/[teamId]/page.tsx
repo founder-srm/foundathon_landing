@@ -1,5 +1,6 @@
 "use client";
 
+import { PlusIcon, Trash2, UserRoundPen } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";

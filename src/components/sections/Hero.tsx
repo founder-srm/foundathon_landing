@@ -1,7 +1,6 @@
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { FnButton } from "@/components/ui/fn-button";
-import { VideoText } from "@/components/ui/video-text";
 
 const content = {
   caption: "Foundathon 3.0 | Monopoly Edition | 2026",
@@ -60,7 +59,9 @@ const Hero = () => {
               </Link>
             </FnButton>
             <FnButton asChild tone="gray" size="lg" className="border-fnblue">
-              <Link href="/problem-statements">{content.secondaryButtonText}</Link>
+              <Link href="/problem-statements">
+                {content.secondaryButtonText}
+              </Link>
             </FnButton>
           </div>
         </div>

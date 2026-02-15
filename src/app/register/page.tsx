@@ -12,6 +12,7 @@ import {
   type TeamRecord,
   teamSubmissionSchema,
 } from "@/lib/register-schema";
+import { Plus, PlusIcon, Trash2 } from "lucide-react";
 
 type TeamType = "srm" | "non_srm";
 
@@ -586,7 +587,7 @@ const Register = () => {
                             tone="red"
                             size="xs"
                           >
-                            Remove
+                            <Trash2 size={4} strokeWidth={3} />
                           </FnButton>
                         </td>
                       </tr>
@@ -671,6 +672,7 @@ const MemberDraftCard = ({
         tone="green"
         size="sm"
       >
+        <PlusIcon size={16} strokeWidth={3} />
         Add Member
       </FnButton>
     </div>

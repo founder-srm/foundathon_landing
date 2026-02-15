@@ -13,6 +13,7 @@ import {
   type TeamRecord,
   teamSubmissionSchema,
 } from "@/lib/register-schema";
+import { PlusIcon, Trash2, UserRoundPen } from "lucide-react";
 
 type TeamType = "srm" | "non_srm";
 
@@ -512,6 +513,7 @@ export default function TeamDashboardPage() {
                 disabled={!canAddMember}
                 tone="green"
               >
+                <PlusIcon size={16} strokeWidth={3} />
                 Add Member
               </FnButton>
               <FnButton type="button" onClick={saveChanges} disabled={isSaving}>
@@ -522,6 +524,7 @@ export default function TeamDashboardPage() {
                 onClick={() => setShowDeleteConfirm(true)}
                 tone="red"
               >
+                <Trash2 size={16} strokeWidth={3} />
                 Delete Team
               </FnButton>
             </div>
@@ -599,7 +602,7 @@ export default function TeamDashboardPage() {
                             onClick={() => beginEditMember(idx)}
                             size="xs"
                           >
-                            Edit
+                            <UserRoundPen size={16} strokeWidth={3} />
                           </FnButton>
                           <FnButton
                             type="button"
@@ -607,7 +610,7 @@ export default function TeamDashboardPage() {
                             tone="red"
                             size="xs"
                           >
-                            Remove
+                            <Trash2 size={16} strokeWidth={3} />
                           </FnButton>
                         </td>
                       </tr>
@@ -652,6 +655,7 @@ export default function TeamDashboardPage() {
                 Cancel
               </FnButton>
               <FnButton type="button" onClick={deleteTeam} tone="red" size="sm">
+                <Trash2 size={16} strokeWidth={3} />
                 Delete Team
               </FnButton>
             </div>

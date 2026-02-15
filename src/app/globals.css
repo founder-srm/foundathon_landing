@@ -14,6 +14,7 @@
   --color-fnblueb: var(--blueb);
   --color-fngreen: var(--green);
   --color-fnyellow: var(--yellow);
+  --color-fnorange: var(--orange);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --color-sidebar-ring: var(--sidebar-ring);
@@ -54,11 +55,11 @@
   --radius-4xl: calc(var(--radius) + 16px);
   --animate-line-shadow: line-shadow 15s linear infinite;
   @keyframes line-shadow {
-  0% {
-    background-position: 0 0;
+    0% {
+      background-position: 0 0;
     }
-  100% {
-    background-position: 100% -100%;
+    100% {
+      background-position: 100% -100%;
     }
   }
 }
@@ -72,6 +73,7 @@
   --blueb: #1c5273;
   --green: #009e60;
   --yellow: #f5d000;
+  --orange: #f97316;
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.141 0.005 285.823);

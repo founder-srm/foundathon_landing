@@ -49,29 +49,6 @@ async function createSupabaseClient() {
   );
 }
 
-function getRoll(member: any) {
-  if (!member) return null;
-
-  if ("raNumber" in member) {
-    return member.raNumber ?? null;
-  }
-
-  if ("collegeId" in member) {
-    return member.collegeId ?? null;
-  }
-
-  return null;
-}
-function getDept(member: any): string | null {
-  if (!member) return null;
-
-  if ("dept" in member) {
-    return member.dept ?? null;
-  }
-
-  return null;
-}
-
 function toTeamSummary(row: any): TeamSummary {
   const details = row.details ?? {};
   const memberCount = row.details.members.length + 1; // +1 for lead

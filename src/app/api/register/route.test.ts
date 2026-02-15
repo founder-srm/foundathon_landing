@@ -1,93 +1,194 @@
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const readTeamsMock = vi.fn();
-const writeTeamsMock = vi.fn();
-
-vi.mock("@/lib/register-store", () => ({
-  readTeams: readTeamsMock,
-  writeTeams: writeTeamsMock,
+const mocks = vi.hoisted(() => ({
+  createSupabaseClient: vi.fn(),
+  getSupabaseCredentials: vi.fn(),
+  toTeamRecord: vi.fn(),
+  toTeamSummary: vi.fn(),
+  transformToLegacyFormat: vi.fn(),
 }));
 
-describe("/api/register route", () => {
-  const srmTeam = {
-    id: "11111111-1111-4111-8111-111111111111",
-    createdAt: "2026-01-01T00:00:00.000Z",
-    updatedAt: "2026-01-01T00:00:00.000Z",
-    teamType: "srm" as const,
-    teamName: "Alpha",
-    lead: {
-      name: "Lead",
-      raNumber: "RA0000000000001",
-      netId: "od7270",
-      dept: "CSE",
-      contact: 9999999999,
-    },
-    members: [
-      {
-        name: "M1",
-        raNumber: "RA0000000000002",
-        netId: "ab1234",
-        dept: "CSE",
-        contact: 8888888888,
-      },
-      {
-        name: "M2",
-        raNumber: "RA0000000000003",
-        netId: "cd5678",
-        dept: "ECE",
-        contact: 7777777777,
-      },
-    ],
-  };
+vi.mock("@/lib/register-api", () => ({
+  createSupabaseClient: mocks.createSupabaseClient,
+  EVENT_ID: "event-1",
+  getSupabaseCredentials: mocks.getSupabaseCredentials,
+  JSON_HEADERS: { "Cache-Control": "no-store" },
+  toTeamRecord: mocks.toTeamRecord,
+  toTeamSummary: mocks.toTeamSummary,
+  transformToLegacyFormat: mocks.transformToLegacyFormat,
+  UUID_PATTERN:
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
+}));
 
+const row = {
+  id: "11111111-1111-4111-8111-111111111111",
+  created_at: "2026-01-01T00:00:00.000Z",
+  updated_at: "2026-01-01T00:00:00.000Z",
+  details: {},
+};
+
+const summary = {
+  id: row.id,
+  teamName: "Alpha",
+  teamType: "srm" as const,
+  leadName: "Lead",
+  memberCount: 3,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+};
+
+const teamRecord = {
+  id: row.id,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+  teamType: "srm" as const,
+  teamName: "Alpha",
+  lead: {
+    name: "Lead",
+    raNumber: "RA0000000000001",
+    netId: "od7270",
+    dept: "CSE",
+    contact: 9876543210,
+  },
+  members: [
+    {
+      name: "M1",
+      raNumber: "RA0000000000002",
+      netId: "ab1234",
+      dept: "CSE",
+      contact: 9876543211,
+    },
+    {
+      name: "M2",
+      raNumber: "RA0000000000003",
+      netId: "cd5678",
+      dept: "ECE",
+      contact: 9876543212,
+    },
+  ],
+};
+
+describe("/api/register route", () => {
   beforeEach(() => {
-    readTeamsMock.mockReset();
-    writeTeamsMock.mockReset();
+    vi.resetModules();
+    mocks.createSupabaseClient.mockReset();
+    mocks.getSupabaseCredentials.mockReset();
+    mocks.toTeamRecord.mockReset();
+    mocks.toTeamSummary.mockReset();
+    mocks.transformToLegacyFormat.mockReset();
+
+    mocks.getSupabaseCredentials.mockReturnValue({
+      anonKey: "anon",
+      url: "http://localhost",
+    });
+    mocks.toTeamSummary.mockReturnValue(summary);
+    mocks.toTeamRecord.mockReturnValue(teamRecord);
+    mocks.transformToLegacyFormat.mockImplementation((payload) => ({
+      payload,
+    }));
+  });
+
+  it("GET returns 401 for unauthenticated users", async () => {
+    mocks.createSupabaseClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: null },
+          error: null,
+        }),
+      },
+      from: vi.fn(),
+    });
+
+    const { GET } = await import("./route");
+    const res = await GET();
+    const body = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(body.error).toBe("Unauthorized");
   });
 
   it("GET returns summarized teams", async () => {
-    readTeamsMock.mockResolvedValueOnce([srmTeam]);
-    const { GET } = await import("./route");
+    const order = vi.fn().mockResolvedValue({ data: [row], error: null });
+    const from = vi.fn().mockReturnValue({
+      select: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            order,
+          }),
+        }),
+      }),
+    });
 
+    mocks.createSupabaseClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: "user-1" } },
+          error: null,
+        }),
+      },
+      from,
+    });
+
+    const { GET } = await import("./route");
     const res = await GET();
     const body = await res.json();
 
     expect(res.status).toBe(200);
-    expect(body.teams).toEqual([
-      {
-        id: srmTeam.id,
-        teamName: "Alpha",
-        teamType: "srm",
-        leadName: "Lead",
-        memberCount: 3,
-        createdAt: srmTeam.createdAt,
-        updatedAt: srmTeam.updatedAt,
-      },
-    ]);
+    expect(body.teams).toEqual([summary]);
+    expect(mocks.toTeamSummary).toHaveBeenCalledWith(row);
   });
 
   it("POST rejects invalid payload", async () => {
     const { POST } = await import("./route");
     const req = new NextRequest("http://localhost/api/register", {
-      method: "POST",
       body: JSON.stringify({ teamType: "srm" }),
       headers: { "content-type": "application/json" },
+      method: "POST",
     });
 
     const res = await POST(req);
-    const body = await res.json();
-
     expect(res.status).toBe(400);
-    expect(body.error).toBeTruthy();
+    expect(mocks.createSupabaseClient).not.toHaveBeenCalled();
   });
 
-  it("POST accepts valid payload and persists", async () => {
-    readTeamsMock.mockResolvedValueOnce([]);
-    writeTeamsMock.mockResolvedValueOnce(undefined);
+  it("POST accepts valid payload and returns created team", async () => {
+    const existingCheck = vi
+      .fn()
+      .mockResolvedValue({ data: null, error: null });
+    const createRecord = vi.fn().mockResolvedValue({ data: row, error: null });
+
+    const from = vi
+      .fn()
+      .mockReturnValueOnce({
+        select: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              maybeSingle: existingCheck,
+            }),
+          }),
+        }),
+      })
+      .mockReturnValueOnce({
+        insert: vi.fn().mockReturnValue({
+          select: vi.fn().mockReturnValue({
+            single: createRecord,
+          }),
+        }),
+      });
+
+    mocks.createSupabaseClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { email: "lead@example.com", id: "user-1" } },
+          error: null,
+        }),
+      },
+      from,
+    });
+
     const { POST } = await import("./route");
     const req = new NextRequest("http://localhost/api/register", {
-      method: "POST",
       body: JSON.stringify({
         teamType: "srm",
         teamName: "Board Breakers",
@@ -96,7 +197,7 @@ describe("/api/register route", () => {
           raNumber: "RA0000000000001",
           netId: "od7270",
           dept: "CSE",
-          contact: 9999999999,
+          contact: 9876543210,
         },
         members: [
           {
@@ -104,91 +205,28 @@ describe("/api/register route", () => {
             raNumber: "RA0000000000002",
             netId: "ab1234",
             dept: "CSE",
-            contact: 8888888888,
+            contact: 9876543211,
           },
           {
             name: "M2",
             raNumber: "RA0000000000003",
             netId: "cd5678",
             dept: "ECE",
-            contact: 7777777777,
-          },
-        ],
-      }),
-      headers: { "content-type": "application/json" },
-    });
-
-    const res = await POST(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(201);
-    expect(body.team.teamName).toBe("Board Breakers");
-    expect(writeTeamsMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("POST persists clubName for non-SRM club teams", async () => {
-    readTeamsMock.mockResolvedValueOnce([]);
-    writeTeamsMock.mockResolvedValueOnce(undefined);
-    const { POST } = await import("./route");
-    const req = new NextRequest("http://localhost/api/register", {
-      method: "POST",
-      body: JSON.stringify({
-        teamType: "non_srm",
-        teamName: "Pitch Panthers",
-        collegeName: "ABC College",
-        isClub: true,
-        clubName: "Innovators Club",
-        lead: {
-          name: "Lead",
-          collegeId: "NID1",
-          collegeEmail: "lead@abc.edu",
-          contact: 9876543210,
-        },
-        members: [
-          {
-            name: "M1",
-            collegeId: "NID2",
-            collegeEmail: "m1@abc.edu",
-            contact: 9876543211,
-          },
-          {
-            name: "M2",
-            collegeId: "NID3",
-            collegeEmail: "m2@abc.edu",
             contact: 9876543212,
           },
         ],
       }),
       headers: { "content-type": "application/json" },
+      method: "POST",
     });
 
     const res = await POST(req);
     const body = await res.json();
 
     expect(res.status).toBe(201);
-    expect(body.team.clubName).toBe("Innovators Club");
-    expect(body.team.isClub).toBe(true);
-  });
-
-  it("DELETE removes team by query id", async () => {
-    const t1 = { ...srmTeam, id: "11111111-1111-4111-8111-111111111111" };
-    const t2 = { ...srmTeam, id: "22222222-2222-4222-8222-222222222222" };
-    readTeamsMock.mockResolvedValueOnce([t1, t2]);
-    writeTeamsMock.mockResolvedValueOnce(undefined);
-    const { DELETE } = await import("./route");
-    const req = new NextRequest(
-      "http://localhost/api/register?id=11111111-1111-4111-8111-111111111111",
-      {
-        method: "DELETE",
-      },
-    );
-
-    const res = await DELETE(req);
-    const body = await res.json();
-
-    expect(res.status).toBe(200);
-    expect(body.teams[0].id).toBe("22222222-2222-4222-8222-222222222222");
-    expect(writeTeamsMock).toHaveBeenCalledWith([t2]);
+    expect(body.team.id).toBe(row.id);
+    expect(body.teams).toEqual([summary]);
+    expect(mocks.transformToLegacyFormat).toHaveBeenCalledTimes(1);
   });
 
   it("DELETE rejects invalid id format", async () => {

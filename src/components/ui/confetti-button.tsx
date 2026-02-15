@@ -1,9 +1,22 @@
 "use client";
 
-import type { ReactNode } from "react";
-import React, { createContext, forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
-import type { GlobalOptions as ConfettiGlobalOptions, CreateTypes as ConfettiInstance, Options as ConfettiOptions } from "canvas-confetti";
+import type {
+  GlobalOptions as ConfettiGlobalOptions,
+  CreateTypes as ConfettiInstance,
+  Options as ConfettiOptions,
+} from "canvas-confetti";
 import confetti from "canvas-confetti";
+import type React from "react";
+import type { ReactNode } from "react";
+import {
+  createContext,
+  forwardRef,
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 
@@ -23,7 +36,13 @@ export type ConfettiRef = Api | null;
 const ConfettiContext = createContext<Api>({} as Api);
 
 const ConfettiComponent = forwardRef<ConfettiRef, Props>((props, ref) => {
-  const { options, globalOptions = { resize: true, useWorker: true }, manualstart = false, children, ...rest } = props;
+  const {
+    options,
+    globalOptions = { resize: true, useWorker: true },
+    manualstart = false,
+    children,
+    ...rest
+  } = props;
   const instanceRef = useRef<ConfettiInstance | null>(null);
 
   const canvasRef = useCallback(
@@ -89,10 +108,15 @@ ConfettiComponent.displayName = "Confetti";
 export const Confetti = ConfettiComponent;
 
 interface ConfettiButtonProps extends React.ComponentProps<"button"> {
-  options?: ConfettiOptions & ConfettiGlobalOptions & { canvas?: HTMLCanvasElement };
+  options?: ConfettiOptions &
+    ConfettiGlobalOptions & { canvas?: HTMLCanvasElement };
 }
 
-const ConfettiButtonComponent = ({ options, children, ...props }: ConfettiButtonProps) => {
+const ConfettiButtonComponent = ({
+  options,
+  children,
+  ...props
+}: ConfettiButtonProps) => {
   const handleClick = async (event: React.MouseEvent<HTMLButtonElement>) => {
     try {
       const rect = event.currentTarget.getBoundingClientRect();

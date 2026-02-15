@@ -1,5 +1,6 @@
 "use client";
 
+import { PlusIcon, Trash2, UserRoundPen } from "lucide-react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -13,7 +14,6 @@ import {
   type TeamRecord,
   teamSubmissionSchema,
 } from "@/lib/register-schema";
-import { PlusIcon, Trash2, UserRoundPen } from "lucide-react";
 
 type TeamType = "srm" | "non_srm";
 

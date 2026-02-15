@@ -11,13 +11,19 @@ export default function ProblemStatementsPage() {
   const releaseDate = useMemo(() => PROBLEM_STATEMENT_RELEASE_DATE, []);
 
   useEffect(() => {
-    const id = window.setInterval(() => setTime(getProblemReleaseCountdown()), 1000);
+    const id = window.setInterval(
+      () => setTime(getProblemReleaseCountdown()),
+      1000,
+    );
     return () => clearInterval(id);
   }, []);
 
   return (
     <main className="min-h-screen bg-gray-200 text-foreground relative overflow-hidden">
-      <div className="absolute inset-0 opacity-35 pointer-events-none" style={{ backgroundImage: "url(/textures/circle-16px.svg)" }} />
+      <div
+        className="absolute inset-0 opacity-35 pointer-events-none"
+        style={{ backgroundImage: "url(/textures/circle-16px.svg)" }}
+      />
       <div className="absolute -top-28 -right-16 size-96 rounded-full bg-fnblue/25 blur-3xl pointer-events-none" />
       <div className="absolute -bottom-28 -left-16 size-112 rounded-full bg-fnyellow/25 blur-3xl pointer-events-none" />
 
@@ -34,9 +40,12 @@ export default function ProblemStatementsPage() {
             <p className="inline-flex rounded-full border border-fnblue/35 bg-fnblue/10 px-3 text-xs font-bold uppercase tracking-[0.2em] text-fnblue">
               Problem Statements
             </p>
-            <h1 className="mt-4 text-5xl md:text-7xl font-black uppercase tracking-tight leading-none text-balance">release countdown</h1>
+            <h1 className="mt-4 text-5xl md:text-7xl font-black uppercase tracking-tight leading-none text-balance">
+              release countdown
+            </h1>
             <p className="mt-3 text-foreground/75 max-w-2xl">
-              The board opens when the timer hits zero. Claims are first-come, first-serve until each statement cap is reached.
+              The board opens when the timer hits zero. Claims are first-come,
+              first-serve until each statement cap is reached.
             </p>
 
             <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -53,15 +62,23 @@ export default function ProblemStatementsPage() {
                   <p className="text-6xl md:text-8xl font-black leading-none text-fnblue drop-shadow-[0_0_10px_rgba(59,130,246,0.18)]">
                     {item.value}
                   </p>
-                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground/70">{item.label}</p>
+                  <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground/70">
+                    {item.label}
+                  </p>
                 </div>
               ))}
             </div>
 
             <div className="mt-6 rounded-xl border border-fnblue/20 bg-fnblue/10 p-4">
-              <p className="text-xs uppercase tracking-[0.18em] text-fnblue font-semibold">Release Time</p>
-              <p className="mt-1 text-lg md:text-xl font-bold">{releaseDate.toLocaleString("en-IN", { timeZoneName: "short" })}</p>
-              <p className="text-sm text-foreground/70">UTC: {releaseDate.toUTCString()}</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-fnblue font-semibold">
+                Release Time
+              </p>
+              <p className="mt-1 text-lg md:text-xl font-bold">
+                {releaseDate.toLocaleString("en-IN", { timeZoneName: "short" })}
+              </p>
+              <p className="text-sm text-foreground/70">
+                UTC: {releaseDate.toUTCString()}
+              </p>
             </div>
 
             <div className="mt-8 flex flex-wrap gap-3">

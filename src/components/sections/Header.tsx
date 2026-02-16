@@ -1,25 +1,31 @@
 "use client";
 
-import { User } from "lucide-react";
+import { LogOut, User } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FnButton } from "@/components/ui/fn-button";
 import { LineShadowText } from "@/components/ui/line-shadow-text";
 import { createClient } from "@/utils/supabase/client";
 import { ConfettiButton } from "../ui/confetti-button";
 
+const navLinks = [
+  { href: "/#overview", label: "Overview" },
+  { href: "/#rules", label: "Rules" },
+  { href: "/#release", label: "Release" },
+  { href: "/#champion", label: "Goodies" },
+];
+
 const Header = () => {
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [teamId, setTeamId] = useState<string | null>(null);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const isRegistered = Boolean(teamId);
-
-  const navLinks = [
-    { href: "/#overview", label: "Overview" },
-    { href: "/#rules", label: "Rules" },
-    { href: "/#release", label: "Release" },
-    { href: "/#champion", label: "Goodies" },
-  ];
 
   const handleIsRegistered = useCallback(async () => {
     try {
@@ -40,8 +46,55 @@ const Header = () => {
     }
   }, []);
 
+  const handleLogout = useCallback(async () => {
+    if (isLoggingOut) {
+      return;
+    }
+
+    setIsLoggingOut(true);
+    setIsAccountMenuOpen(false);
+
+    try {
+      const [clientLogoutResult, serverLogoutResult] = await Promise.allSettled(
+        [
+          supabase.auth.signOut(),
+          fetch("/api/auth/logout", {
+            method: "POST",
+            cache: "no-store",
+          }),
+        ],
+      );
+
+      const isClientLogoutSuccessful =
+        clientLogoutResult.status === "fulfilled" &&
+        !clientLogoutResult.value.error;
+      const isServerLogoutSuccessful =
+        serverLogoutResult.status === "fulfilled" &&
+        serverLogoutResult.value.ok;
+
+      if (isClientLogoutSuccessful || isServerLogoutSuccessful) {
+        setIsSignedIn(false);
+        setTeamId(null);
+      } else {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        const signedIn = Boolean(user);
+        setIsSignedIn(signedIn);
+
+        if (signedIn) {
+          await handleIsRegistered();
+        } else {
+          setTeamId(null);
+        }
+      }
+    } finally {
+      setIsLoggingOut(false);
+      router.refresh();
+    }
+  }, [handleIsRegistered, isLoggingOut, router, supabase]);
+
   useEffect(() => {
-    const supabase = createClient();
     let isMounted = true;
 
     const syncSignedInState = async () => {
@@ -58,11 +111,13 @@ const Header = () => {
           await handleIsRegistered();
         } else {
           setTeamId(null);
+          setIsAccountMenuOpen(false);
         }
       } catch {
         if (isMounted) {
           setIsSignedIn(false);
           setTeamId(null);
+          setIsAccountMenuOpen(false);
         }
       }
     };
@@ -79,6 +134,7 @@ const Header = () => {
         void handleIsRegistered();
       } else {
         setTeamId(null);
+        setIsAccountMenuOpen(false);
       }
     });
 
@@ -86,7 +142,33 @@ const Header = () => {
       isMounted = false;
       subscription.unsubscribe();
     };
-  }, [handleIsRegistered]);
+  }, [handleIsRegistered, supabase]);
+
+  useEffect(() => {
+    if (!isAccountMenuOpen) {
+      return;
+    }
+
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!accountMenuRef.current?.contains(event.target as Node)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setIsAccountMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isAccountMenuOpen]);
 
   return (
     <div className="border-b border-foreground/10 shadow-sm p-4 font-semibold sticky top-0 z-50 bg-background/60 backdrop-blur supports-backdrop-filter:bg-background/60">
@@ -147,14 +229,40 @@ const Header = () => {
               </FnButton>
             )}
             {isSignedIn ? (
-              <FnButton
-                tone={"yellow"}
-                type="button"
-                aria-label="Open account menu"
-                title="Account"
-              >
-                <User size={20} strokeWidth={3} />
-              </FnButton>
+              <div className="relative" ref={accountMenuRef}>
+                <FnButton
+                  tone={"yellow"}
+                  type="button"
+                  aria-label="Open account menu"
+                  aria-expanded={isAccountMenuOpen}
+                  aria-haspopup="menu"
+                  title="Account"
+                  disabled={isLoggingOut}
+                  onClick={() => {
+                    setIsAccountMenuOpen((prev) => !prev);
+                  }}
+                >
+                  <User size={20} strokeWidth={3} />
+                </FnButton>
+                {isAccountMenuOpen ? (
+                  <div
+                    className="absolute right-0 top-[calc(100%+0.5rem)] min-w-40 rounded-md border border-foreground/20 bg-background p-2 shadow-md"
+                    role="menu"
+                    aria-label="Account menu"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={handleLogout}
+                      disabled={isLoggingOut}
+                      className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-semibold hover:bg-foreground/10"
+                    >
+                      <LogOut size={16} />
+                      {isLoggingOut ? "Logging out..." : "Logout"}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <FnButton asChild tone="yellow">
                 <Link href="/api/auth/login">Sign In</Link>

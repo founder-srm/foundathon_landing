@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 import { Geist, Work_Sans } from "next/font/google";
 import Header from "@/components/sections/Header";
+import {
+  RouteProgressBar,
+  RouteProgressProvider,
+} from "@/components/ui/route-progress";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 // import { ThemeProvider } from "next-themes";
@@ -44,7 +48,7 @@ export default function RootLayout({
         <link rel="shortcut icon" href="/logo.svg" type="image/x-icon" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${geistSans.variable} ${geistMono.variable} antialiased scroll-smooth`}
       >
         {/* <ThemeProvider
           attribute="class"
@@ -52,9 +56,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         > */}
-        <Header />
-        {children}
-        <Toaster />
+        <RouteProgressProvider>
+          <Header />
+          <RouteProgressBar />
+          {children}
+          <Toaster />
+        </RouteProgressProvider>
         {/* </ThemeProvider> */}
       </body>
     </html>

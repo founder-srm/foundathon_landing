@@ -62,6 +62,14 @@
       background-position: 100% -100%;
     }
   }
+  @keyframes route-progress {
+    0% {
+      transform: translateX(-120%);
+    }
+    100% {
+      transform: translateX(420%);
+    }
+  }
 }
 
 :root {

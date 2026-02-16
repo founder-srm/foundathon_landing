@@ -6,9 +6,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FnButton } from "@/components/ui/fn-button";
-import { isTeamCreatedEventDetail, TEAM_CREATED_EVENT } from "@/lib/team-ui-events";
 import { LineShadowText } from "@/components/ui/line-shadow-text";
 import SignInRequiredModal from "@/components/ui/sign-in-required-modal";
+import {
+  isTeamCreatedEventDetail,
+  TEAM_CREATED_EVENT,
+} from "@/lib/team-ui-events";
 import { ConfettiButton } from "../ui/confetti-button";
 
 type HeaderClientProps = {
@@ -69,7 +72,8 @@ const HeaderClient = ({
     };
 
     window.addEventListener(TEAM_CREATED_EVENT, handleTeamCreated);
-    return () => window.removeEventListener(TEAM_CREATED_EVENT, handleTeamCreated);
+    return () =>
+      window.removeEventListener(TEAM_CREATED_EVENT, handleTeamCreated);
   }, []);
 
   useEffect(() => {
@@ -118,7 +122,7 @@ const HeaderClient = ({
               >
                 <Image
                   src="/logo.svg"
-                  alt="alt"
+                  alt="The Founders Club logo"
                   width={40}
                   height={40}
                   className="h-8 w-auto"
@@ -127,7 +131,7 @@ const HeaderClient = ({
             </ConfettiButton>
           </div>
           <Link
-            href="/#overview"
+            href="/#hero"
             className="text-xl md:text-3xl ml-2 flex items-start gap-2 font-mono uppercase font-extrabold italic"
           >
             <LineShadowText>Foundathon</LineShadowText>
@@ -146,15 +150,21 @@ const HeaderClient = ({
 
             <div className="flex items-center gap-3">
               <FnButton asChild tone="gray" className="hidden sm:inline-flex">
-                <Link href="/problem-statements">Problem Statements</Link>
+                <Link href="/problem-statements" prefetch={true}>
+                  Problem Statements
+                </Link>
               </FnButton>
               {isRegistered ? (
                 <FnButton asChild tone="blue">
-                  <Link href={`/team/${teamId}`}>Dashboard</Link>
+                  <Link href={`/team/${teamId}`} prefetch={true}>
+                    Dashboard
+                  </Link>
                 </FnButton>
               ) : isSignedIn ? (
                 <FnButton asChild tone="blue">
-                  <Link href="/register">Register Team</Link>
+                  <Link href="/register" prefetch={true}>
+                    Register Team
+                  </Link>
                 </FnButton>
               ) : (
                 <FnButton

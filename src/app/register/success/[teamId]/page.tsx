@@ -8,6 +8,20 @@ import { toast } from "@/hooks/use-toast";
 import { getProblemReleaseCountdown } from "@/lib/problem-release-countdown";
 import type { TeamRecord } from "@/lib/register-schema";
 
+const SummaryValue = ({
+  isLoading,
+  value,
+}: {
+  isLoading: boolean;
+  value: string;
+}) => {
+  if (isLoading) {
+    return <div className="mt-1 h-5 w-40 animate-pulse rounded bg-fnblue/25" />;
+  }
+
+  return <p className="mt-1 text-sm font-bold md:text-base">{value}</p>;
+};
+
 export default function RegistrationSuccessPage() {
   const params = useParams<{ teamId: string }>();
   const [time, setTime] = useState(() => getProblemReleaseCountdown());
@@ -121,31 +135,30 @@ export default function RegistrationSuccessPage() {
               <p className="text-xs uppercase tracking-[0.18em] font-semibold text-fnblue">
                 Team Name
               </p>
-              <p className="text-sm md:text-base font-bold mt-1">
-                {isLoading ? "Loading..." : (team?.teamName ?? "N/A")}
-              </p>
+              <SummaryValue
+                isLoading={isLoading}
+                value={team?.teamName ?? "N/A"}
+              />
             </div>
 
             <div className="mt-4 rounded-xl border border-fnblue/25 bg-fnblue/10 p-4">
               <p className="text-xs uppercase tracking-[0.18em] font-semibold text-fnblue">
                 Lead Name
               </p>
-              <p className="text-sm md:text-base font-bold mt-1">
-                {isLoading ? "Loading..." : (team?.lead.name ?? "N/A")}
-              </p>
+              <SummaryValue
+                isLoading={isLoading}
+                value={team?.lead.name ?? "N/A"}
+              />
             </div>
 
             <div className="mt-4 rounded-xl border border-fnblue/25 bg-fnblue/10 p-4">
               <p className="text-xs uppercase tracking-[0.18em] font-semibold text-fnblue">
                 Total Members
               </p>
-              <p className="text-sm md:text-base font-bold mt-1">
-                {isLoading
-                  ? "Loading..."
-                  : team
-                    ? team.members.length + 1
-                    : "N/A"}
-              </p>
+              <SummaryValue
+                isLoading={isLoading}
+                value={team ? `${team.members.length + 1}` : "N/A"}
+              />
             </div>
 
             <div className="mt-6 rounded-xl border border-fnblue/25 bg-fnblue/10 p-4">

@@ -18,7 +18,7 @@ const Hero = async () => {
 
   return (
     <section
-      id="overview"
+      id="hero"
       className="bg-gray-200 text-foreground font-mono relative overflow-hidden border-b border-foreground/10 scroll-mt-10"
     >
       <div

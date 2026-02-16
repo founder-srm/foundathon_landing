@@ -4,9 +4,16 @@ import { PlusIcon, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FnButton } from "@/components/ui/fn-button";
+import { useRouteProgress } from "@/components/ui/route-progress";
 import { toast } from "@/hooks/use-toast";
+import {
+  type NonSrmMember,
+  nonSrmMemberSchema,
+  type SrmMember,
+  srmMemberSchema,
+  teamSubmissionSchema,
+} from "@/lib/register-schema";
 import { dispatchTeamCreatedEvent } from "@/lib/team-ui-events";
-import { type NonSrmMember, nonSrmMemberSchema, type SrmMember, srmMemberSchema, teamSubmissionSchema } from "@/lib/register-schema";
 
 type TeamType = "srm" | "non_srm";
 
@@ -52,6 +59,7 @@ const emptyNonSrmMeta = (): NonSrmMeta => ({
 
 const Register = () => {
   const router = useRouter();
+  const { start: startRouteProgress } = useRouteProgress();
   const [teamType, setTeamType] = useState<TeamType>("srm");
   const [teamName, setTeamName] = useState("");
 
@@ -69,6 +77,7 @@ const Register = () => {
   const [teams, setTeams] = useState<TeamSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const currentMembers = teamType === "srm" ? membersSrm : membersNonSrm;
   const currentLead = teamType === "srm" ? leadSrm : leadNonSrm;
@@ -180,8 +189,7 @@ const Register = () => {
 
     toast({
       title: "Member Added to Draft",
-      description:
-        "Member is added successfully.",
+      description: "Member is added successfully.",
       variant: "success",
     });
   };
@@ -246,6 +254,8 @@ const Register = () => {
     }
 
     setIsSubmitting(true);
+    setIsRedirecting(false);
+    let isNavigating = false;
     try {
       const res = await fetch("/api/register", {
         method: "POST",
@@ -281,8 +291,12 @@ const Register = () => {
 
       setTeams(teamSummaries);
       dispatchTeamCreatedEvent(data.team.id);
+      setIsRedirecting(true);
+      isNavigating = true;
+      startRouteProgress();
       router.push(`/register/success/${data.team.id}`);
     } catch {
+      setIsRedirecting(false);
       toast({
         title: "Save Request Failed",
         description:
@@ -290,7 +304,9 @@ const Register = () => {
         variant: "destructive",
       });
     } finally {
-      setIsSubmitting(false);
+      if (!isNavigating) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -376,7 +392,9 @@ const Register = () => {
                 Team Type
               </p>
               <label className="block">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-foreground/70 font-semibold mb-2">Select Team Category</p>
+                <p className="text-[11px] uppercase tracking-[0.2em] text-foreground/70 font-semibold mb-2">
+                  Select Team Category
+                </p>
                 <div className="flex gap-2">
                   <button
                     type="button"
@@ -405,8 +423,14 @@ const Register = () => {
             </div>
 
             <div className="mt-6 rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 md:p-5 shadow-sm">
-              <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] mb-3 text-fnblue">Team Identity</p>
-              <Input label="Team Name" value={teamName} onChange={setTeamName} />
+              <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] mb-3 text-fnblue">
+                Team Identity
+              </p>
+              <Input
+                label="Team Name"
+                value={teamName}
+                onChange={setTeamName}
+              />
             </div>
 
             {teamType === "non_srm" && (
@@ -496,11 +520,23 @@ const Register = () => {
             </p>
 
             <div className="mt-6 flex flex-wrap gap-3">
-              <FnButton type="button" onClick={clearCurrentTeam} tone="gray">
+              <FnButton
+                type="button"
+                onClick={clearCurrentTeam}
+                tone="gray"
+                disabled={isSubmitting || isRedirecting}
+              >
                 Clear
               </FnButton>
-              <FnButton type="button" onClick={submitTeam} disabled={!canSubmit || isSubmitting} className="cursor-pointer">
-                {isSubmitting ? "Saving..." : "Create Team"}
+              <FnButton
+                type="button"
+                onClick={submitTeam}
+                disabled={!canSubmit || isSubmitting || isRedirecting}
+                loading={isSubmitting || isRedirecting}
+                loadingText={isRedirecting ? "Redirecting..." : "Saving..."}
+                className="cursor-pointer"
+              >
+                Create Team
               </FnButton>
             </div>
           </section>
@@ -513,6 +549,11 @@ const Register = () => {
               <h3 className="text-2xl font-black uppercase tracking-tight mt-2">
                 live progress
               </h3>
+              <p className="mt-1 text-xs text-foreground/60">
+                {isLoading
+                  ? "Syncing your saved registrations..."
+                  : "Saved registration status is up to date."}
+              </p>
               <div className="mt-4 space-y-3">
                 <div className="rounded-lg border border-foreground/20 bg-linear-to-r from-foreground/8 to-foreground/4 p-3 flex justify-between items-center">
                   <p className="text-[10px] uppercase text-foreground/80 tracking-[0.18em] font-semibold">
@@ -547,7 +588,7 @@ const Register = () => {
                 />
                 <StatusLine
                   label="Saved Teams"
-                  value={`${teams.length}`}
+                  value={isLoading ? "Loading..." : `${teams.length}`}
                   tone="red"
                 />
               </div>
@@ -689,8 +730,17 @@ const MemberDraftCard = ({
 }) => (
   <div className="mt-6 rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 md:p-5 shadow-sm">
     <div className="flex items-center justify-between gap-3 mb-3 h-13">
-      <p className="text-base font-bold uppercase tracking-[0.08em]">Add Member Individually</p>
-      <FnButton type="button" onClick={onAdd} disabled={!canAddMember} tone="green" size="sm" className="cursor-pointer">
+      <p className="text-base font-bold uppercase tracking-[0.08em]">
+        Add Member Individually
+      </p>
+      <FnButton
+        type="button"
+        onClick={onAdd}
+        disabled={!canAddMember}
+        tone="green"
+        size="sm"
+        className="cursor-pointer"
+      >
         <PlusIcon size={16} strokeWidth={3} />
         Add Member
       </FnButton>
@@ -713,7 +763,16 @@ type InputProps = {
   pattern?: string;
 };
 
-const Input = ({ label, value, onChange, type = "text", required = false, minLength, maxLength, pattern }: InputProps) => (
+const Input = ({
+  label,
+  value,
+  onChange,
+  type = "text",
+  required = false,
+  minLength,
+  maxLength,
+  pattern,
+}: InputProps) => (
   <label className="block">
     <p className="text-xs uppercase tracking-[0.2em] text-foreground/70 font-semibold mb-1">
       {label}
@@ -802,10 +861,34 @@ const NonSrmMemberEditor = ({
       {title}
     </p>
     <div className="grid gap-3 md:grid-cols-2">
-      <Input label="Name" value={member.name} onChange={(v) => onChange("name", v)} required minLength={2} maxLength={100} />
-      <Input label="College ID Number" value={member.collegeId} onChange={(v) => onChange("collegeId", v)} required minLength={3} maxLength={50} />
-      <Input label="College Email" value={member.collegeEmail} onChange={(v) => onChange("collegeEmail", v)} type="email" required />
-      <NumberInput label="Contact" value={member.contact} onChange={(v) => onChange("contact", v)} />
+      <Input
+        label="Name"
+        value={member.name}
+        onChange={(v) => onChange("name", v)}
+        required
+        minLength={2}
+        maxLength={100}
+      />
+      <Input
+        label="College ID Number"
+        value={member.collegeId}
+        onChange={(v) => onChange("collegeId", v)}
+        required
+        minLength={3}
+        maxLength={50}
+      />
+      <Input
+        label="College Email"
+        value={member.collegeEmail}
+        onChange={(v) => onChange("collegeEmail", v)}
+        type="email"
+        required
+      />
+      <NumberInput
+        label="Contact"
+        value={member.contact}
+        onChange={(v) => onChange("contact", v)}
+      />
     </div>
   </div>
 );

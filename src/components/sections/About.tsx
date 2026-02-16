@@ -33,7 +33,7 @@ const About = () => {
   }, []);
 
   return (
-    <section className="bg-background text-foreground font-mono relative">
+    <section className="bg-background text-foreground font-mono relative scroll-auto" id="overview">
       <div className="fncontainer relative py-20 md:py-24 space-y-16">
         <div className="space-y-5 text-center max-w-4xl mx-auto">
           <p className="rounded-full inline-flex px-3 uppercase font-bold tracking-wide bg-fngreen/20 text-fngreen border-2 border-fngreen">

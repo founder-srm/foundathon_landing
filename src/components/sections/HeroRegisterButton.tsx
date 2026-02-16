@@ -28,14 +28,14 @@ const HeroRegisterButton = ({
     <>
       {isRegistered ? (
         <FnButton asChild tone="red" size="lg">
-          <Link href={`/team/${initialTeamId}`}>
+          <Link href={`/team/${initialTeamId}`} prefetch={true}>
             Dashboard
             <ArrowRight />
           </Link>
         </FnButton>
       ) : initialIsSignedIn ? (
         <FnButton asChild tone="red" size="lg">
-          <Link href="/register">
+          <Link href="/register" prefetch={true}>
             {label}
             <ArrowRight />
           </Link>

@@ -18,6 +18,17 @@ type TeamSummary = {
   createdAt: string;
 };
 
+type RegistrationRow = {
+  id: string;
+  created_at: string;
+  details: {
+    teamName?: string;
+    teamType?: string;
+    lead?: { name?: string } | null;
+    members?: unknown[] | null;
+  } | null;
+};
+
 const isJsonRequest = (request: NextRequest) =>
   request.headers.get("content-type")?.includes("application/json");
 
@@ -30,29 +41,40 @@ const parseRequestJson = async (request: NextRequest): Promise<unknown> => {
 };
 
 async function createSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error("Supabase environment variables are not set.");
+  }
+
   const cookieStore = await cookies();
 
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return cookieStore.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            cookieStore.set(name, value, options);
-          });
-        },
+  return createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return cookieStore.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value, options }) => {
+          cookieStore.set(name, value, options);
+        });
       },
     },
-  );
+  });
 }
 
-function toTeamSummary(row: any): TeamSummary {
+function toTeamSummary(row: RegistrationRow): TeamSummary {
   const details = row.details ?? {};
-  const memberCount = row.details.members.length + 1; // +1 for lead
+  const members = Array.isArray(details.members) ? details.members : [];
+  const memberCount = members.length + 1; // +1 for lead
+  const leadName =
+    details.lead &&
+    typeof details.lead === "object" &&
+    typeof details.lead.name === "string" &&
+    details.lead.name.trim().length > 0
+      ? details.lead.name
+      : "Unknown Lead";
 
   return {
     id: row.id,
@@ -61,11 +83,7 @@ function toTeamSummary(row: any): TeamSummary {
         ? details.teamName
         : "Unnamed Team",
     teamType: details.teamType === "non_srm" ? "non_srm" : "srm",
-    leadName:
-      typeof details.lead.name === "string" &&
-      details.lead.name.trim().length > 0
-        ? details.lead.name
-        : "Unknown Lead",
+    leadName,
     memberCount: Math.max(memberCount, 1),
     createdAt: row.created_at,
   };

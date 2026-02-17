@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Work_Sans } from "next/font/google";
+import { Suspense } from "react";
 import Header from "@/components/sections/Header";
 import {
   RouteProgressBar,
@@ -20,6 +21,7 @@ const geistMono = Work_Sans({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://foundthon.thefoundersclub.tech"),
   title: "Foundathon 3.0 - The Founders Club",
   description:
     "Foundathon 3.0 is a three-day innovation marathon featuring a dual-stage competitive structure. Participants tackle specific challenges curated by industry partners, with track winners earning direct recognition from the respective organization. These track champions then advance to a grand finale to compete for the ultimate cash prize.",
@@ -56,12 +58,14 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         > */}
-        <RouteProgressProvider>
-          <Header />
-          <RouteProgressBar />
-          {children}
-          <Toaster />
-        </RouteProgressProvider>
+        <Suspense fallback={null}>
+          <RouteProgressProvider>
+            <Header />
+            <RouteProgressBar />
+            {children}
+            <Toaster />
+          </RouteProgressProvider>
+        </Suspense>
         {/* </ThemeProvider> */}
       </body>
     </html>

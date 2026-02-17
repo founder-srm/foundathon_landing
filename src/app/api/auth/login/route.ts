@@ -6,7 +6,7 @@ export async function GET() {
   const url =
     process.env.NODE_ENV === "development"
       ? "http://localhost:3000"
-      : "https://foundathon.thefoundersclub.tech/";
+      : "https://foundathon.thefoundersclub.tech";
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

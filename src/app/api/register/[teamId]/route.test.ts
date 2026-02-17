@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   createSupabaseClient: vi.fn(),
   getSupabaseCredentials: vi.fn(),
   toTeamRecord: vi.fn(),
+  withSrmEmailNetIds: vi.fn(),
 }));
 
 vi.mock("@/lib/register-api", () => ({
@@ -13,6 +14,7 @@ vi.mock("@/lib/register-api", () => ({
   getSupabaseCredentials: mocks.getSupabaseCredentials,
   JSON_HEADERS: { "Cache-Control": "no-store" },
   toTeamRecord: mocks.toTeamRecord,
+  withSrmEmailNetIds: mocks.withSrmEmailNetIds,
   UUID_PATTERN:
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
 }));
@@ -67,12 +69,14 @@ describe("/api/register/[teamId] route", () => {
     mocks.createSupabaseClient.mockReset();
     mocks.getSupabaseCredentials.mockReset();
     mocks.toTeamRecord.mockReset();
+    mocks.withSrmEmailNetIds.mockReset();
 
     mocks.getSupabaseCredentials.mockReturnValue({
       anonKey: "anon",
       url: "http://localhost",
     });
     mocks.toTeamRecord.mockReturnValue(srmRecord);
+    mocks.withSrmEmailNetIds.mockImplementation((payload) => payload);
   });
 
   it("GET returns team when id exists", async () => {

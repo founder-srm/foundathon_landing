@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   toTeamRecord: vi.fn(),
   toTeamSummary: vi.fn(),
   transformToLegacyFormat: vi.fn(),
+  withSrmEmailNetIds: vi.fn(),
 }));
 
 vi.mock("@/lib/register-api", () => ({
@@ -17,6 +18,7 @@ vi.mock("@/lib/register-api", () => ({
   toTeamRecord: mocks.toTeamRecord,
   toTeamSummary: mocks.toTeamSummary,
   transformToLegacyFormat: mocks.transformToLegacyFormat,
+  withSrmEmailNetIds: mocks.withSrmEmailNetIds,
   UUID_PATTERN:
     /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i,
 }));
@@ -77,6 +79,7 @@ describe("/api/register route", () => {
     mocks.toTeamRecord.mockReset();
     mocks.toTeamSummary.mockReset();
     mocks.transformToLegacyFormat.mockReset();
+    mocks.withSrmEmailNetIds.mockReset();
 
     mocks.getSupabaseCredentials.mockReturnValue({
       anonKey: "anon",
@@ -87,6 +90,7 @@ describe("/api/register route", () => {
     mocks.transformToLegacyFormat.mockImplementation((payload) => ({
       payload,
     }));
+    mocks.withSrmEmailNetIds.mockImplementation((payload) => payload);
   });
 
   it("GET returns 401 for unauthenticated users", async () => {

@@ -7,6 +7,7 @@ import {
   type RegistrationRow,
   toTeamRecord,
   UUID_PATTERN,
+  withSrmEmailNetIds,
 } from "@/lib/register-api";
 import { teamSubmissionSchema } from "@/lib/register-schema";
 
@@ -152,7 +153,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   const { data, error } = await supabase
     .from("eventsregistrations")
-    .update({ details: parsed.data })
+    .update({ details: withSrmEmailNetIds(parsed.data) })
     .eq("id", teamId)
     .eq("event_id", EVENT_ID)
     .eq("application_id", user.id)

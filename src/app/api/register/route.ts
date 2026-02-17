@@ -1,12 +1,13 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { type NextRequest, NextResponse } from "next/server";
+import { withSrmEmailNetIds } from "@/lib/register-api";
 import { teamSubmissionSchema } from "@/lib/register-schema";
 
 const JSON_HEADERS = { "Cache-Control": "no-store" };
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const EVENT_ID = '583a3b40-da9d-412a-a266-cc7e64330b16';
+const EVENT_ID = "583a3b40-da9d-412a-a266-cc7e64330b16";
 
 type TeamSummary = {
   id: string;
@@ -45,7 +46,7 @@ async function createSupabaseClient() {
           });
         },
       },
-    }
+    },
   );
 }
 
@@ -66,7 +67,7 @@ function toTeamSummary(row: any): TeamSummary {
         ? details.lead.name
         : "Unknown Lead",
     memberCount: Math.max(memberCount, 1),
-    createdAt: row.created_at
+    createdAt: row.created_at,
   };
 }
 
@@ -97,9 +98,7 @@ export async function GET() {
       { status: 500, headers: JSON_HEADERS },
     );
   }
-  const teams = (data ?? []).map((row) =>
-    toTeamSummary(row),
-  );
+  const teams = (data ?? []).map((row) => toTeamSummary(row));
   console.log("Fetched registrations:", teams);
   return NextResponse.json({ teams }, { headers: JSON_HEADERS });
 }
@@ -162,7 +161,7 @@ export async function POST(request: NextRequest) {
         event_id: EVENT_ID,
         event_title: "Foundathon 3.0",
         application_id: user.id,
-        details: parsed.data,
+        details: withSrmEmailNetIds(parsed.data),
         registration_email: user.email,
         is_team_entry: true,
       },
@@ -251,8 +250,6 @@ export async function DELETE(request: NextRequest) {
     );
   }
 
-  const teams = (data ?? []).map((row) =>
-    toTeamSummary(row),
-  );
+  const teams = (data ?? []).map((row) => toTeamSummary(row));
   return NextResponse.json({ teams }, { headers: JSON_HEADERS });
 }

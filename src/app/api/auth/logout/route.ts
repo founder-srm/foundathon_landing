@@ -8,14 +8,17 @@ const signOutUser = async () => {
   await supabase.auth.signOut();
 };
 
-export async function GET(request: Request) {
-  await signOutUser();
-
+const redirectToRoot = (request: Request) => {
   const { origin } = new URL(request.url);
   return NextResponse.redirect(`${origin}/`, { status: 303 });
+};
+
+export async function GET(request: Request) {
+  await signOutUser();
+  return redirectToRoot(request);
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   await signOutUser();
-  return NextResponse.json({ ok: true });
+  return redirectToRoot(request);
 }

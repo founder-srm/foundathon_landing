@@ -2,6 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import {
   type TeamRecord,
+  type TeamSubmission,
   teamSubmissionSchema,
 } from "@/lib/register-schema";
 
@@ -9,6 +10,7 @@ export const JSON_HEADERS = { "Cache-Control": "no-store" };
 export const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 export const EVENT_ID = "583a3b40-da9d-412a-a266-cc7e64330b16";
+export const SRM_EMAIL_DOMAIN = "@srmist.edu.in";
 
 export type TeamSummary = {
   id: string;
@@ -63,11 +65,80 @@ export async function createSupabaseClient({
   });
 }
 
+const toSrmLocalNetId = (netId: string) => {
+  const normalized = netId.trim().toLowerCase();
+  return normalized.endsWith(SRM_EMAIL_DOMAIN)
+    ? normalized.slice(0, -SRM_EMAIL_DOMAIN.length)
+    : normalized;
+};
 
+export const toSrmEmailNetId = (netId: string) => {
+  const normalized = netId.trim().toLowerCase();
+  return normalized.endsWith(SRM_EMAIL_DOMAIN)
+    ? normalized
+    : `${normalized}${SRM_EMAIL_DOMAIN}`;
+};
+
+const normalizeSrmDetailsForSchema = (details: Record<string, unknown>) => {
+  if (details.teamType !== "srm") {
+    return details;
+  }
+
+  const lead =
+    details.lead && typeof details.lead === "object"
+      ? (details.lead as Record<string, unknown>)
+      : null;
+  const members = Array.isArray(details.members) ? details.members : [];
+
+  return {
+    ...details,
+    lead: lead
+      ? {
+          ...lead,
+          netId:
+            typeof lead.netId === "string"
+              ? toSrmLocalNetId(lead.netId)
+              : lead.netId,
+        }
+      : details.lead,
+    members: members.map((member) => {
+      if (!member || typeof member !== "object") {
+        return member;
+      }
+
+      const srmMember = member as Record<string, unknown>;
+      return {
+        ...srmMember,
+        netId:
+          typeof srmMember.netId === "string"
+            ? toSrmLocalNetId(srmMember.netId)
+            : srmMember.netId,
+      };
+    }),
+  };
+};
+
+export const withSrmEmailNetIds = (
+  submission: TeamSubmission,
+): TeamSubmission =>
+  submission.teamType === "srm"
+    ? {
+        ...submission,
+        lead: {
+          ...submission.lead,
+          netId: toSrmEmailNetId(submission.lead.netId),
+        },
+        members: submission.members.map((member) => ({
+          ...member,
+          netId: toSrmEmailNetId(member.netId),
+        })),
+      }
+    : submission;
 
 export function toTeamSummary(row: RegistrationRow): TeamSummary {
   const details = row.details ?? {};
-  const parsed = teamSubmissionSchema.safeParse(details);
+  const normalized = normalizeSrmDetailsForSchema(details);
+  const parsed = teamSubmissionSchema.safeParse(normalized);
 
   if (!parsed.success) {
     return {
@@ -95,7 +166,8 @@ export function toTeamSummary(row: RegistrationRow): TeamSummary {
 
 export function toTeamRecord(row: RegistrationRow): TeamRecord | null {
   const details = row.details ?? {};
-  const parsed = teamSubmissionSchema.safeParse(details);
+  const normalized = normalizeSrmDetailsForSchema(details);
+  const parsed = teamSubmissionSchema.safeParse(normalized);
 
   if (!parsed.success) {
     return null;

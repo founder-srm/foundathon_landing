@@ -1,4 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
+import { Loader2 } from "lucide-react";
 import { Slot } from "radix-ui";
 import type * as React from "react";
 import { cn } from "@/lib/utils";
@@ -43,22 +44,41 @@ const fnButtonVariants = cva(
 type FnButtonProps = React.ComponentProps<"button"> &
   VariantProps<typeof fnButtonVariants> & {
     asChild?: boolean;
+    loading?: boolean;
+    loadingText?: string;
   };
 
 function FnButton({
+  children,
   className,
   tone,
   kind,
   size,
   asChild = false,
+  loading = false,
+  loadingText,
+  disabled,
   ...props
 }: FnButtonProps) {
   const Comp = asChild ? Slot.Root : "button";
+  const isDisabled = !asChild && (disabled || loading);
+
   return (
     <Comp
       className={cn(fnButtonVariants({ tone, kind, size }), className)}
+      aria-busy={loading || undefined}
+      disabled={isDisabled}
       {...props}
-    />
+    >
+      {loading && !asChild ? (
+        <>
+          <Loader2 size={16} className="animate-spin" />
+          {loadingText ?? "Loading..."}
+        </>
+      ) : (
+        children
+      )}
+    </Comp>
   );
 }
 

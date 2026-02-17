@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { FnButton } from "@/components/ui/fn-button";
+import { SlidingNumber } from "@/components/ui/sliding-number";
 import { PROBLEM_STATEMENT_RELEASE_DATE } from "@/data/problem-statement-release";
 import { getProblemReleaseCountdown } from "@/lib/problem-release-countdown";
 
@@ -59,9 +60,9 @@ export default function ProblemStatementsPage() {
                   key={item.label}
                   className="rounded-xl border bg-linear-to-b from-white to-gray-100 p-5 text-center shadow-lg border-b-4 border-fnblue"
                 >
-                  <p className="text-6xl md:text-8xl font-black leading-none text-fnblue drop-shadow-[0_0_10px_rgba(59,130,246,0.18)]">
-                    {item.value}
-                  </p>
+                  <div className="text-6xl md:text-8xl font-black leading-none text-fnblue drop-shadow-[0_0_10px_rgba(59,130,246,0.18)] flex justify-center">
+                    <SlidingNumber value={parseInt(item.value, 10)} padStart={true} />
+                  </div>
                   <p className="mt-2 text-xs font-semibold uppercase tracking-[0.2em] text-foreground/70">
                     {item.label}
                   </p>
@@ -73,10 +74,10 @@ export default function ProblemStatementsPage() {
               <p className="text-xs uppercase tracking-[0.18em] text-fnblue font-semibold">
                 Release Time
               </p>
-              <p className="mt-1 text-lg md:text-xl font-bold">
+              <p className="mt-1 text-lg md:text-xl font-bold" suppressHydrationWarning>
                 {releaseDate.toLocaleString("en-IN", { timeZoneName: "short" })}
               </p>
-              <p className="text-sm text-foreground/70">
+              <p className="text-sm text-foreground/70" suppressHydrationWarning>
                 UTC: {releaseDate.toUTCString()}
               </p>
             </div>

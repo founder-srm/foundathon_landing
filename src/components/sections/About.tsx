@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { PROBLEM_STATEMENT_RELEASE_DATE } from "@/data/problem-statement-release";
 import { getProblemReleaseCountdown } from "@/lib/problem-release-countdown";
+import { InView } from "../ui/in-view";
+import { SlidingNumber } from "../ui/sliding-number";
 
 const problemHighlights = [
   {
@@ -57,21 +59,31 @@ const About = () => {
         </div>
 
         <div id="rules" className="grid gap-6 md:grid-cols-3 scroll-mt-28">
-          {problemHighlights.map((item) => (
-            <div
+          {problemHighlights.map((item, key) => (
+            <InView
               key={item.title}
-              className="rounded-xl bg-gray-100 border-b-4 border-fnblue border px-6 py-7 shadow-sm"
+              variants={{
+                hidden: { opacity: 0, y: 100, filter: 'blur(4px)' },
+                visible: { opacity: 1, y: 0, filter: 'blur(0px)' },
+              }}
+              viewOptions={{ margin: '0px 0px -200px 0px' }}
+              transition={{ duration: 0.3 + (key / 10) , ease: 'easeInOut' }}
+              once
             >
-              <p className="text-xs uppercase tracking-[0.25em] text-fnblue font-bold">
-                Board Rule
-              </p>
-              <h3 className="text-2xl font-bold tracking-tight mt-3">
-                {item.title}
-              </h3>
-              <p className="mt-4 text-sm text-foreground/80 leading-relaxed">
-                {item.detail}
-              </p>
-            </div>
+              <div
+                className="rounded-xl h-full bg-gray-100 border-b-4 border-fnblue border px-6 py-7 shadow-sm"
+              >
+                <p className="text-xs uppercase tracking-[0.25em] text-fnblue font-bold">
+                  Board Rule
+                </p>
+                <h3 className="text-2xl font-bold tracking-tight mt-3">
+                  {item.title}
+                </h3>
+                <p className="mt-4 text-sm text-foreground/80 leading-relaxed">
+                  {item.detail}
+                </p>
+              </div>
+            </InView>
           ))}
         </div>
 
@@ -104,9 +116,9 @@ const About = () => {
                 key={unit.label}
                 className="rounded-xl border bg-linear-to-b from-white to-gray-100 p-5 border-b-4 border-fnblue text-center shadow-sm"
               >
-                <p className="text-4xl md:text-5xl font-black tracking-tight text-fnblue">
-                  {unit.value}
-                </p>
+                <div className="text-4xl md:text-5xl font-black tracking-tight text-fnblue flex justify-center" suppressHydrationWarning>
+                  <SlidingNumber value={parseInt(unit.value, 10)} padStart={true} />
+                </div>
                 <p className="text-xs uppercase tracking-[0.25em] text-foreground/70 mt-2">
                   {unit.label}
                 </p>
@@ -118,10 +130,10 @@ const About = () => {
             <p className="text-sm uppercase tracking-[0.2em] text-foreground/70">
               Release Time
             </p>
-            <p className="text-lg md:text-xl font-bold">
+            <p className="text-lg md:text-xl font-bold" suppressHydrationWarning>
               {releaseDate.toLocaleString("en-IN", { timeZoneName: "short" })}
             </p>
-            <p className="text-sm text-foreground/70">
+            <p className="text-sm text-foreground/70" suppressHydrationWarning>
               UTC: {releaseDate.toUTCString()}
             </p>
             <p className="text-sm text-foreground/70" aria-live="polite">

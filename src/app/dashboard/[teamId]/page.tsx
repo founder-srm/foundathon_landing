@@ -515,23 +515,50 @@ export default function TeamDashboardPage() {
   const problemStatementCapLabel = problemStatement.cap
     ? `${problemStatement.cap} teams max`
     : "Cap unavailable";
+  const hasLockedProblemStatement = Boolean(
+    problemStatement.id || problemStatement.title,
+  );
+  const problemStatementStatusLabel = hasLockedProblemStatement
+    ? "Locked"
+    : "Pending";
+  const problemStatementStatusTone = hasLockedProblemStatement
+    ? "green"
+    : "red";
 
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-slate-100 text-foreground">
-        <div className="fncontainer py-10 md:py-14">
+      <main className="min-h-screen bg-gray-200 text-foreground relative overflow-hidden">
+        <div
+          className="absolute inset-0 opacity-40 pointer-events-none"
+          style={{ backgroundImage: "url(/textures/circle-16px.svg)" }}
+        />
+        <div className="absolute -top-24 right-0 size-80 rounded-full bg-fnblue/20 blur-3xl pointer-events-none" />
+        <div className="absolute -bottom-20 -left-12 size-80 rounded-full bg-fnyellow/25 blur-3xl pointer-events-none" />
+
+        <div className="fncontainer relative py-10 md:py-14">
           <div className="h-8 w-56 animate-pulse rounded-md bg-foreground/10" />
           <div className="mt-2 h-4 w-80 animate-pulse rounded-md bg-foreground/10" />
 
+          <section className="mt-6 rounded-2xl border border-b-4 border-fnyellow bg-background/95 p-6 shadow-lg">
+            <div className="h-4 w-44 animate-pulse rounded-md bg-foreground/10" />
+            <div className="mt-3 h-9 w-3/4 animate-pulse rounded-md bg-foreground/10" />
+            <div className="mt-6 grid gap-3 md:grid-cols-4">
+              <div className="h-14 animate-pulse rounded-lg bg-foreground/10" />
+              <div className="h-14 animate-pulse rounded-lg bg-foreground/10" />
+              <div className="h-14 animate-pulse rounded-lg bg-foreground/10" />
+              <div className="h-14 animate-pulse rounded-lg bg-foreground/10" />
+            </div>
+          </section>
+
           <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            <div className="h-24 animate-pulse rounded-xl border border-foreground/10 bg-background/90" />
-            <div className="h-24 animate-pulse rounded-xl border border-foreground/10 bg-background/90" />
-            <div className="h-24 animate-pulse rounded-xl border border-foreground/10 bg-background/90" />
-            <div className="h-24 animate-pulse rounded-xl border border-foreground/10 bg-background/90" />
+            <div className="h-24 animate-pulse rounded-xl border border-b-4 border-fnblue bg-background/90" />
+            <div className="h-24 animate-pulse rounded-xl border border-b-4 border-fngreen bg-background/90" />
+            <div className="h-24 animate-pulse rounded-xl border border-b-4 border-fnorange bg-background/90" />
+            <div className="h-24 animate-pulse rounded-xl border border-b-4 border-fnyellow bg-background/90" />
           </div>
 
-          <div className="mt-6 grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-            <section className="rounded-xl border border-foreground/10 bg-background/95 p-6 shadow-sm">
+          <div className="mt-6 grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+            <section className="rounded-2xl border border-b-4 border-fnblue bg-background/95 p-6 shadow-lg">
               <div className="h-6 w-40 animate-pulse rounded-md bg-foreground/10" />
               <div className="mt-3 h-4 w-72 animate-pulse rounded-md bg-foreground/10" />
               <div className="mt-6 h-16 animate-pulse rounded-xl bg-foreground/10" />
@@ -540,12 +567,21 @@ export default function TeamDashboardPage() {
             </section>
 
             <aside className="space-y-4">
-              <div className="rounded-xl border border-foreground/10 bg-background/95 p-6 shadow-sm">
+              <div className="rounded-2xl border border-b-4 border-fngreen bg-background/95 p-6 shadow-lg">
                 <div className="h-5 w-44 animate-pulse rounded-md bg-foreground/10" />
                 <div className="mt-4 space-y-3">
                   <div className="h-10 animate-pulse rounded-md bg-foreground/10" />
                   <div className="h-10 animate-pulse rounded-md bg-foreground/10" />
                   <div className="h-10 animate-pulse rounded-md bg-foreground/10" />
+                </div>
+              </div>
+
+              <div className="rounded-2xl border border-b-4 border-fnyellow bg-background/95 p-6 shadow-lg">
+                <div className="h-5 w-32 animate-pulse rounded-md bg-foreground/10" />
+                <div className="mt-4 space-y-2">
+                  <div className="h-9 animate-pulse rounded-md bg-foreground/10" />
+                  <div className="h-9 animate-pulse rounded-md bg-foreground/10" />
+                  <div className="h-9 animate-pulse rounded-md bg-foreground/10" />
                 </div>
               </div>
             </aside>
@@ -556,41 +592,117 @@ export default function TeamDashboardPage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-100 text-foreground">
-      <div className="fncontainer py-10 md:py-14">
-        <header className="mb-6">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnblue">
+    <main className="min-h-screen bg-gray-200 text-foreground relative overflow-hidden">
+      <div
+        className="absolute inset-0 opacity-40 pointer-events-none"
+        style={{ backgroundImage: "url(/textures/circle-16px.svg)" }}
+      />
+      <div className="absolute -top-24 right-0 size-96 rounded-full bg-fnblue/20 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-28 -left-16 size-96 rounded-full bg-fnyellow/25 blur-3xl pointer-events-none" />
+
+      <div className="fncontainer relative py-10 md:py-14">
+        <header className="mb-6 rounded-2xl border border-b-4 border-fnblue bg-background/95 p-6 shadow-lg">
+          <p className="inline-flex rounded-full border border-fnblue/35 bg-fnblue/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-fnblue">
             Dashboard
           </p>
-          <h1 className="mt-2 text-3xl font-black tracking-tight md:text-4xl">
-            Team Management
+          <h1 className="mt-3 text-3xl font-black tracking-tight md:text-4xl uppercase">
+            Team Management Board
           </h1>
           <p className="mt-2 text-sm text-foreground/70 md:text-base">
-            Manage your team details and keep track of your selected problem
-            statement.
+            Update your roster, keep profiles complete, and ship toward the
+            final pitch.
           </p>
         </header>
 
+        <section
+          className={`mb-6 relative overflow-hidden rounded-2xl border border-b-4 p-6 md:p-8 shadow-xl ${
+            hasLockedProblemStatement
+              ? "border-fnyellow bg-linear-to-br from-fnyellow/30 via-background to-fnblue/10"
+              : "border-fnred bg-linear-to-br from-fnred/20 via-background to-fnorange/10"
+          }`}
+        >
+          <div className="absolute -top-10 -right-10 size-36 rounded-full bg-fnblue/10 blur-2xl pointer-events-none" />
+          <div className="absolute -bottom-12 -left-12 size-32 rounded-full bg-fnyellow/25 blur-2xl pointer-events-none" />
+
+          <div className="relative">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/75">
+                Locked Problem Statement
+              </p>
+              <span
+                className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] ${
+                  problemStatementStatusTone === "green"
+                    ? "border-fngreen/35 bg-fngreen/10 text-fngreen"
+                    : "border-fnred/35 bg-fnred/10 text-fnred"
+                }`}
+              >
+                {problemStatementStatusLabel}
+              </span>
+            </div>
+
+            <h2 className="mt-3 text-2xl font-black uppercase tracking-tight md:text-3xl">
+              {problemStatementTitle}
+            </h2>
+            <p className="mt-2 max-w-3xl text-sm text-foreground/75 md:text-base">
+              {hasLockedProblemStatement
+                ? "This is your official track for Foundathon 3.0. Keep your build and pitch aligned to this statement."
+                : "No statement lock is attached to this team record yet. Contact the organizing team if this is unexpected."}
+            </p>
+
+            <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <HighlightTile
+                label="Statement ID"
+                value={problemStatement.id || "N/A"}
+                tone="blue"
+              />
+              <HighlightTile
+                label="Cap"
+                value={problemStatementCapLabel}
+                tone="yellow"
+              />
+              <HighlightTile
+                label="Locked At"
+                value={formatDateTime(problemStatement.lockedAt)}
+                tone="green"
+              />
+              <HighlightTile
+                label="Team Type"
+                value={teamTypeLabel}
+                tone="orange"
+              />
+            </div>
+          </div>
+        </section>
+
         <section className="mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Team Type" value={teamTypeLabel} />
-          <StatCard label="Team Members" value={`${memberCount}/5`} />
+          <StatCard label="Team Type" value={teamTypeLabel} tone="blue" />
+          <StatCard
+            label="Team Members"
+            value={`${memberCount}/5`}
+            tone="green"
+          />
           <StatCard
             label="Completed Profiles"
             value={`${completedProfiles}/${memberCount}`}
+            tone="orange"
           />
-          <StatCard label="Last Updated" value={formatDateTime(updatedAt)} />
+          <StatCard
+            label="Last Updated"
+            value={formatDateTime(updatedAt)}
+            tone="yellow"
+          />
         </section>
 
-        <div className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
-          <section className="rounded-xl border border-foreground/10 bg-background p-6 shadow-sm md:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-foreground/70">
+        <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+          <section className="rounded-2xl border border-b-4 border-fnblue bg-background/95 p-6 shadow-lg md:p-8">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnblue">
               Team Details
             </p>
-            <h2 className="mt-2 text-2xl font-bold tracking-tight">
+            <h2 className="mt-2 text-2xl font-black tracking-tight uppercase">
               Edit Team Information
             </h2>
 
-            <div className="mt-6 rounded-xl border border-foreground/10 bg-slate-50 p-4">
+            <div className="mt-6 rounded-xl border border-b-4 border-fnblue/40 bg-white p-4">
               <Input
                 label="Team Name"
                 value={teamName}
@@ -599,7 +711,7 @@ export default function TeamDashboardPage() {
             </div>
 
             {teamType === "non_srm" && (
-              <div className="mt-6 rounded-xl border border-foreground/10 bg-slate-50 p-4">
+              <div className="mt-6 rounded-xl border border-b-4 border-fngreen/45 bg-white p-4">
                 <div className="grid gap-3 md:grid-cols-2">
                   <Input
                     label="College Name"
@@ -645,7 +757,7 @@ export default function TeamDashboardPage() {
                       (prev) => ({ ...prev, [field]: value }) as SrmMember,
                     )
                   }
-                  className="mt-6"
+                  className="mt-6 border-b-4 border-fnblue/45"
                 />
                 <SrmEditor
                   title="Member Draft"
@@ -655,7 +767,7 @@ export default function TeamDashboardPage() {
                       (prev) => ({ ...prev, [field]: value }) as SrmMember,
                     )
                   }
-                  className="mt-4"
+                  className="mt-4 border-b-4 border-fngreen/45"
                 />
               </>
             ) : (
@@ -668,7 +780,7 @@ export default function TeamDashboardPage() {
                       (prev) => ({ ...prev, [field]: value }) as NonSrmMember,
                     )
                   }
-                  className="mt-6"
+                  className="mt-6 border-b-4 border-fnblue/45"
                 />
                 <NonSrmEditor
                   title="Member Draft"
@@ -678,13 +790,13 @@ export default function TeamDashboardPage() {
                       (prev) => ({ ...prev, [field]: value }) as NonSrmMember,
                     )
                   }
-                  className="mt-4"
+                  className="mt-4 border-b-4 border-fngreen/45"
                 />
               </>
             )}
 
             {editingIndex !== null && (
-              <div className="mt-4 rounded-xl border border-amber-300 bg-amber-50 p-4">
+              <div className="mt-4 rounded-xl border border-b-4 border-fnorange/50 bg-fnorange/10 p-4">
                 <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-foreground/80">
                   Editing Member {editingIndex + 1}
                 </p>
@@ -697,6 +809,7 @@ export default function TeamDashboardPage() {
                         (prev) => ({ ...prev, [field]: value }) as SrmMember,
                       )
                     }
+                    className="border-b-4 border-fnorange/45"
                   />
                 ) : (
                   <NonSrmEditor
@@ -707,6 +820,7 @@ export default function TeamDashboardPage() {
                         (prev) => ({ ...prev, [field]: value }) as NonSrmMember,
                       )
                     }
+                    className="border-b-4 border-fnorange/45"
                   />
                 )}
                 <div className="mt-3 flex gap-2">
@@ -762,33 +876,8 @@ export default function TeamDashboardPage() {
           </section>
 
           <aside className="space-y-4 self-start">
-            <div className="rounded-xl border border-foreground/10 bg-background p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-foreground/70">
-                Selected Problem Statement
-              </p>
-              <p className="mt-3 text-lg font-bold leading-tight">
-                {problemStatementTitle}
-              </p>
-              <div className="mt-4 space-y-1 text-sm text-foreground/75">
-                <p>
-                  <span className="font-semibold text-foreground">ID:</span>{" "}
-                  {problemStatement.id || "N/A"}
-                </p>
-                <p>
-                  <span className="font-semibold text-foreground">Cap:</span>{" "}
-                  {problemStatementCapLabel}
-                </p>
-                <p>
-                  <span className="font-semibold text-foreground">
-                    Locked At:
-                  </span>{" "}
-                  {formatDateTime(problemStatement.lockedAt)}
-                </p>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-foreground/10 bg-background p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-foreground/70">
+            <div className="rounded-2xl border border-b-4 border-fngreen bg-background/95 p-6 shadow-lg">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fngreen">
                 Team Snapshot
               </p>
               <p className="mt-3 text-sm font-semibold">Team: {teamName}</p>
@@ -813,8 +902,8 @@ export default function TeamDashboardPage() {
               </p>
             </div>
 
-            <div className="rounded-xl border border-foreground/10 bg-background p-6 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-foreground/70">
+            <div className="rounded-2xl border border-b-4 border-fnyellow bg-background/95 p-6 shadow-lg">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnyellow">
                 Members
               </p>
               <div className="mt-3 overflow-x-auto">
@@ -874,11 +963,22 @@ export default function TeamDashboardPage() {
               </div>
             </div>
 
-            <FnButton asChild tone="gray">
-              <Link href="/problem-statements" prefetch={true}>
-                View Problem Statements
-              </Link>
-            </FnButton>
+            <div className="rounded-2xl border border-b-4 border-fnorange bg-background/95 p-6 shadow-lg">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnorange">
+                Actions
+              </p>
+              <p className="mt-2 text-sm text-foreground/75">
+                Review all available statements or continue editing from this
+                control panel.
+              </p>
+              <div className="mt-4">
+                <FnButton asChild tone="gray">
+                  <Link href="/problem-statements" prefetch={true}>
+                    View Problem Statements
+                  </Link>
+                </FnButton>
+              </div>
+            </div>
           </aside>
         </div>
       </div>
@@ -890,7 +990,7 @@ export default function TeamDashboardPage() {
           aria-modal="true"
           aria-labelledby="delete-team-title"
         >
-          <div className="w-full max-w-md rounded-xl border border-foreground/20 bg-background p-6 shadow-xl">
+          <div className="w-full max-w-md rounded-xl border border-b-4 border-fnred bg-background p-6 shadow-xl">
             <p
               id="delete-team-title"
               className="text-sm uppercase tracking-[0.18em] font-bold text-fnred"
@@ -941,12 +1041,65 @@ type InputProps = {
   pattern?: string;
 };
 
-const StatCard = ({ label, value }: { label: string; value: string }) => (
-  <div className="rounded-xl border border-foreground/10 bg-background p-4 shadow-sm">
+type AccentTone = "blue" | "green" | "yellow" | "orange" | "red";
+
+const ACCENT_TONE_CLASS: Record<AccentTone, string> = {
+  blue: "border-fnblue bg-fnblue/10 text-fnblue",
+  green: "border-fngreen bg-fngreen/10 text-fngreen",
+  orange: "border-fnorange bg-fnorange/10 text-fnorange",
+  red: "border-fnred bg-fnred/10 text-fnred",
+  yellow: "border-fnyellow bg-fnyellow/20 text-fnyellow",
+};
+
+const HighlightTile = ({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: AccentTone;
+}) => (
+  <div className="rounded-lg border border-foreground/12 bg-background/85 p-3 shadow-sm">
+    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
+      {label}
+    </p>
+    <p
+      className={`mt-2 inline-flex rounded-full border px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${ACCENT_TONE_CLASS[tone]}`}
+    >
+      {value}
+    </p>
+  </div>
+);
+
+const StatCard = ({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone: AccentTone;
+}) => (
+  <div
+    className={`rounded-xl border border-b-4 bg-background/95 p-4 shadow-sm ${
+      tone === "blue"
+        ? "border-fnblue"
+        : tone === "green"
+          ? "border-fngreen"
+          : tone === "yellow"
+            ? "border-fnyellow"
+            : tone === "orange"
+              ? "border-fnorange"
+              : "border-fnred"
+    }`}
+  >
     <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/60">
       {label}
     </p>
-    <p className="mt-2 text-base font-bold md:text-lg">{value}</p>
+    <p className="mt-2 text-base font-black uppercase tracking-[0.05em] md:text-lg">
+      {value}
+    </p>
   </div>
 );
 
@@ -989,7 +1142,7 @@ const SrmEditor = ({
   className?: string;
 }) => (
   <div
-    className={`rounded-xl border border-foreground/10 bg-slate-50 p-4 ${className}`}
+    className={`rounded-xl border border-foreground/12 bg-slate-50 p-4 shadow-sm ${className}`}
   >
     <p className="text-sm font-bold uppercase tracking-[0.08em] mb-3">
       {title}
@@ -1050,7 +1203,7 @@ const NonSrmEditor = ({
   className?: string;
 }) => (
   <div
-    className={`rounded-xl border border-foreground/10 bg-slate-50 p-4 ${className}`}
+    className={`rounded-xl border border-foreground/12 bg-slate-50 p-4 shadow-sm ${className}`}
   >
     <p className="text-sm font-bold uppercase tracking-[0.08em] mb-3">
       {title}

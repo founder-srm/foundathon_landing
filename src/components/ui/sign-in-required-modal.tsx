@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 import { FnButton } from "@/components/ui/fn-button";
 
 type SignInRequiredModalProps = {
@@ -14,6 +15,21 @@ const SignInRequiredModal = ({
   onOpenChange,
   signInHref,
 }: SignInRequiredModalProps) => {
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        onOpenChange(false);
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [onOpenChange, open]);
+
   if (!open) {
     return null;
   }

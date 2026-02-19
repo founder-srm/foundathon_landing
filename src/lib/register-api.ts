@@ -165,6 +165,14 @@ export function toTeamSummary(row: RegistrationRow): TeamSummary {
   };
 }
 
+const toOptionalString = (value: unknown) =>
+  typeof value === "string" && value.trim().length > 0 ? value : undefined;
+
+const toOptionalPositiveInteger = (value: unknown) =>
+  typeof value === "number" && Number.isInteger(value) && value > 0
+    ? value
+    : undefined;
+
 export function toTeamRecord(row: RegistrationRow): TeamRecord | null {
   const details = row.details ?? {};
   const normalized = normalizeSrmDetailsForSchema(details);
@@ -174,10 +182,23 @@ export function toTeamRecord(row: RegistrationRow): TeamRecord | null {
     return null;
   }
 
+  const problemStatementId = toOptionalString(details.problemStatementId);
+  const problemStatementTitle = toOptionalString(details.problemStatementTitle);
+  const problemStatementLockedAt = toOptionalString(
+    details.problemStatementLockedAt,
+  );
+  const problemStatementCap = toOptionalPositiveInteger(
+    details.problemStatementCap,
+  );
+
   return {
     ...parsed.data,
     id: row.id,
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? row.created_at,
+    ...(problemStatementId ? { problemStatementId } : {}),
+    ...(problemStatementTitle ? { problemStatementTitle } : {}),
+    ...(problemStatementLockedAt ? { problemStatementLockedAt } : {}),
+    ...(problemStatementCap ? { problemStatementCap } : {}),
   };
 }

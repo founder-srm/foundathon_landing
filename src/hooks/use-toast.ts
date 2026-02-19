@@ -114,6 +114,13 @@ type Toast = Omit<ToasterToast, "id">;
 
 function toast({ ...props }: Toast) {
   const id = genId();
+  const duration =
+    props.duration ??
+    (props.variant === "destructive"
+      ? 8000
+      : props.variant === "success"
+        ? 5000
+        : 4500);
 
   const update = (toast: ToasterToast) =>
     dispatch({
@@ -127,6 +134,7 @@ function toast({ ...props }: Toast) {
     type: actionTypes.ADD_TOAST,
     toast: {
       ...props,
+      duration,
       id,
       open: true,
       onOpenChange: (open) => {

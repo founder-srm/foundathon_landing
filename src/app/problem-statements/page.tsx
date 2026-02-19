@@ -14,6 +14,14 @@ import { getProblemReleaseCountdown } from "@/lib/problem-release-countdown";
 export default function ProblemStatementsPage() {
   const [time, setTime] = useState(() => getProblemReleaseCountdown());
   const releaseDate = useMemo(() => PROBLEM_STATEMENT_RELEASE_DATE, []);
+  const releaseHeadline = time.released
+    ? "statements are live"
+    : "release countdown";
+  const releaseDescription = time.invalid
+    ? "Release date configuration is invalid. Please contact the organizing team."
+    : time.released
+      ? "Problem statements are live now. Proceed to registration to lock one and create your team."
+      : "Once the board opens, teams can lock one statement during onboarding and then complete team creation.";
 
   useEffect(() => {
     const id = window.setInterval(
@@ -46,11 +54,10 @@ export default function ProblemStatementsPage() {
               Problem Statements
             </p>
             <h1 className="mt-4 text-5xl md:text-7xl font-black uppercase tracking-tight leading-none text-balance">
-              release countdown
+              {releaseHeadline}
             </h1>
             <p className="mt-3 text-foreground/75 max-w-2xl">
-              Once the board opens, teams can lock one statement during
-              onboarding and then complete team creation.
+              {releaseDescription}
             </p>
 
             <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -92,6 +99,16 @@ export default function ProblemStatementsPage() {
                 suppressHydrationWarning
               >
                 UTC: {releaseDate.toUTCString()}
+              </p>
+              <p
+                className="mt-2 text-sm font-semibold text-foreground/80"
+                aria-live="polite"
+              >
+                {time.invalid
+                  ? "Timer unavailable."
+                  : time.released
+                    ? "Problem statements are now open for locking."
+                    : "Locking opens when this countdown reaches zero."}
               </p>
             </div>
 

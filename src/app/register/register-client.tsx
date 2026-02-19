@@ -47,9 +47,9 @@ type LockedProblemStatement = {
   title: string;
 };
 
-const MIN_MEMBERS = 3;
 const MAX_MEMBERS = 5;
 const ABANDONED_DRAFT_KEY = "foundathon:register-abandoned";
+const LOCK_COUNTDOWN_REFRESH_MS = 1000;
 
 const emptySrmMember = (): SrmMember => ({
   name: "",
@@ -85,6 +85,19 @@ const hasDraftNonSrmInput = (member: NonSrmMember) =>
   member.collegeEmail.trim().length > 0 ||
   member.contact !== 0;
 
+const formatRemainingTime = (remainingMs: number) => {
+  if (remainingMs <= 0) {
+    return "Expired";
+  }
+
+  const totalSeconds = Math.floor(remainingMs / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes.toString().padStart(2, "0")}:${seconds
+    .toString()
+    .padStart(2, "0")}`;
+};
+
 const RegisterClient = () => {
   const router = useRouter();
   const { start: startRouteProgress } = useRouteProgress();
@@ -114,10 +127,16 @@ const RegisterClient = () => {
     useState<string | null>(null);
   const [lockedProblemStatement, setLockedProblemStatement] =
     useState<LockedProblemStatement | null>(null);
+  const [formValidationError, setFormValidationError] = useState<string | null>(
+    null,
+  );
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [lockNowMs, setLockNowMs] = useState(() => Date.now());
 
   const hasCreatedTeamRef = useRef(false);
   const hasStartedDraftRef = useRef(false);
   const allowUnmountWarningRef = useRef(false);
+  const hasShownExpiredLockToastRef = useRef(false);
 
   const currentMembers = teamType === "srm" ? membersSrm : membersNonSrm;
   const currentLead = teamType === "srm" ? leadSrm : leadNonSrm;
@@ -130,8 +149,49 @@ const RegisterClient = () => {
       : (member as NonSrmMember).collegeId;
 
   const canAddMember = memberCount < MAX_MEMBERS;
-  const canProceed = memberCount >= MIN_MEMBERS && memberCount <= MAX_MEMBERS;
-  const canCreateTeam = canProceed && Boolean(lockedProblemStatement);
+  const teamPayload = useMemo(
+    () =>
+      teamType === "srm"
+        ? {
+            teamType: "srm" as const,
+            teamName,
+            lead: leadSrm,
+            members: membersSrm,
+          }
+        : {
+            teamType: "non_srm" as const,
+            teamName,
+            collegeName: nonSrmMeta.collegeName,
+            isClub: nonSrmMeta.isClub,
+            clubName: nonSrmMeta.isClub ? nonSrmMeta.clubName : "",
+            lead: leadNonSrm,
+            members: membersNonSrm,
+          },
+    [
+      leadNonSrm,
+      leadSrm,
+      membersNonSrm,
+      membersSrm,
+      nonSrmMeta,
+      teamName,
+      teamType,
+    ],
+  );
+  const teamPayloadValidation = useMemo(
+    () => teamSubmissionSchema.safeParse(teamPayload),
+    [teamPayload],
+  );
+  const canProceed = teamPayloadValidation.success;
+  const lockExpiryMs = lockedProblemStatement
+    ? new Date(lockedProblemStatement.lockExpiresAt).getTime()
+    : null;
+  const isLockExpired = lockExpiryMs !== null && lockExpiryMs <= lockNowMs;
+  const lockCountdownLabel =
+    lockExpiryMs === null
+      ? "N/A"
+      : formatRemainingTime(lockExpiryMs - lockNowMs);
+  const canCreateTeam =
+    canProceed && Boolean(lockedProblemStatement) && !isLockExpired;
 
   const completedProfiles = useMemo(() => {
     if (teamType === "srm") {
@@ -221,6 +281,38 @@ const RegisterClient = () => {
   }, [loadProblemStatements, step]);
 
   useEffect(() => {
+    if (!lockedProblemStatement) {
+      hasShownExpiredLockToastRef.current = false;
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      setLockNowMs(Date.now());
+    }, LOCK_COUNTDOWN_REFRESH_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [lockedProblemStatement]);
+
+  useEffect(() => {
+    if (!lockedProblemStatement || !isLockExpired) {
+      return;
+    }
+
+    if (!hasShownExpiredLockToastRef.current) {
+      hasShownExpiredLockToastRef.current = true;
+      toast({
+        title: "Statement Lock Expired",
+        description:
+          "Your previous lock token expired. Please lock a statement again to continue.",
+        variant: "destructive",
+      });
+    }
+
+    setLockedProblemStatement(null);
+    void loadProblemStatements();
+  }, [isLockExpired, loadProblemStatements, lockedProblemStatement]);
+
+  useEffect(() => {
     if (typeof window === "undefined") {
       return;
     }
@@ -242,6 +334,12 @@ const RegisterClient = () => {
   useEffect(() => {
     hasStartedDraftRef.current = hasStartedDraft;
   }, [hasStartedDraft]);
+
+  useEffect(() => {
+    if (teamPayloadValidation.success && formValidationError) {
+      setFormValidationError(null);
+    }
+  }, [formValidationError, teamPayloadValidation.success]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -371,6 +469,8 @@ const RegisterClient = () => {
   };
 
   const clearCurrentTeam = () => {
+    setShowClearConfirm(false);
+    setFormValidationError(null);
     setStep(1);
     setTeamName("");
     setLockedProblemStatement(null);
@@ -395,38 +495,22 @@ const RegisterClient = () => {
     });
   };
 
-  const buildTeamPayload = () =>
-    teamType === "srm"
-      ? {
-          teamType: "srm" as const,
-          teamName,
-          lead: leadSrm,
-          members: membersSrm,
-        }
-      : {
-          teamType: "non_srm" as const,
-          teamName,
-          collegeName: nonSrmMeta.collegeName,
-          isClub: nonSrmMeta.isClub,
-          clubName: nonSrmMeta.isClub ? nonSrmMeta.clubName : "",
-          lead: leadNonSrm,
-          members: membersNonSrm,
-        };
-
   const validateTeamPayload = () => {
-    const parsed = teamSubmissionSchema.safeParse(buildTeamPayload());
-    if (!parsed.success) {
+    if (!teamPayloadValidation.success) {
+      const message =
+        teamPayloadValidation.error.issues[0]?.message ??
+        "Please fix the team details and try again.";
+      setFormValidationError(message);
       toast({
         title: "Team Details Invalid",
-        description:
-          parsed.error.issues[0]?.message ??
-          "Please fix the team details and try again.",
+        description: message,
         variant: "destructive",
       });
       return null;
     }
 
-    return parsed.data;
+    setFormValidationError(null);
+    return teamPayloadValidation.data;
   };
 
   const goToProblemStatementsStep = () => {
@@ -435,6 +519,7 @@ const RegisterClient = () => {
       return;
     }
 
+    setFormValidationError(null);
     setStep(2);
   };
 
@@ -486,7 +571,7 @@ const RegisterClient = () => {
 
       toast({
         title: "Problem Statement Locked",
-        description: `${data.problemStatement.title} has been locked. Email confirmation will be handled by backend later.`,
+        description: `${data.problemStatement.title} is locked. You can now create your team.`,
         variant: "success",
       });
     } catch {
@@ -513,6 +598,17 @@ const RegisterClient = () => {
         description: "Lock a problem statement before creating your team.",
         variant: "destructive",
       });
+      return;
+    }
+
+    if (isLockExpired) {
+      toast({
+        title: "Statement Lock Expired",
+        description:
+          "Your lock has expired. Lock a problem statement again to continue.",
+        variant: "destructive",
+      });
+      setLockedProblemStatement(null);
       return;
     }
 
@@ -557,7 +653,7 @@ const RegisterClient = () => {
       setIsRedirecting(true);
       isNavigating = true;
       startRouteProgress();
-      router.push(`/team/${data.team.id}`);
+      router.push(`/dashboard/${data.team.id}`);
     } catch {
       setIsRedirecting(false);
       toast({
@@ -762,11 +858,16 @@ const RegisterClient = () => {
                 <p className="mt-4 text-xs uppercase tracking-[0.18em] font-semibold text-foreground/70">
                   Team size required: 3 to 5 (including lead)
                 </p>
+                {formValidationError ? (
+                  <p className="mt-2 rounded-md border border-fnred/35 bg-fnred/10 px-3 py-2 text-sm font-semibold text-fnred">
+                    {formValidationError}
+                  </p>
+                ) : null}
 
                 <div className="mt-6 flex flex-wrap gap-3">
                   <FnButton
                     type="button"
-                    onClick={clearCurrentTeam}
+                    onClick={() => setShowClearConfirm(true)}
                     tone="gray"
                     disabled={isCreatingTeam || isRedirecting}
                   >
@@ -807,7 +908,10 @@ const RegisterClient = () => {
                       {lockedProblemStatement.title}
                     </p>
                     <p className="text-xs text-foreground/70 mt-1">
-                      Token expires at{" "}
+                      Lock expires in {lockCountdownLabel}
+                    </p>
+                    <p className="text-xs text-foreground/60 mt-1">
+                      Expires at{" "}
                       {new Date(
                         lockedProblemStatement.lockExpiresAt,
                       ).toLocaleString()}
@@ -1040,6 +1144,46 @@ const RegisterClient = () => {
           </aside>
         </div>
       </div>
+
+      {showClearConfirm ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="clear-team-title"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-b-4 border-fnred bg-background p-6 shadow-2xl">
+            <p
+              id="clear-team-title"
+              className="text-sm font-bold uppercase tracking-[0.18em] text-fnred"
+            >
+              Clear Onboarding Draft
+            </p>
+            <p className="mt-3 text-sm text-foreground/80">
+              This will remove all current team details from the form. You can
+              start again immediately.
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <FnButton
+                type="button"
+                onClick={() => setShowClearConfirm(false)}
+                tone="gray"
+                size="sm"
+              >
+                Cancel
+              </FnButton>
+              <FnButton
+                type="button"
+                onClick={clearCurrentTeam}
+                tone="red"
+                size="sm"
+              >
+                Clear Draft
+              </FnButton>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 };

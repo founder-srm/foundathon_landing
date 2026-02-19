@@ -3,10 +3,14 @@ import { getAuthUiState } from "@/lib/auth-ui-state";
 import RegisterClient from "./register-client";
 
 export default async function RegisterPage() {
-  const { teamId } = await getAuthUiState();
+  const { isSignedIn, teamId } = await getAuthUiState();
+
+  if (!isSignedIn) {
+    redirect(`/api/auth/login?next=${encodeURIComponent("/register")}`);
+  }
 
   if (teamId) {
-    redirect(`/team/${teamId}`);
+    redirect(`/dashboard/${teamId}`);
   }
 
   return <RegisterClient />;

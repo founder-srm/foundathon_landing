@@ -3,19 +3,28 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import RegisterClient from "./register-client";
 
-const pushMock = vi.fn();
-const routeProgressStartMock = vi.fn();
+const mocks = vi.hoisted(() => ({
+  getAuthUiState: vi.fn(),
+  push: vi.fn(),
+  redirect: vi.fn(),
+  routeProgressStart: vi.fn(),
+}));
 
 vi.mock("next/navigation", () => ({
+  redirect: mocks.redirect,
   useRouter: () => ({
-    push: pushMock,
+    push: mocks.push,
   }),
+}));
+
+vi.mock("@/lib/auth-ui-state", () => ({
+  getAuthUiState: mocks.getAuthUiState,
 }));
 
 vi.mock("@/components/ui/route-progress", () => ({
   useRouteProgress: () => ({
     isPending: false,
-    start: routeProgressStartMock,
+    start: mocks.routeProgressStart,
     stop: vi.fn(),
   }),
 }));
@@ -23,6 +32,10 @@ vi.mock("@/components/ui/route-progress", () => ({
 describe("Register page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.getAuthUiState.mockResolvedValue({
+      isSignedIn: true,
+      teamId: null,
+    });
 
     global.fetch = vi.fn(async (input: RequestInfo | URL) => {
       if (typeof input === "string" && input === "/api/problem-statements") {
@@ -114,5 +127,33 @@ describe("Register page", () => {
       await screen.findByText(/single lock per onboarding draft/i),
     ).toBeInTheDocument();
     expect(screen.getByText(/Campus Mobility Optimizer/i)).toBeInTheDocument();
+  });
+
+  it("register page redirects signed-out users to login", async () => {
+    mocks.getAuthUiState.mockResolvedValueOnce({
+      isSignedIn: false,
+      teamId: null,
+    });
+
+    const { default: RegisterPage } = await import("./page");
+    await RegisterPage();
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/api/auth/login?next=%2Fregister",
+    );
+  });
+
+  it("register page redirects existing teams to dashboard", async () => {
+    mocks.getAuthUiState.mockResolvedValueOnce({
+      isSignedIn: true,
+      teamId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    const { default: RegisterPage } = await import("./page");
+    await RegisterPage();
+
+    expect(mocks.redirect).toHaveBeenCalledWith(
+      "/dashboard/11111111-1111-4111-8111-111111111111",
+    );
   });
 });

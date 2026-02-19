@@ -172,8 +172,8 @@ export default function RegistrationSuccessPage() {
 
             <div className="mt-8 flex flex-wrap gap-3">
               <FnButton asChild>
-                <Link href={`/team/${params.teamId}`}>
-                  Go To Team Dashboard
+                <Link href={`/dashboard/${params.teamId}`}>
+                  Go To Dashboard
                 </Link>
               </FnButton>
               <FnButton asChild tone="gray">

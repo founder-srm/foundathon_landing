@@ -113,20 +113,44 @@ describe("/api/register/[teamId] route", () => {
   });
 
   it("PATCH updates team when payload is valid", async () => {
-    const maybeSingle = vi.fn().mockResolvedValue({ data: row, error: null });
-    const from = vi.fn().mockReturnValue({
-      update: vi.fn().mockReturnValue({
+    const existingMaybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        ...row,
+        details: {
+          problemStatementCap: 10,
+          problemStatementId: "ps-01",
+          problemStatementLockedAt: "2026-02-19T08:00:00.000Z",
+          problemStatementTitle: "Campus Mobility Optimizer",
+        },
+      },
+      error: null,
+    });
+    const existingSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
-            eq: vi.fn().mockReturnValue({
-              select: vi.fn().mockReturnValue({
-                maybeSingle,
-              }),
+            maybeSingle: existingMaybeSingle,
+          }),
+        }),
+      }),
+    });
+
+    const maybeSingle = vi.fn().mockResolvedValue({ data: row, error: null });
+    const updateRecord = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            select: vi.fn().mockReturnValue({
+              maybeSingle,
             }),
           }),
         }),
       }),
     });
+    const from = vi
+      .fn()
+      .mockReturnValueOnce({ select: existingSelect })
+      .mockReturnValueOnce({ update: updateRecord });
 
     mocks.createSupabaseClient.mockResolvedValue({
       auth: {
@@ -155,6 +179,16 @@ describe("/api/register/[teamId] route", () => {
 
     expect(res.status).toBe(200);
     expect(body.team.teamName).toBe("Alpha");
+    expect(updateRecord).toHaveBeenCalledWith(
+      expect.objectContaining({
+        details: expect.objectContaining({
+          problemStatementCap: 10,
+          problemStatementId: "ps-01",
+          problemStatementLockedAt: "2026-02-19T08:00:00.000Z",
+          problemStatementTitle: "Campus Mobility Optimizer",
+        }),
+      }),
+    );
   });
 
   it("DELETE removes team by route param", async () => {

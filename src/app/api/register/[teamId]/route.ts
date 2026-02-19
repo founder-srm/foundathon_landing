@@ -30,6 +30,13 @@ const missingSupabaseConfigResponse = () =>
     { status: 500, headers: JSON_HEADERS },
   );
 
+const PROBLEM_STATEMENT_DETAIL_KEYS = [
+  "problemStatementId",
+  "problemStatementTitle",
+  "problemStatementCap",
+  "problemStatementLockedAt",
+] as const;
+
 const findTeamById = async ({
   supabase,
   teamId,
@@ -80,7 +87,7 @@ export async function GET(_: NextRequest, { params }: Params) {
 
   if (error) {
     return NextResponse.json(
-      { error: "Failed to fetch team." },
+      { error: error.message || "Failed to fetch team." },
       { status: 500, headers: JSON_HEADERS },
     );
   }
@@ -91,7 +98,7 @@ export async function GET(_: NextRequest, { params }: Params) {
       { status: 404, headers: JSON_HEADERS },
     );
   }
-  console.log("Fetched team data:", data);
+
   const team = toTeamRecord(data as RegistrationRow);
   if (!team) {
     return NextResponse.json(
@@ -151,9 +158,55 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     );
   }
 
+  const { data: existingTeam, error: existingTeamError } = await findTeamById({
+    supabase,
+    teamId,
+    userId: user.id,
+  });
+
+  if (existingTeamError) {
+    return NextResponse.json(
+      { error: existingTeamError.message || "Failed to fetch team." },
+      { status: 500, headers: JSON_HEADERS },
+    );
+  }
+
+  if (!existingTeam) {
+    return NextResponse.json(
+      { error: "Team not found." },
+      { status: 404, headers: JSON_HEADERS },
+    );
+  }
+
+  const existingDetails =
+    existingTeam.details && typeof existingTeam.details === "object"
+      ? (existingTeam.details as Record<string, unknown>)
+      : {};
+  const updatedDetails: Record<string, unknown> = withSrmEmailNetIds(
+    parsed.data,
+  );
+
+  for (const key of PROBLEM_STATEMENT_DETAIL_KEYS) {
+    const value = existingDetails[key];
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      updatedDetails[key] = value;
+      continue;
+    }
+
+    if (
+      key === "problemStatementCap" &&
+      typeof value === "number" &&
+      Number.isInteger(value) &&
+      value > 0
+    ) {
+      updatedDetails[key] = value;
+    }
+  }
+
   const { data, error } = await supabase
     .from("eventsregistrations")
-    .update({ details: withSrmEmailNetIds(parsed.data) })
+    .update({ details: updatedDetails })
     .eq("id", teamId)
     .eq("event_id", EVENT_ID)
     .eq("application_id", user.id)
@@ -162,7 +215,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   if (error) {
     return NextResponse.json(
-      { error: "Failed to update team." },
+      { error: error.message || "Failed to update team." },
       { status: 500, headers: JSON_HEADERS },
     );
   }

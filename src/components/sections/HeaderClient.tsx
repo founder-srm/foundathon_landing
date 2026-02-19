@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut, User } from "lucide-react";
+import { LogOut, Menu, User, X } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -32,10 +32,12 @@ const HeaderClient = ({
 }: HeaderClientProps) => {
   const pathname = usePathname();
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [showSignInPrompt, setShowSignInPrompt] = useState(false);
   const [teamId, setTeamId] = useState<string | null>(initialTeamId);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
+  const previousPathnameRef = useRef(pathname);
   const isSignedIn = initialIsSignedIn;
   const isRegistered = Boolean(teamId);
   const signInHref = useMemo(
@@ -57,9 +59,33 @@ const HeaderClient = ({
     window.location.assign("/api/auth/logout");
   }, [isLoggingOut]);
 
+  const closeMobileMenu = useCallback(() => {
+    setIsMobileMenuOpen(false);
+  }, []);
+
   useEffect(() => {
     setTeamId(initialTeamId);
   }, [initialTeamId]);
+
+  useEffect(() => {
+    if (previousPathnameRef.current !== pathname) {
+      previousPathnameRef.current = pathname;
+      setIsMobileMenuOpen(false);
+    }
+  }, [pathname]);
+
+  useEffect(() => {
+    if (!isMobileMenuOpen) {
+      return;
+    }
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMobileMenuOpen]);
 
   useEffect(() => {
     const handleTeamCreated = (event: Event) => {
@@ -149,6 +175,20 @@ const HeaderClient = ({
             </div>
 
             <div className="flex items-center gap-3">
+              <FnButton
+                type="button"
+                tone="gray"
+                className="md:hidden"
+                aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+                aria-expanded={isMobileMenuOpen}
+                onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+              >
+                {isMobileMenuOpen ? (
+                  <X size={18} strokeWidth={3} />
+                ) : (
+                  <Menu size={18} strokeWidth={3} />
+                )}
+              </FnButton>
               <FnButton asChild tone="gray" className="hidden sm:inline-flex">
                 <Link href="/problem-statements" prefetch={true}>
                   Problem Statements
@@ -156,7 +196,7 @@ const HeaderClient = ({
               </FnButton>
               {isRegistered ? (
                 <FnButton asChild tone="blue">
-                  <Link href={`/team/${teamId}`} prefetch={true}>
+                  <Link href={`/dashboard/${teamId}`} prefetch={true}>
                     Dashboard
                   </Link>
                 </FnButton>
@@ -221,6 +261,62 @@ const HeaderClient = ({
           </div>
         </div>
       </div>
+
+      {isMobileMenuOpen ? (
+        <div className="border-b border-foreground/10 bg-background/95 px-4 py-3 md:hidden">
+          <div className="fncontainer space-y-2">
+            {navLinks.map((item) => (
+              <FnButton key={item.href} asChild kind="nav" className="w-full">
+                <Link href={item.href} onClick={closeMobileMenu}>
+                  {item.label}
+                </Link>
+              </FnButton>
+            ))}
+            <FnButton asChild tone="gray" className="w-full">
+              <Link
+                href="/problem-statements"
+                prefetch={true}
+                onClick={closeMobileMenu}
+              >
+                Problem Statements
+              </Link>
+            </FnButton>
+            {isRegistered ? (
+              <FnButton asChild tone="blue" className="w-full">
+                <Link
+                  href={`/dashboard/${teamId}`}
+                  prefetch={true}
+                  onClick={closeMobileMenu}
+                >
+                  Dashboard
+                </Link>
+              </FnButton>
+            ) : isSignedIn ? (
+              <FnButton asChild tone="blue" className="w-full">
+                <Link
+                  href="/register"
+                  prefetch={true}
+                  onClick={closeMobileMenu}
+                >
+                  Register Team
+                </Link>
+              </FnButton>
+            ) : (
+              <FnButton
+                type="button"
+                tone="blue"
+                className="w-full"
+                onClick={() => {
+                  setShowSignInPrompt(true);
+                  setIsMobileMenuOpen(false);
+                }}
+              >
+                Register Team
+              </FnButton>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       <SignInRequiredModal
         open={showSignInPrompt}

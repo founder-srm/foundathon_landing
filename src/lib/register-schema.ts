@@ -113,12 +113,23 @@ export const teamSubmissionSchema = z.discriminatedUnion("teamType", [
   nonSrmTeamSubmissionSchema,
 ]);
 
+const problemStatementMetadataSchema = z
+  .object({
+    problemStatementCap: z.number().int().positive(),
+    problemStatementId: z.string().trim().min(1),
+    problemStatementLockedAt: z.string().trim().min(1),
+    problemStatementTitle: z.string().trim().min(1),
+  })
+  .partial();
+
 export const teamRecordSchema = teamSubmissionSchema.and(
-  z.object({
-    id: z.string(),
-    createdAt: z.string(),
-    updatedAt: z.string(),
-  }),
+  z
+    .object({
+      id: z.string(),
+      createdAt: z.string(),
+      updatedAt: z.string(),
+    })
+    .and(problemStatementMetadataSchema),
 );
 
 export const teamRecordListSchema = z.array(teamRecordSchema);

@@ -8,6 +8,13 @@ import { FnButton } from "@/components/ui/fn-button";
 import { useRouteProgress } from "@/components/ui/route-progress";
 import { toast } from "@/hooks/use-toast";
 import {
+  findProblemStatementSummary,
+  isValidEmailAddress,
+  type ProblemLockEmailPayload,
+  type ProblemLockEmailResponse,
+  toSrmLeadEmail,
+} from "@/lib/problem-lock-email";
+import {
   type NonSrmMember,
   nonSrmMemberSchema,
   type SrmMember,
@@ -537,6 +544,67 @@ export default function TeamDashboardPage() {
     }
   };
 
+  const notifyProblemStatementLockByEmail = async (input: {
+    lockExpiresAtIso: string;
+    lockedAtIso: string;
+    problemStatementId: string;
+    problemStatementTitle: string;
+  }) => {
+    const leadName =
+      teamType === "srm" ? leadSrm.name.trim() : leadNonSrm.name.trim();
+    const leadEmail =
+      teamType === "srm"
+        ? toSrmLeadEmail(leadSrm.netId)
+        : leadNonSrm.collegeEmail.trim().toLowerCase();
+
+    if (!leadName || !isValidEmailAddress(leadEmail)) {
+      return {
+        reason: "invalid_lead_email" as const,
+        sent: false,
+      };
+    }
+
+    const payload: ProblemLockEmailPayload = {
+      notificationType: "lock_confirmed",
+      leadEmail,
+      leadName,
+      lockExpiresAtIso: input.lockExpiresAtIso,
+      lockedAtIso: input.lockedAtIso,
+      problemStatementId: input.problemStatementId,
+      problemStatementSummary: findProblemStatementSummary(
+        problemStatements,
+        input.problemStatementId,
+      ),
+      problemStatementTitle: input.problemStatementTitle,
+      teamName: teamName.trim() || "Unnamed Team",
+    };
+
+    try {
+      const response = await fetch("/api/send", {
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      const data = (await response.json()) as Partial<ProblemLockEmailResponse>;
+      if (response.ok && data.sent === true) {
+        return { sent: true as const };
+      }
+
+      return {
+        error: typeof data.error === "string" ? data.error : undefined,
+        reason:
+          typeof data.reason === "string" ? data.reason : "provider_error",
+        sent: false as const,
+      };
+    } catch {
+      return {
+        reason: "request_failed" as const,
+        sent: false,
+      };
+    }
+  };
+
   const lockLegacyProblemStatement = async (problemStatementId: string) => {
     if (problemStatement.id) {
       return;
@@ -569,6 +637,7 @@ export default function TeamDashboardPage() {
 
       const lockData = (await lockResponse.json()) as {
         error?: string;
+        lockExpiresAt?: string;
         lockToken?: string;
         locked?: boolean;
         problemStatement?: { id: string; title: string };
@@ -577,6 +646,7 @@ export default function TeamDashboardPage() {
       if (
         !lockResponse.ok ||
         !lockData.locked ||
+        !lockData.lockExpiresAt ||
         !lockData.lockToken ||
         !lockData.problemStatement
       ) {
@@ -624,11 +694,35 @@ export default function TeamDashboardPage() {
         title: patchData.team.problemStatementTitle ?? "",
       });
 
-      toast({
-        title: "Problem Statement Assigned",
-        description: `${lockData.problemStatement.title} is now linked to this legacy team.`,
-        variant: "success",
+      const lockedAtIso =
+        patchData.team.problemStatementLockedAt ?? new Date().toISOString();
+      const emailResult = await notifyProblemStatementLockByEmail({
+        lockExpiresAtIso: lockData.lockExpiresAt,
+        lockedAtIso,
+        problemStatementId: lockData.problemStatement.id,
+        problemStatementTitle: lockData.problemStatement.title,
       });
+
+      if (emailResult.sent) {
+        toast({
+          title: "Problem Statement Locked",
+          description:
+            "Problem statement locked and confirmation email sent to the lead's mail.",
+          variant: "success",
+        });
+      } else if (emailResult.reason === "invalid_lead_email") {
+        toast({
+          title: "Problem Statement Locked",
+          description:
+            "Problem statement locked, but lead email is missing or invalid. Confirmation email was not sent.",
+        });
+      } else {
+        toast({
+          title: "Problem Statement Locked",
+          description:
+            "Problem statement locked, but we could not send the confirmation email right now.",
+        });
+      }
       await loadProblemStatements();
     } catch {
       toast({
@@ -1466,7 +1560,7 @@ const NonSrmEditor = ({
         maxLength={50}
       />
       <Input
-        label="College Email"
+        label="College Email / Personal Email"
         value={member.collegeEmail}
         onChange={(v) => onChange("collegeEmail", v)}
         type="email"

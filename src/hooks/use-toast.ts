@@ -4,7 +4,12 @@ import * as React from "react";
 import type { ToastActionElement, ToastProps } from "@/components/ui/toast";
 
 const TOAST_LIMIT = 3;
-const TOAST_REMOVE_DELAY = 4000;
+const TOAST_REMOVE_DELAY = 500;
+const TOAST_DURATION = {
+  default: 3500,
+  success: 3200,
+  destructive: 4500,
+} as const;
 
 type ToasterToast = ToastProps & {
   id: string;
@@ -117,10 +122,10 @@ function toast({ ...props }: Toast) {
   const duration =
     props.duration ??
     (props.variant === "destructive"
-      ? 8000
+      ? TOAST_DURATION.destructive
       : props.variant === "success"
-        ? 5000
-        : 4500);
+        ? TOAST_DURATION.success
+        : TOAST_DURATION.default);
 
   const update = (toast: ToasterToast) =>
     dispatch({

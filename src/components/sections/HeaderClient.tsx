@@ -74,6 +74,17 @@ const HeaderClient = ({
   }, [pathname]);
 
   useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth >= 768) {
+        setIsMobileMenuOpen(false);
+      }
+    };
+
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  useEffect(() => {
     if (!isMobileMenuOpen) {
       return;
     }
@@ -129,9 +140,9 @@ const HeaderClient = ({
 
   return (
     <>
-      <div className="border-b border-foreground/10 shadow-sm p-4 font-semibold sticky top-0 z-50 bg-background/60 backdrop-blur supports-backdrop-filter:bg-background/60">
-        <div className="fncontainer flex items-center justify-between gap-4">
-          <div className="absolute left-1 md:left-2 xl:left-3 2xl:left-5">
+      <div className="sticky top-0 z-50 border-b border-foreground/10 bg-background/50 px-3 py-3 font-semibold shadow-sm backdrop-blur-md supports-backdrop-filter:bg-background/50 md:px-4">
+        <div className="fncontainer flex items-center justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
             <ConfettiButton
               options={{
                 get angle() {
@@ -148,24 +159,24 @@ const HeaderClient = ({
                 <Image
                   src="/logo.svg"
                   alt="The Founders Club logo"
-                  width={40}
-                  height={40}
+                  width={36}
+                  height={36}
                   className="h-8 w-auto"
                 />
               </Link>
             </ConfettiButton>
-          </div>
-          <Link
-            href="/#hero"
-            className="text-xl md:text-3xl ml-2 flex items-start gap-2 font-mono uppercase font-extrabold italic"
-          >
-            <LineShadowText>Foundathon</LineShadowText>
-            {""}
-            <LineShadowText>3.0</LineShadowText>
-          </Link>
 
-          <div className="flex flex-1 items-center justify-end gap-6">
-            <div className="hidden md:flex items-center gap-2">
+            <Link
+              href="/#hero"
+              className="flex min-w-0 items-center gap-2 text-lg font-mono font-extrabold italic uppercase tracking-tight sm:text-xl md:text-3xl"
+            >
+              <LineShadowText>Foundathon</LineShadowText>
+              <LineShadowText>3.0</LineShadowText>
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-2 sm:flex">
               {navLinks.map((item) => (
                 <FnButton key={item.href} asChild kind="nav">
                   <Link href={item.href}>{item.label}</Link>
@@ -173,22 +184,23 @@ const HeaderClient = ({
               ))}
             </div>
 
-            <div className="flex items-center gap-3">
-              <FnButton
-                type="button"
-                tone="gray"
-                className="md:hidden"
-                aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
-                aria-expanded={isMobileMenuOpen}
-                onClick={() => setIsMobileMenuOpen((prev) => !prev)}
-              >
-                {isMobileMenuOpen ? (
-                  <X size={18} strokeWidth={3} />
-                ) : (
-                  <Menu size={18} strokeWidth={3} />
-                )}
-              </FnButton>
-              <FnButton asChild tone="gray" className="hidden sm:inline-flex">
+            <FnButton
+              type="button"
+              tone="gray"
+              className="lg:hidden h-10"
+              aria-label={isMobileMenuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={isMobileMenuOpen}
+              onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+            >
+              {isMobileMenuOpen ? (
+                <X size={18} strokeWidth={3} />
+              ) : (
+                <Menu size={18} strokeWidth={3} />
+              )}
+            </FnButton>
+
+            <div className="hidden items-center gap-3 lg:flex">
+              <FnButton asChild tone="gray">
                 <Link href="/problem-statements" prefetch={true}>
                   Problem Statements
                 </Link>
@@ -219,7 +231,7 @@ const HeaderClient = ({
               {isSignedIn ? (
                 <div className="relative" ref={accountMenuRef}>
                   <FnButton
-                    tone={"yellow"}
+                    tone="yellow"
                     type="button"
                     aria-label="Open account menu"
                     aria-expanded={isAccountMenuOpen}
@@ -262,8 +274,8 @@ const HeaderClient = ({
       </div>
 
       {isMobileMenuOpen ? (
-        <div className="border-b border-foreground/10 bg-background/95 px-4 py-3 md:hidden">
-          <div className="fncontainer space-y-2">
+        <div className="border-b space-y-4 border-foreground/10 bg-background/95 px-4 py-3 shadow-sm lg:hidden">
+          <div className="fncontainer space-y-2 sm:hidden">
             {navLinks.map((item) => (
               <FnButton key={item.href} asChild kind="nav" className="w-full">
                 <Link href={item.href} onClick={closeMobileMenu}>
@@ -271,6 +283,8 @@ const HeaderClient = ({
                 </Link>
               </FnButton>
             ))}
+          </div>
+          <div className="fncontainer space-y-2">
             <FnButton asChild tone="gray" className="w-full">
               <Link
                 href="/problem-statements"
@@ -311,6 +325,26 @@ const HeaderClient = ({
                 }}
               >
                 Register Team
+              </FnButton>
+            )}
+            {isSignedIn ? (
+              <FnButton
+                type="button"
+                tone="yellow"
+                className="w-full"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                disabled={isLoggingOut}
+              >
+                {isLoggingOut ? "Logging out..." : "Logout"}
+              </FnButton>
+            ) : (
+              <FnButton asChild tone="yellow" className="w-full">
+                <Link href={signInHref} onClick={closeMobileMenu}>
+                  Sign In
+                </Link>
               </FnButton>
             )}
           </div>

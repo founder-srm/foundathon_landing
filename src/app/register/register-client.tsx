@@ -14,6 +14,13 @@ import { FnButton } from "@/components/ui/fn-button";
 import { useRouteProgress } from "@/components/ui/route-progress";
 import { toast } from "@/hooks/use-toast";
 import {
+  findProblemStatementSummary,
+  isValidEmailAddress,
+  type ProblemLockEmailPayload,
+  type ProblemLockEmailResponse,
+  toSrmLeadEmail,
+} from "@/lib/problem-lock-email";
+import {
   type NonSrmMember,
   nonSrmMemberSchema,
   type SrmMember,
@@ -40,6 +47,7 @@ type ProblemStatementAvailability = {
 type LockedProblemStatement = {
   id: string;
   lockExpiresAt: string;
+  lockedAtIso: string;
   lockToken: string;
   title: string;
 };
@@ -134,6 +142,10 @@ const RegisterClient = () => {
   const hasStartedDraftRef = useRef(false);
   const allowUnmountWarningRef = useRef(false);
   const hasShownExpiredLockToastRef = useRef(false);
+  const hasSentAbandonLockEmailRef = useRef(false);
+  const notifyProblemStatementAbandonedByEmailRef = useRef<() => void>(
+    () => undefined,
+  );
 
   const currentMembers = teamType === "srm" ? membersSrm : membersNonSrm;
   const currentLead = teamType === "srm" ? leadSrm : leadNonSrm;
@@ -306,6 +318,7 @@ const RegisterClient = () => {
     }
 
     setLockedProblemStatement(null);
+    hasSentAbandonLockEmailRef.current = false;
     void loadProblemStatements();
   }, [isLockExpired, loadProblemStatements, lockedProblemStatement]);
 
@@ -363,6 +376,7 @@ const RegisterClient = () => {
       }
 
       window.localStorage.setItem(ABANDONED_DRAFT_KEY, "1");
+      notifyProblemStatementAbandonedByEmailRef.current();
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -384,6 +398,7 @@ const RegisterClient = () => {
       if (typeof window !== "undefined") {
         window.localStorage.setItem(ABANDONED_DRAFT_KEY, "1");
       }
+      notifyProblemStatementAbandonedByEmailRef.current();
 
       toast({
         title: "Team Was Not Created",
@@ -471,6 +486,7 @@ const RegisterClient = () => {
     setStep(1);
     setTeamName("");
     setLockedProblemStatement(null);
+    hasSentAbandonLockEmailRef.current = false;
     setProblemStatements([]);
 
     if (teamType === "srm") {
@@ -520,6 +536,154 @@ const RegisterClient = () => {
     setStep(2);
   };
 
+  const notifyProblemStatementLockByEmail = async (input: {
+    lockExpiresAtIso: string;
+    lockedAtIso: string;
+    problemStatementId: string;
+    problemStatementTitle: string;
+  }) => {
+    const leadName =
+      teamType === "srm" ? leadSrm.name.trim() : leadNonSrm.name.trim();
+    const leadEmail =
+      teamType === "srm"
+        ? toSrmLeadEmail(leadSrm.netId)
+        : leadNonSrm.collegeEmail.trim().toLowerCase();
+
+    if (!leadName || !isValidEmailAddress(leadEmail)) {
+      return {
+        reason: "invalid_lead_email" as const,
+        sent: false,
+      };
+    }
+
+    const payload: ProblemLockEmailPayload = {
+      notificationType: "lock_confirmed",
+      leadEmail,
+      leadName,
+      lockExpiresAtIso: input.lockExpiresAtIso,
+      lockedAtIso: input.lockedAtIso,
+      problemStatementId: input.problemStatementId,
+      problemStatementSummary: findProblemStatementSummary(
+        problemStatements,
+        input.problemStatementId,
+      ),
+      problemStatementTitle: input.problemStatementTitle,
+      teamName: teamName.trim() || "Unnamed Team",
+    };
+
+    try {
+      const response = await fetch("/api/send", {
+        body: JSON.stringify(payload),
+        headers: { "Content-Type": "application/json" },
+        method: "POST",
+      });
+
+      const data = (await response.json()) as Partial<ProblemLockEmailResponse>;
+      if (response.ok && data.sent === true) {
+        return { sent: true as const };
+      }
+
+      return {
+        error: typeof data.error === "string" ? data.error : undefined,
+        reason:
+          typeof data.reason === "string" ? data.reason : "provider_error",
+        sent: false as const,
+      };
+    } catch {
+      return {
+        reason: "request_failed" as const,
+        sent: false,
+      };
+    }
+  };
+
+  const notifyProblemStatementAbandonedByEmail = useCallback(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    if (hasSentAbandonLockEmailRef.current || hasCreatedTeamRef.current) {
+      return;
+    }
+
+    if (!lockedProblemStatement) {
+      return;
+    }
+
+    const lockExpiresAtMs = new Date(
+      lockedProblemStatement.lockExpiresAt,
+    ).getTime();
+    if (!Number.isFinite(lockExpiresAtMs) || lockExpiresAtMs <= Date.now()) {
+      return;
+    }
+
+    const leadName =
+      teamType === "srm" ? leadSrm.name.trim() : leadNonSrm.name.trim();
+    const leadEmail =
+      teamType === "srm"
+        ? toSrmLeadEmail(leadSrm.netId)
+        : leadNonSrm.collegeEmail.trim().toLowerCase();
+    if (!leadName || !isValidEmailAddress(leadEmail)) {
+      return;
+    }
+
+    const abandonedAtIso = new Date().toISOString();
+    const payload: ProblemLockEmailPayload = {
+      abandonedAtIso,
+      leadEmail,
+      leadName,
+      lockExpiresAtIso: lockedProblemStatement.lockExpiresAt,
+      lockedAtIso: lockedProblemStatement.lockedAtIso,
+      notificationType: "lock_abandoned",
+      problemStatementId: lockedProblemStatement.id,
+      problemStatementSummary: findProblemStatementSummary(
+        problemStatements,
+        lockedProblemStatement.id,
+      ),
+      problemStatementTitle: lockedProblemStatement.title,
+      teamName: teamName.trim() || "Unnamed Team",
+    };
+    const serializedPayload = JSON.stringify(payload);
+
+    let beaconQueued = false;
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.sendBeacon === "function"
+    ) {
+      beaconQueued = navigator.sendBeacon(
+        "/api/send",
+        new Blob([serializedPayload], {
+          type: "application/json",
+        }),
+      );
+    }
+
+    if (!beaconQueued) {
+      void fetch("/api/send", {
+        body: serializedPayload,
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+        method: "POST",
+      }).catch(() => undefined);
+    }
+
+    hasSentAbandonLockEmailRef.current = true;
+  }, [
+    leadNonSrm.collegeEmail,
+    leadNonSrm.name,
+    leadSrm.name,
+    leadSrm.netId,
+    lockedProblemStatement,
+    problemStatements,
+    teamName,
+    teamType,
+  ]);
+
+  useEffect(() => {
+    notifyProblemStatementAbandonedByEmailRef.current =
+      notifyProblemStatementAbandonedByEmail;
+  }, [notifyProblemStatementAbandonedByEmail]);
+
   const lockProblemStatement = async (problemStatementId: string) => {
     if (lockedProblemStatement) {
       return;
@@ -559,18 +723,43 @@ const RegisterClient = () => {
         return;
       }
 
+      const lockedAtIso = new Date().toISOString();
       setLockedProblemStatement({
         id: data.problemStatement.id,
         lockExpiresAt: data.lockExpiresAt,
+        lockedAtIso,
         lockToken: data.lockToken,
         title: data.problemStatement.title,
       });
+      hasSentAbandonLockEmailRef.current = false;
 
-      toast({
-        title: "Problem Statement Locked",
-        description: `${data.problemStatement.title} is locked. You can now create your team.`,
-        variant: "success",
+      const emailResult = await notifyProblemStatementLockByEmail({
+        lockExpiresAtIso: data.lockExpiresAt,
+        lockedAtIso,
+        problemStatementId: data.problemStatement.id,
+        problemStatementTitle: data.problemStatement.title,
       });
+
+      if (emailResult.sent) {
+        toast({
+          title: "Problem Statement Locked",
+          description:
+            "Problem statement locked and confirmation email sent to the lead's mail.",
+          variant: "success",
+        });
+      } else if (emailResult.reason === "invalid_lead_email") {
+        toast({
+          title: "Problem Statement Locked",
+          description:
+            "Problem statement locked, but lead email is missing or invalid. Confirmation email was not sent.",
+        });
+      } else {
+        toast({
+          title: "Problem Statement Locked",
+          description:
+            "Problem statement locked, but we could not send the confirmation email right now.",
+        });
+      }
     } catch {
       toast({
         title: "Lock Request Failed",
@@ -1336,7 +1525,7 @@ const NonSrmMemberEditor = ({
         maxLength={50}
       />
       <Input
-        label="College Email"
+        label="College Email / Personal Email"
         value={member.collegeEmail}
         onChange={(v) => onChange("collegeEmail", v)}
         type="email"

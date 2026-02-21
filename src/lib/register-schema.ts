@@ -45,7 +45,7 @@ export const nonSrmMemberSchema = z.object({
     .min(2, "Name is required.")
     .max(50, "Name is too long."),
   collegeId: z.string().trim().min(2, "College ID Number is required."),
-  collegeEmail: z.email("Valid college email is required."),
+  collegeEmail: z.email("Valid college/personal email is required."),
   contact: contactNumberSchema,
 });
 

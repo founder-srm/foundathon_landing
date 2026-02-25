@@ -1102,42 +1102,40 @@ export default function TeamDashboardPage() {
           </p>
         </header>
 
-        <section className="mb-6 rounded-2xl border border-b-4 border-fnblue bg-background/95 p-4 shadow-lg md:p-5">
+        {/* <section className="mb-6 rounded-2xl border border-b-4 border-fnblue bg-background/95 p-4 shadow-lg md:p-5 flex flex-col items-center"> */}
+        <section className="mb-6 flex flex-col items-center">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnblue">
             Dashboard Sections
           </p>
           <div
-            className="mt-3 flex gap-2 overflow-x-auto pb-1"
+            className="mt-3 rounded-xl border border-fnblue/20 bg-linear-to-r from-fnblue/5 v to-fnyellow/10 p-2 inline-flex"
             role="tablist"
             aria-label="Team dashboard sections"
           >
-            {DASHBOARD_TABS.map((tab) => {
-              const isSelected = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  id={`dashboard-tab-${tab.id}`}
-                  type="button"
-                  role="tab"
-                  aria-controls={`dashboard-panel-${tab.id}`}
-                  aria-selected={isSelected}
-                  tabIndex={isSelected ? 0 : -1}
-                  onClick={() => goToTab(tab.id)}
-                  className={`min-w-44 rounded-lg border px-3 py-2 text-left transition-colors ${
-                    isSelected
-                      ? "border-fnblue bg-fnblue/10 text-fnblue"
-                      : "border-foreground/15 bg-white text-foreground/80 hover:border-fnblue/45"
-                  }`}
-                >
-                  <p className="text-sm font-black uppercase tracking-[0.08em]">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {DASHBOARD_TABS.map((tab) => {
+                const isSelected = activeTab === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    id={`dashboard-tab-${tab.id}`}
+                    type="button"
+                    role="tab"
+                    aria-controls={`dashboard-panel-${tab.id}`}
+                    aria-selected={isSelected}
+                    tabIndex={isSelected ? 0 : -1}
+                    onClick={() => goToTab(tab.id)}
+                    className={`shrink-0 rounded-full px-4 py-2 text-sm font-black uppercase tracking-[0.08em] transition-colors ${
+                      isSelected
+                        ? "bg-fnblue text-white shadow-sm"
+                        : "bg-white/80 text-foreground/75 hover:bg-white hover:text-foreground"
+                    }`}
+                  >
                     {tab.label}
-                  </p>
-                  <p className="mt-1 text-[11px] leading-snug text-foreground/70">
-                    {tab.description}
-                  </p>
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </section>
 
@@ -1201,121 +1199,118 @@ export default function TeamDashboardPage() {
               </div>
             </section>
 
-            <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <StatCard label="Team Type" value={teamTypeLabel} tone="blue" />
-              <StatCard
-                label="Team Members"
-                value={`${memberCount}/5`}
-                tone="green"
-              />
-              <StatCard
-                label="Completed Profiles"
-                value={`${completedProfiles}/${memberCount}`}
-                tone="orange"
-              />
-              <StatCard
-                label="Last Updated"
-                value={formatDateTime(updatedAt)}
-                tone="yellow"
-              />
-            </section>
-
-            <div className="grid gap-6 xl:grid-cols-[1fr_1fr]">
-              <section className="rounded-2xl border border-b-4 border-fnorange bg-background/95 p-6 shadow-lg">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnorange">
-                  Next Steps
-                </p>
-                <h3 className="mt-2 text-2xl font-black uppercase tracking-tight">
-                  Continue Team Operations
-                </h3>
-                <p className="mt-2 text-sm text-foreground/75">
-                  Manage roster updates from Manage Team and complete one-time
-                  PPT operations from Actions.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <FnButton type="button" onClick={() => goToTab("manage")}>
-                    Go to Manage Team
-                  </FnButton>
-                  <FnButton
-                    type="button"
-                    tone="yellow"
-                    onClick={() => goToTab("actions")}
-                  >
-                    Go to Actions
-                  </FnButton>
+            <section className="rounded-2xl border border-b-4 border-fnorange bg-background/95 p-6 shadow-lg">
+              <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnorange">
+                    Team Snapshot
+                  </p>
+                  <h3 className="mt-2 text-2xl font-black uppercase tracking-tight">
+                    Continue Team Operations
+                  </h3>
+                  <p className="mt-2 text-sm text-foreground/75">
+                    Manage roster updates from Manage Team and complete one-time
+                    PPT operations from Actions.
+                  </p>
+                  <div className="mt-4 flex flex-wrap gap-3">
+                    <FnButton type="button" onClick={() => goToTab("manage")}>
+                      Go to Manage Team
+                    </FnButton>
+                    <FnButton
+                      type="button"
+                      tone="yellow"
+                      onClick={() => goToTab("actions")}
+                    >
+                      Go to Actions
+                    </FnButton>
+                  </div>
                 </div>
-              </section>
 
-              <section className="rounded-2xl border border-b-4 border-fngreen bg-background/95 p-6 shadow-lg">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fngreen">
-                  Team Identity
-                </p>
-                <p className="mt-3 text-sm font-semibold">Team: {teamName}</p>
-                <p className="text-sm font-semibold">Team ID: {teamId}</p>
-                <p className="text-sm font-semibold">
-                  Lead:{" "}
-                  {(teamType === "srm" ? leadSrm.name : leadNonSrm.name) ||
-                    "N/A"}
-                </p>
-                <p className="text-sm font-semibold">
-                  Lead ID: {currentLeadId || "N/A"}
-                </p>
-                {teamType === "non_srm" ? (
-                  <>
-                    <p className="text-sm font-semibold">
-                      College: {metaNonSrm.collegeName || "N/A"}
-                    </p>
-                    <p className="text-sm font-semibold">
-                      Club:{" "}
-                      {metaNonSrm.isClub
-                        ? metaNonSrm.clubName || "Club team"
-                        : "Independent Team"}
-                    </p>
-                  </>
-                ) : null}
-                <p className="mt-3 text-xs text-foreground/70">
-                  Created: {formatDateTime(createdAt)}
-                </p>
-              </section>
-            </div>
+                <div className="grid gap-3 text-sm">
+                  <MetricRow label="Team Type" value={teamTypeLabel} />
+                  <MetricRow label="Team Members" value={`${memberCount}/5`} />
+                  <MetricRow
+                    label="Completed Profiles"
+                    value={`${completedProfiles}/${memberCount}`}
+                  />
+                  <MetricRow
+                    label="Last Updated"
+                    value={formatDateTime(updatedAt)}
+                  />
+                  <MetricRow label="Team Name" value={teamName || "N/A"} />
+                  <MetricRow label="Team ID" value={teamId} />
+                  <MetricRow
+                    label="Lead"
+                    value={
+                      (teamType === "srm" ? leadSrm.name : leadNonSrm.name) ||
+                      "N/A"
+                    }
+                  />
+                  <MetricRow label="Lead ID" value={currentLeadId || "N/A"} />
+                  {teamType === "non_srm" ? (
+                    <>
+                      <MetricRow
+                        label="College"
+                        value={metaNonSrm.collegeName || "N/A"}
+                      />
+                      <MetricRow
+                        label="Club"
+                        value={
+                          metaNonSrm.isClub
+                            ? metaNonSrm.clubName || "Club team"
+                            : "Independent Team"
+                        }
+                      />
+                    </>
+                  ) : null}
+                  <MetricRow
+                    label="Created"
+                    value={formatDateTime(createdAt)}
+                    noBorder
+                  />
+                </div>
+              </div>
 
-            <section className="rounded-2xl border border-b-4 border-fnyellow bg-background/95 p-6 shadow-lg">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnyellow">
-                Members Snapshot
-              </p>
-              <div className="mt-3 overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-foreground/10 text-left">
-                      <th className="py-2 pr-3">Role</th>
-                      <th className="py-2 pr-3">Name</th>
-                      <th className="py-2 pr-3">{memberIdLabel}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-foreground/10">
-                      <td className="py-2 pr-3 font-bold text-fnblue">Lead</td>
-                      <td className="py-2 pr-3">
-                        {(teamType === "srm"
-                          ? leadSrm.name
-                          : leadNonSrm.name) || "-"}
-                      </td>
-                      <td className="py-2 pr-3">{currentLeadId || "-"}</td>
-                    </tr>
-                    {currentMembers.map((member, idx) => (
-                      <tr
-                        key={`${getCurrentMemberId(member)}-${idx}`}
-                        className="border-b border-foreground/10"
-                      >
-                        <td className="py-2 pr-3">M{idx + 1}</td>
-                        <td className="py-2 pr-3">{member.name}</td>
-                        <td className="py-2 pr-3">
-                          {getCurrentMemberId(member)}
-                        </td>
+              <div className="mt-6 border-t border-foreground/10 pt-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnyellow">
+                  Members Snapshot
+                </p>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-foreground/10 text-left">
+                        <th className="py-2 pr-3">Role</th>
+                        <th className="py-2 pr-3">Name</th>
+                        <th className="py-2 pr-3">{memberIdLabel}</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-foreground/10">
+                        <td className="py-2 pr-3 font-bold text-fnblue">
+                          Lead
+                        </td>
+                        <td className="py-2 pr-3">
+                          {(teamType === "srm"
+                            ? leadSrm.name
+                            : leadNonSrm.name) || "-"}
+                        </td>
+                        <td className="py-2 pr-3">{currentLeadId || "-"}</td>
+                      </tr>
+                      {currentMembers.map((member, idx) => (
+                        <tr
+                          key={`${getCurrentMemberId(member)}-${idx}`}
+                          className="border-b border-foreground/10"
+                        >
+                          <td className="py-2 pr-3">M{idx + 1}</td>
+                          <td className="py-2 pr-3">{member.name}</td>
+                          <td className="py-2 pr-3">
+                            {getCurrentMemberId(member)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </section>
           </section>
@@ -2081,32 +2076,24 @@ const HighlightTile = ({
   </div>
 );
 
-const StatCard = ({
+const MetricRow = ({
   label,
   value,
-  tone,
+  noBorder = false,
 }: {
   label: string;
   value: string;
-  tone: AccentTone;
+  noBorder?: boolean;
 }) => (
   <div
-    className={`rounded-xl border border-b-4 bg-background/95 p-4 shadow-sm ${
-      tone === "blue"
-        ? "border-fnblue"
-        : tone === "green"
-          ? "border-fngreen"
-          : tone === "yellow"
-            ? "border-fnyellow"
-            : tone === "orange"
-              ? "border-fnorange"
-              : "border-fnred"
+    className={`flex items-center justify-between gap-4 py-1.5 ${
+      noBorder ? "" : "border-b border-foreground/10"
     }`}
   >
-    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/60">
+    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/65">
       {label}
     </p>
-    <p className="mt-2 text-base font-black uppercase tracking-[0.05em] md:text-lg">
+    <p className="text-sm font-black uppercase tracking-[0.06em] text-right">
       {value}
     </p>
   </div>

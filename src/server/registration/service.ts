@@ -327,6 +327,32 @@ type SubmitPresentationInput = {
   teamId: string;
 };
 
+const getImmutableTeamIdentity = (team: TeamSubmission) =>
+  team.teamType === "srm"
+    ? {
+        lead: team.lead,
+        teamName: team.teamName,
+        teamType: team.teamType,
+      }
+    : {
+        clubName: team.clubName,
+        collegeName: team.collegeName,
+        isClub: team.isClub,
+        lead: team.lead,
+        teamName: team.teamName,
+        teamType: team.teamType,
+      };
+
+const hasImmutableTeamIdentityMismatch = ({
+  existing,
+  incoming,
+}: {
+  existing: TeamSubmission;
+  incoming: TeamSubmission;
+}) =>
+  JSON.stringify(getImmutableTeamIdentity(existing)) !==
+  JSON.stringify(getImmutableTeamIdentity(incoming));
+
 export const listTeams = async ({
   supabase,
   userId,
@@ -546,6 +572,23 @@ export const patchTeam = async ({
     teamId,
     userId,
   });
+  const existingSubmission = toTeamRecord(syncedExistingTeam);
+  if (!existingSubmission) {
+    return fail("Team data is incomplete or outdated.", 422);
+  }
+
+  if (
+    hasImmutableTeamIdentityMismatch({
+      existing: existingSubmission,
+      incoming: input.team,
+    })
+  ) {
+    return fail(
+      "Team identity is locked after registration. You can only manage members.",
+      409,
+    );
+  }
+
   const existingDetails = getDetailsRecord(syncedExistingTeam.details);
   const existingStatementId = getProblemStatementIdFromDetails(existingDetails);
 

@@ -145,6 +145,9 @@ const formatBytes = (value: number | null) => {
   return `${(value / (1024 * 1024)).toFixed(2)} MB`;
 };
 
+const snapshotMembers = (members: SrmMember[] | NonSrmMember[]) =>
+  JSON.stringify(members);
+
 const toPresentationPreviewUrl = (publicUrl: string) => {
   const normalizedUrl = publicUrl.trim();
   if (!normalizedUrl) {
@@ -291,12 +294,19 @@ export default function TeamDashboardPage() {
   const [showPresentationPreview, setShowPresentationPreview] = useState(false);
   const [isSubmittingPresentation, setIsSubmittingPresentation] =
     useState(false);
+  const [lastSavedMembersSnapshot, setLastSavedMembersSnapshot] = useState("");
   const [problemStatements, setProblemStatements] = useState<
     ProblemStatementAvailability[]
   >([]);
   const [updatedAt, setUpdatedAt] = useState("");
 
   const currentMembers = teamType === "srm" ? membersSrm : membersNonSrm;
+  const currentMembersSnapshot = useMemo(
+    () => snapshotMembers(currentMembers),
+    [currentMembers],
+  );
+  const hasUnsavedMemberChanges =
+    !isLoading && currentMembersSnapshot !== lastSavedMembersSnapshot;
   const currentLeadId =
     teamType === "srm" ? leadSrm.netId : leadNonSrm.collegeId;
   const memberCount = 1 + currentMembers.length;
@@ -522,10 +532,12 @@ export default function TeamDashboardPage() {
         if (team.teamType === "srm") {
           setLeadSrm(team.lead);
           setMembersSrm(team.members);
+          setLastSavedMembersSnapshot(snapshotMembers(team.members));
           setDraftSrm(emptySrmMember());
         } else {
           setLeadNonSrm(team.lead);
           setMembersNonSrm(team.members);
+          setLastSavedMembersSnapshot(snapshotMembers(team.members));
           setDraftNonSrm(emptyNonSrmMember());
           setMetaNonSrm({
             collegeName: team.collegeName,
@@ -642,7 +654,8 @@ export default function TeamDashboardPage() {
       setDraftSrm(emptySrmMember());
       toast({
         title: "Member Added to Draft",
-        description: "The member has been added. Remember to save changes!",
+        description:
+          "Member draft updated. Click Save Member Changes to persist.",
         variant: "success",
       });
       return;
@@ -663,7 +676,8 @@ export default function TeamDashboardPage() {
     setDraftNonSrm(emptyNonSrmMember());
     toast({
       title: "Member Added to Draft",
-      description: "The member has been added. Remember to save changes!",
+      description:
+        "Member draft updated. Click Save Member Changes to persist.",
       variant: "success",
     });
   };
@@ -728,13 +742,18 @@ export default function TeamDashboardPage() {
 
     toast({
       title: "Member Draft Updated",
-      description: "Member changes are valid. Remember to save changes!",
+      description:
+        "Member draft updated. Click Save Member Changes to persist.",
       variant: "success",
     });
     cancelEditMember();
   };
 
   const saveChanges = async () => {
+    if (!hasUnsavedMemberChanges) {
+      return;
+    }
+
     const parsed = teamSubmissionSchema.safeParse(teamPayload);
     if (!parsed.success) {
       const message =
@@ -775,10 +794,16 @@ export default function TeamDashboardPage() {
       setTeamApprovalStatusFromDb(
         normalizeApprovalStatus(data.team.approvalStatus),
       );
+      if (data.team.teamType === "srm") {
+        setMembersSrm(data.team.members);
+      } else {
+        setMembersNonSrm(data.team.members);
+      }
+      setLastSavedMembersSnapshot(snapshotMembers(data.team.members));
       setFormError(null);
       toast({
         title: "Team Changes Saved",
-        description: "Your latest team details have been saved successfully.",
+        description: "Member changes have been saved successfully.",
         variant: "success",
       });
     } catch {
@@ -1749,111 +1774,103 @@ export default function TeamDashboardPage() {
             <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
               <section className="rounded-2xl border border-b-4 border-fnblue bg-background/95 p-6 shadow-lg md:p-8">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnblue">
-                  Team Details
+                  Manage Team
                 </p>
                 <h2 className="mt-2 text-2xl font-black tracking-tight uppercase">
-                  Edit Team Information
+                  Manage Team Roster
                 </h2>
+                <p className="mt-2 text-sm leading-relaxed text-foreground/75">
+                  Add, edit, and remove member profiles. Team identity fields
+                  are locked after registration.
+                </p>
 
                 <div className="mt-6 rounded-xl border border-b-4 border-fnblue/40 bg-white p-4">
-                  <Input
-                    label="Team Name"
-                    value={teamName}
-                    onChange={setTeamName}
-                  />
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnblue">
+                    Locked Team Profile
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-foreground/75">
+                    These fields are locked after team creation: Team Name, Lead
+                    Details
+                    {teamType === "non_srm" ? ", College + Club Profile." : "."}
+                  </p>
+                  <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+                    <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
+                        Team Name
+                      </p>
+                      <p className="mt-1 font-semibold">{teamName || "N/A"}</p>
+                    </div>
+                    <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
+                        Team Type
+                      </p>
+                      <p className="mt-1 font-semibold">{teamTypeLabel}</p>
+                    </div>
+                    <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
+                        Lead Name
+                      </p>
+                      <p className="mt-1 font-semibold">
+                        {(teamType === "srm"
+                          ? leadSrm.name
+                          : leadNonSrm.name) || "N/A"}
+                      </p>
+                    </div>
+                    <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
+                        Lead ID
+                      </p>
+                      <p className="mt-1 font-semibold">
+                        {currentLeadId || "N/A"}
+                      </p>
+                    </div>
+                    {teamType === "non_srm" ? (
+                      <>
+                        <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
+                            College Name
+                          </p>
+                          <p className="mt-1 font-semibold">
+                            {metaNonSrm.collegeName || "N/A"}
+                          </p>
+                        </div>
+                        <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
+                            Club Profile
+                          </p>
+                          <p className="mt-1 font-semibold">
+                            {metaNonSrm.isClub
+                              ? metaNonSrm.clubName || "Club team"
+                              : "Independent Team"}
+                          </p>
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
                 </div>
 
-                {teamType === "non_srm" ? (
-                  <div className="mt-6 rounded-xl border border-b-4 border-fngreen/45 bg-white p-4">
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <Input
-                        label="College Name"
-                        value={metaNonSrm.collegeName}
-                        onChange={(value) =>
-                          setMetaNonSrm((prev) => ({
-                            ...prev,
-                            collegeName: value,
-                          }))
-                        }
-                      />
-                    </div>
-                    <label className="mt-3 inline-flex items-center gap-2 text-sm font-semibold">
-                      <input
-                        type="checkbox"
-                        checked={metaNonSrm.isClub}
-                        onChange={(event) =>
-                          setMetaNonSrm((prev) => ({
-                            ...prev,
-                            isClub: event.target.checked,
-                            clubName: event.target.checked ? prev.clubName : "",
-                          }))
-                        }
-                      />
-                      Team represents a club
-                    </label>
-                    <div className="mt-3">
-                      <Input
-                        label="Club Name"
-                        value={metaNonSrm.clubName}
-                        onChange={(value) =>
-                          setMetaNonSrm((prev) => ({
-                            ...prev,
-                            clubName: value,
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
-                ) : null}
-
                 {teamType === "srm" ? (
-                  <>
-                    <SrmEditor
-                      title="Team Lead"
-                      member={leadSrm}
-                      onChange={(field, value) =>
-                        setLeadSrm(
-                          (prev) => ({ ...prev, [field]: value }) as SrmMember,
-                        )
-                      }
-                      className="mt-6 border-b-4 border-fnblue/45"
-                    />
-                    <SrmEditor
-                      title="Member Draft"
-                      member={draftSrm}
-                      onChange={(field, value) =>
-                        setDraftSrm(
-                          (prev) => ({ ...prev, [field]: value }) as SrmMember,
-                        )
-                      }
-                      className="mt-4 border-b-4 border-fngreen/45"
-                    />
-                  </>
+                  <SrmEditor
+                    title="Member Draft"
+                    member={draftSrm}
+                    onChange={(field, value) =>
+                      setDraftSrm(
+                        (prev) => ({ ...prev, [field]: value }) as SrmMember,
+                      )
+                    }
+                    className="mt-6 border-b-4 border-fngreen/45"
+                  />
                 ) : (
-                  <>
-                    <NonSrmEditor
-                      title="Team Lead"
-                      member={leadNonSrm}
-                      onChange={(field, value) =>
-                        setLeadNonSrm(
-                          (prev) =>
-                            ({ ...prev, [field]: value }) as NonSrmMember,
-                        )
-                      }
-                      className="mt-6 border-b-4 border-fnblue/45"
-                    />
-                    <NonSrmEditor
-                      title="Member Draft"
-                      member={draftNonSrm}
-                      onChange={(field, value) =>
-                        setDraftNonSrm(
-                          (prev) =>
-                            ({ ...prev, [field]: value }) as NonSrmMember,
-                        )
-                      }
-                      className="mt-4 border-b-4 border-fngreen/45"
-                    />
-                  </>
+                  <NonSrmEditor
+                    title="Member Draft"
+                    member={draftNonSrm}
+                    onChange={(field, value) =>
+                      setDraftNonSrm(
+                        (prev) => ({ ...prev, [field]: value }) as NonSrmMember,
+                      )
+                    }
+                    className="mt-6 border-b-4 border-fngreen/45"
+                  />
                 )}
 
                 {editingIndex !== null ? (
@@ -1912,6 +1929,15 @@ export default function TeamDashboardPage() {
                       {formError}
                     </p>
                   ) : null}
+                  <p
+                    className={`w-full text-xs font-semibold uppercase tracking-[0.16em] ${
+                      hasUnsavedMemberChanges ? "text-fnorange" : "text-fngreen"
+                    }`}
+                  >
+                    {hasUnsavedMemberChanges
+                      ? "Unsaved roster changes"
+                      : "Roster synced"}
+                  </p>
                   <FnButton
                     type="button"
                     onClick={addMember}
@@ -1926,9 +1952,17 @@ export default function TeamDashboardPage() {
                     onClick={saveChanges}
                     loading={isSaving}
                     loadingText="Saving..."
-                    disabled={isSaving || isDeleting || isAssigningStatement}
+                    disabled={
+                      isSaving ||
+                      isDeleting ||
+                      isAssigningStatement ||
+                      !hasUnsavedMemberChanges
+                    }
+                    tone={hasUnsavedMemberChanges ? "blue" : "gray"}
                   >
-                    Save Changes
+                    {hasUnsavedMemberChanges
+                      ? "Save Member Changes"
+                      : "All Changes Saved"}
                   </FnButton>
                   <FnButton
                     type="button"

@@ -71,6 +71,37 @@ const srmRecord = {
   ],
 };
 
+const nonSrmRecord = {
+  id: row.id,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+  teamType: "non_srm" as const,
+  teamName: "Beta",
+  collegeName: "Some College",
+  isClub: true,
+  clubName: "Tech Club",
+  lead: {
+    name: "Lead Non SRM",
+    collegeId: "NCOL001",
+    collegeEmail: "lead@example.edu",
+    contact: 9876543210,
+  },
+  members: [
+    {
+      name: "Member A",
+      collegeId: "NCOL002",
+      collegeEmail: "a@example.edu",
+      contact: 9876543211,
+    },
+    {
+      name: "Member B",
+      collegeId: "NCOL003",
+      collegeEmail: "b@example.edu",
+      contact: 9876543212,
+    },
+  ],
+};
+
 const makeParams = (id: string) => ({
   params: Promise.resolve({ teamId: id }),
 });
@@ -384,7 +415,7 @@ describe("/api/register/[teamId] route", () => {
     }
   });
 
-  it("PATCH updates team when payload is valid", async () => {
+  it("PATCH updates team when only members change", async () => {
     const existingMaybeSingle = vi.fn().mockResolvedValue({
       data: {
         ...row,
@@ -445,9 +476,15 @@ describe("/api/register/[teamId] route", () => {
     const req = new NextRequest(`http://localhost/api/register/${teamId}`, {
       body: JSON.stringify({
         teamType: "srm",
-        teamName: "Updated Team",
+        teamName: srmRecord.teamName,
         lead: srmRecord.lead,
-        members: srmRecord.members,
+        members: [
+          {
+            ...srmRecord.members[0],
+            name: "M1 Updated",
+          },
+          srmRecord.members[1],
+        ],
       }),
       headers: { "content-type": "application/json" },
       method: "PATCH",
@@ -461,6 +498,11 @@ describe("/api/register/[teamId] route", () => {
     expect(updateRecord).toHaveBeenCalledWith(
       expect.objectContaining({
         details: expect.objectContaining({
+          members: expect.arrayContaining([
+            expect.objectContaining({
+              name: "M1 Updated",
+            }),
+          ]),
           problemStatementCap: 10,
           problemStatementId: "ps-01",
           problemStatementLockedAt: "2026-02-19T08:00:00.000Z",
@@ -475,6 +517,176 @@ describe("/api/register/[teamId] route", () => {
         }),
       }),
     );
+  });
+
+  it("PATCH rejects immutable team name changes", async () => {
+    const existingMaybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        ...row,
+        details: {},
+      },
+      error: null,
+    });
+    const existingSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: existingMaybeSingle,
+          }),
+        }),
+      }),
+    });
+
+    const updateRecord = vi.fn();
+    const from = vi
+      .fn()
+      .mockReturnValueOnce({ select: existingSelect })
+      .mockReturnValueOnce({ update: updateRecord });
+
+    mocks.createSupabaseClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: "user-1" } },
+          error: null,
+        }),
+      },
+      from,
+    });
+
+    const { PATCH } = await import("./route");
+    const req = new NextRequest(`http://localhost/api/register/${teamId}`, {
+      body: JSON.stringify({
+        teamType: "srm",
+        teamName: "Changed Team Name",
+        lead: srmRecord.lead,
+        members: srmRecord.members,
+      }),
+      headers: { "content-type": "application/json" },
+      method: "PATCH",
+    });
+
+    const res = await PATCH(req, makeParams(teamId));
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body.error).toContain("Team identity is locked");
+    expect(updateRecord).not.toHaveBeenCalled();
+  });
+
+  it("PATCH rejects immutable lead changes for SRM teams", async () => {
+    const existingMaybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        ...row,
+        details: {},
+      },
+      error: null,
+    });
+    const existingSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: existingMaybeSingle,
+          }),
+        }),
+      }),
+    });
+
+    const updateRecord = vi.fn();
+    const from = vi
+      .fn()
+      .mockReturnValueOnce({ select: existingSelect })
+      .mockReturnValueOnce({ update: updateRecord });
+
+    mocks.createSupabaseClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: "user-1" } },
+          error: null,
+        }),
+      },
+      from,
+    });
+
+    const { PATCH } = await import("./route");
+    const req = new NextRequest(`http://localhost/api/register/${teamId}`, {
+      body: JSON.stringify({
+        teamType: "srm",
+        teamName: srmRecord.teamName,
+        lead: {
+          ...srmRecord.lead,
+          dept: "ECE",
+        },
+        members: srmRecord.members,
+      }),
+      headers: { "content-type": "application/json" },
+      method: "PATCH",
+    });
+
+    const res = await PATCH(req, makeParams(teamId));
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body.error).toContain("Team identity is locked");
+    expect(updateRecord).not.toHaveBeenCalled();
+  });
+
+  it("PATCH rejects immutable organization profile changes for non-SRM teams", async () => {
+    mocks.toTeamRecord.mockReturnValue(nonSrmRecord);
+
+    const existingMaybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        ...row,
+        details: {},
+      },
+      error: null,
+    });
+    const existingSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: existingMaybeSingle,
+          }),
+        }),
+      }),
+    });
+
+    const updateRecord = vi.fn();
+    const from = vi
+      .fn()
+      .mockReturnValueOnce({ select: existingSelect })
+      .mockReturnValueOnce({ update: updateRecord });
+
+    mocks.createSupabaseClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: "user-1" } },
+          error: null,
+        }),
+      },
+      from,
+    });
+
+    const { PATCH } = await import("./route");
+    const req = new NextRequest(`http://localhost/api/register/${teamId}`, {
+      body: JSON.stringify({
+        teamType: "non_srm",
+        teamName: nonSrmRecord.teamName,
+        collegeName: "Updated College Name",
+        isClub: false,
+        clubName: "",
+        lead: nonSrmRecord.lead,
+        members: nonSrmRecord.members,
+      }),
+      headers: { "content-type": "application/json" },
+      method: "PATCH",
+    });
+
+    const res = await PATCH(req, makeParams(teamId));
+    const body = await res.json();
+
+    expect(res.status).toBe(409);
+    expect(body.error).toContain("Team identity is locked");
+    expect(updateRecord).not.toHaveBeenCalled();
   });
 
   it("PATCH assigns a statement once for legacy teams with valid lock token", async () => {
@@ -533,7 +745,7 @@ describe("/api/register/[teamId] route", () => {
     const req = new NextRequest(`http://localhost/api/register/${teamId}`, {
       body: JSON.stringify({
         teamType: "srm",
-        teamName: "Updated Team",
+        teamName: srmRecord.teamName,
         lead: srmRecord.lead,
         members: srmRecord.members,
         lockToken: "token-1",
@@ -605,7 +817,7 @@ describe("/api/register/[teamId] route", () => {
     const req = new NextRequest(`http://localhost/api/register/${teamId}`, {
       body: JSON.stringify({
         teamType: "srm",
-        teamName: "Updated Team",
+        teamName: srmRecord.teamName,
         lead: srmRecord.lead,
         members: srmRecord.members,
         lockToken: "token-2",
@@ -670,7 +882,7 @@ describe("/api/register/[teamId] route", () => {
     const req = new NextRequest(`http://localhost/api/register/${teamId}`, {
       body: JSON.stringify({
         teamType: "srm",
-        teamName: "Updated Team",
+        teamName: srmRecord.teamName,
         lead: srmRecord.lead,
         members: srmRecord.members,
         lockToken: "token-1",

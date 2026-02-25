@@ -1,4 +1,4 @@
-export const EVENT_ID = "583a3b40-da9d-412a-a266-cc7e64330b16";
+export const EVENT_ID = "325b1472-4ce9-412f-8a5e-e4b7153064fa";
 export const EVENT_TITLE = "Foundathon 3.0";
 export const SRM_EMAIL_DOMAIN = "@srmist.edu.in";
 

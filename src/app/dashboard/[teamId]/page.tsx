@@ -25,6 +25,7 @@ import {
 import {
   type NonSrmMember,
   nonSrmMemberSchema,
+  SRM_MAJOR_DEPARTMENTS,
   type SrmMember,
   srmMemberSchema,
   type TeamRecord,
@@ -79,6 +80,7 @@ type ConfirmationStep = "confirm" | "type";
 
 const MAX_MEMBERS = 5;
 const SRM_EMAIL_DOMAIN = "@srmist.edu.in";
+const SRM_DEPARTMENT_DATALIST_ID = "srm-major-departments-dashboard";
 
 const emptySrmMember = (): SrmMember => ({
   name: "",
@@ -2585,6 +2587,12 @@ export default function TeamDashboardPage() {
           </div>
         </div>
       )}
+
+      <datalist id={SRM_DEPARTMENT_DATALIST_ID}>
+        {SRM_MAJOR_DEPARTMENTS.map((department) => (
+          <option key={department} value={department} />
+        ))}
+      </datalist>
     </main>
   );
 }
@@ -2592,6 +2600,7 @@ type InputProps = {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  list?: string;
   type?: string;
   required?: boolean;
   minLength?: number;
@@ -2665,6 +2674,7 @@ const Input = ({
   label,
   value,
   onChange,
+  list,
   type = "text",
   required = false,
   minLength,
@@ -2679,6 +2689,7 @@ const Input = ({
       type={type}
       value={value}
       onChange={(event) => onChange(event.target.value)}
+      list={list}
       required={required}
       minLength={minLength}
       maxLength={maxLength}
@@ -2733,7 +2744,8 @@ const SrmEditor = ({
       <Input
         label="Department"
         value={member.dept}
-        onChange={(v) => onChange("dept", v)}
+        onChange={(v) => onChange("dept", v.toUpperCase())}
+        list={SRM_DEPARTMENT_DATALIST_ID}
         required
         minLength={2}
         maxLength={50}

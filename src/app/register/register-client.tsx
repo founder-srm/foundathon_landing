@@ -16,6 +16,7 @@ import { toast } from "@/hooks/use-toast";
 import {
   type NonSrmMember,
   nonSrmMemberSchema,
+  SRM_MAJOR_DEPARTMENTS,
   type SrmMember,
   srmMemberSchema,
   teamSubmissionSchema,
@@ -56,6 +57,7 @@ const ABANDONED_DRAFT_KEY = "foundathon:register-abandoned";
 const LOCK_COUNTDOWN_REFRESH_MS = 1000;
 const STEP1_ERROR_SUMMARY_ID = "register-step1-error-summary";
 const STEP1_ADD_MEMBER_BUTTON_ID = "register-step1-add-member-button";
+const SRM_DEPARTMENT_DATALIST_ID = "srm-major-departments-register";
 const STEP1_INPUT_IDS = {
   clubName: "register-step1-club-name",
   collegeName: "register-step1-college-name",
@@ -1670,6 +1672,12 @@ const RegisterClient = () => {
           </div>
         </div>
       ) : null}
+
+      <datalist id={SRM_DEPARTMENT_DATALIST_ID}>
+        {SRM_MAJOR_DEPARTMENTS.map((department) => (
+          <option key={department} value={department} />
+        ))}
+      </datalist>
     </main>
   );
 };
@@ -1717,6 +1725,7 @@ type InputProps = {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  list?: string;
   error?: string;
   type?: string;
   required?: boolean;
@@ -1730,6 +1739,7 @@ const Input = ({
   label,
   value,
   onChange,
+  list,
   error,
   type = "text",
   required = false,
@@ -1746,6 +1756,7 @@ const Input = ({
       type={type}
       value={value}
       onChange={(event) => onChange(event.target.value)}
+      list={list}
       aria-invalid={error ? true : undefined}
       aria-describedby={error && id ? `${id}-error` : undefined}
       required={required}
@@ -1814,6 +1825,7 @@ const SrmMemberEditor = ({
         id={inputIds?.dept}
         value={member.dept}
         onChange={(v) => onChange("dept", v)}
+        list={SRM_DEPARTMENT_DATALIST_ID}
         error={errors?.dept}
       />
       <div className="md:col-span-2">

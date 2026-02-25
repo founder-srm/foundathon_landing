@@ -1,5 +1,20 @@
 import { z } from "zod";
 
+export const SRM_MAJOR_DEPARTMENTS = [
+  "CTECH",
+  "CINTEL",
+  "DSBS",
+  "NWC",
+  "ECE",
+  "BIOMEDICAL",
+  "BIOTECHBOLOGY",
+  "EEE",
+  "AEROSPACE",
+  "MECHANICAL",
+  "CIVIL",
+  "MECHATRONICS",
+] as const;
+
 const contactNumberSchema = z
   .number()
   .int("Contact must be an integer")
@@ -34,7 +49,12 @@ export const srmMemberSchema = z.object({
     .regex(/^[a-z]{2}[0-9]{4}$/, {
       message: "NetID must be 2 lowercase letters followed by 4 digits.",
     }),
-  dept: z.string().trim().min(2, "Department is required."), // TODO: Maybe add a dropdown with common departments?
+  // Major SRM departments are suggested in UI; custom departments are allowed.
+  dept: z
+    .string()
+    .trim()
+    .min(2, "Department is required.")
+    .max(50, "Department is too long."),
   contact: contactNumberSchema,
 });
 

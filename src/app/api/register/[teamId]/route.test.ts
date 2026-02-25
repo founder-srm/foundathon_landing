@@ -147,7 +147,7 @@ describe("/api/register/[teamId] route", () => {
         presentationMimeType:
           "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         presentationPublicUrl: "https://example.com/public/team-deck.pptx",
-        presentationStoragePath: "user-1/team-id/submission.pptx",
+        presentationStoragePath: "registrations/team-id/submission.pptx",
         presentationUploadedAt: "2026-02-20T08:00:00.000Z",
       },
     };
@@ -218,7 +218,7 @@ describe("/api/register/[teamId] route", () => {
       expect(res.status).toBe(200);
       expect(body.team.id).toBe(teamId);
       expect(storageFrom).toHaveBeenCalledWith("foundathon-presentation");
-      expect(list).toHaveBeenCalledWith("user-1/team-id", {
+      expect(list).toHaveBeenCalledWith("registrations/team-id", {
         limit: 100,
       });
       const updatePayload = updateRecord.mock.calls[0]?.[0];
@@ -244,7 +244,7 @@ describe("/api/register/[teamId] route", () => {
         presentationMimeType:
           "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         presentationPublicUrl: "https://example.com/public/team-deck.pptx",
-        presentationStoragePath: "user-1/team-id/submission.pptx",
+        presentationStoragePath: "registrations/team-id/submission.pptx",
         presentationUploadedAt: "2026-02-20T08:00:00.000Z",
       },
     };
@@ -328,7 +328,7 @@ describe("/api/register/[teamId] route", () => {
         presentationMimeType:
           "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         presentationPublicUrl: "https://example.com/public/team-deck.pptx",
-        presentationStoragePath: "user-1/team-id/submission.pptx",
+        presentationStoragePath: "registrations/team-id/submission.pptx",
         presentationUploadedAt: "2026-02-20T08:00:00.000Z",
       },
     };
@@ -398,7 +398,7 @@ describe("/api/register/[teamId] route", () => {
           presentationMimeType:
             "application/vnd.openxmlformats-officedocument.presentationml.presentation",
           presentationPublicUrl: "https://example.com/public/team-deck.pptx",
-          presentationStoragePath: "user-1/team-id/submission.pptx",
+          presentationStoragePath: "registrations/team-id/submission.pptx",
           presentationUploadedAt: "2026-02-20T08:00:00.000Z",
         },
       },
@@ -470,7 +470,7 @@ describe("/api/register/[teamId] route", () => {
           presentationMimeType:
             "application/vnd.openxmlformats-officedocument.presentationml.presentation",
           presentationPublicUrl: "https://example.com/public/team-deck.pptx",
-          presentationStoragePath: "user-1/team-id/submission.pptx",
+          presentationStoragePath: "registrations/team-id/submission.pptx",
           presentationUploadedAt: "2026-02-20T08:00:00.000Z",
         }),
       }),
@@ -689,10 +689,27 @@ describe("/api/register/[teamId] route", () => {
   });
 
   it("DELETE removes team by route param", async () => {
+    const existingMaybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        ...row,
+        details: {},
+      },
+      error: null,
+    });
+    const existingSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: existingMaybeSingle,
+          }),
+        }),
+      }),
+    });
+
     const maybeSingle = vi
       .fn()
       .mockResolvedValue({ data: { id: teamId }, error: null });
-    const from = vi.fn().mockReturnValue({
+    const deleteFrom = {
       delete: vi.fn().mockReturnValue({
         eq: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
@@ -704,7 +721,11 @@ describe("/api/register/[teamId] route", () => {
           }),
         }),
       }),
-    });
+    };
+    const from = vi
+      .fn()
+      .mockReturnValueOnce({ select: existingSelect })
+      .mockReturnValueOnce(deleteFrom);
 
     mocks.createSupabaseClient.mockResolvedValue({
       auth: {
@@ -725,6 +746,78 @@ describe("/api/register/[teamId] route", () => {
 
     expect(res.status).toBe(200);
     expect(body.deleted).toBe(true);
+  });
+
+  it("DELETE removes uploaded presentation from storage before deleting team", async () => {
+    const existingMaybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        ...row,
+        details: {
+          presentationStoragePath: "registrations/team-id/submission.pptx",
+        },
+      },
+      error: null,
+    });
+    const existingSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: existingMaybeSingle,
+          }),
+        }),
+      }),
+    });
+
+    const maybeSingle = vi
+      .fn()
+      .mockResolvedValue({ data: { id: teamId }, error: null });
+    const deleteFrom = {
+      delete: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            eq: vi.fn().mockReturnValue({
+              select: vi.fn().mockReturnValue({
+                maybeSingle,
+              }),
+            }),
+          }),
+        }),
+      }),
+    };
+    const from = vi
+      .fn()
+      .mockReturnValueOnce({ select: existingSelect })
+      .mockReturnValueOnce(deleteFrom);
+
+    const remove = vi.fn().mockResolvedValue({ data: [], error: null });
+    const storageFrom = vi.fn().mockReturnValue({ remove });
+
+    mocks.createSupabaseClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: "user-1" } },
+          error: null,
+        }),
+      },
+      from,
+      storage: {
+        from: storageFrom,
+      },
+    });
+
+    const { DELETE } = await import("./route");
+    const req = new NextRequest(`http://localhost/api/register/${teamId}`, {
+      method: "DELETE",
+    });
+    const res = await DELETE(req, makeParams(teamId));
+    const body = await res.json();
+
+    expect(res.status).toBe(200);
+    expect(body.deleted).toBe(true);
+    expect(storageFrom).toHaveBeenCalledWith("foundathon-presentation");
+    expect(remove).toHaveBeenCalledWith(
+      expect.arrayContaining(["registrations/team-id/submission.pptx"]),
+    );
   });
 
   it("rejects invalid teamId format", async () => {

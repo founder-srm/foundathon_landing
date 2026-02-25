@@ -964,7 +964,7 @@ const RegisterClient = () => {
                     ))}
 
                   {!isLoadingStatements &&
-                    problemStatements.map((statement) => {
+                    problemStatements.map((statement, index) => {
                       const isLockedCard =
                         lockedProblemStatement?.id === statement.id;
                       const lockDisabled =
@@ -977,19 +977,20 @@ const RegisterClient = () => {
                       return (
                         <div
                           key={statement.id}
-                          className="rounded-xl border border-foreground/12 bg-white p-4 shadow-sm"
+                          className="group relative overflow-hidden rounded-xl border border-foreground/12 bg-gradient-to-br from-white via-white to-fnblue/5 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                         >
-                          <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-fnblue">
-                            {statement.id}
+                          <div className="absolute -right-8 -top-8 size-24 rounded-full bg-fnyellow/15 blur-2xl pointer-events-none" />
+                          <p className="relative text-[11px] font-semibold uppercase tracking-[0.16em] text-fnblue/75">
+                            Track {index + 1}
                           </p>
-                          <h3 className="mt-2 text-base font-black uppercase tracking-tight">
+                          <h3 className="relative mt-1 text-[15px] font-black uppercase tracking-[0.04em] leading-snug">
                             {statement.title}
                           </h3>
-                          <p className="mt-2 text-sm text-foreground/75 leading-relaxed">
+                          <p className="relative mt-2 text-sm text-foreground/75 leading-relaxed">
                             {statement.summary}
                           </p>
 
-                          <div className="mt-4">
+                          <div className="relative mt-4">
                             {isLockedCard ? (
                               <FnButton type="button" tone="green" disabled>
                                 Locked

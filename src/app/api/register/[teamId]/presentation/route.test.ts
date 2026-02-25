@@ -67,7 +67,7 @@ const uploadedTeam = {
   presentationMimeType:
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   presentationPublicUrl: "https://example.com/public/team-deck.pptx",
-  presentationStoragePath: "user-1/team-id/submission.pptx",
+  presentationStoragePath: "registrations/team-id/submission.pptx",
   presentationUploadedAt: "2026-02-20T10:05:00.000Z",
   problemStatementCap: 10,
   problemStatementId: "ps-01",

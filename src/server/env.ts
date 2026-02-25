@@ -2,7 +2,9 @@ type EnvKey =
   | "FOUNDATHON_NEXT_PUBLIC_SITE_URL"
   | "FOUNDATHON_NODE_ENV"
   | "FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET"
+  | "NEXT_PUBLIC_SUPABASE_SERVICE_ROLE"
   | "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+  | "SUPABASE_SERVICE_ROLE_KEY"
   | "NEXT_PUBLIC_SUPABASE_URL";
 
 const readOptionalEnv = (key: EnvKey) => {
@@ -24,6 +26,11 @@ export type SupabaseEnv = {
   url: string;
 };
 
+export type SupabaseServiceRoleEnv = {
+  serviceRoleKey: string;
+  url: string;
+};
+
 export const getSupabaseEnv = (): SupabaseEnv | null => {
   const url = readRequiredEnv("NEXT_PUBLIC_SUPABASE_URL");
   const anonKey = readRequiredEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
@@ -33,6 +40,19 @@ export const getSupabaseEnv = (): SupabaseEnv | null => {
   }
 
   return { anonKey, url };
+};
+
+export const getSupabaseServiceRoleEnv = (): SupabaseServiceRoleEnv | null => {
+  const url = readRequiredEnv("NEXT_PUBLIC_SUPABASE_URL");
+  const serviceRoleKey =
+    readRequiredEnv("NEXT_PUBLIC_SUPABASE_SERVICE_ROLE") ??
+    readRequiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+
+  if (!url || !serviceRoleKey) {
+    return null;
+  }
+
+  return { serviceRoleKey, url };
 };
 
 export const getFoundathonNodeEnv = () =>

@@ -6,8 +6,10 @@ import {
   getPresentationExtension,
   isPresentationExtensionAllowed,
   isPresentationMimeTypeAllowed,
+  PRESENTATION_ALLOWED_EXTENSIONS,
   PRESENTATION_BUCKET_NAME,
   PRESENTATION_MAX_FILE_SIZE_BYTES,
+  PRESENTATION_REGISTRATIONS_FOLDER,
 } from "@/lib/presentation";
 import { verifyProblemLockToken } from "@/lib/problem-lock-token";
 import {
@@ -34,6 +36,7 @@ import {
   updateRegistrationDetailsByTeamIdForUser,
 } from "@/server/registration/repository";
 import type { RouteSupabaseClient } from "@/server/supabase/route-client";
+import { getServiceRoleSupabaseClient } from "@/server/supabase/service-role-client";
 
 type ServiceSuccess<T> = {
   data: T;
@@ -161,6 +164,46 @@ const splitStoragePath = (storagePath: string) => {
   };
 };
 
+const buildTeamPresentationStoragePath = (teamId: string, extension: string) =>
+  `${PRESENTATION_REGISTRATIONS_FOLDER}/${teamId}/submission${extension}`;
+
+const getPresentationStoragePathsForCleanup = ({
+  details,
+  teamId,
+}: {
+  details: Record<string, unknown>;
+  teamId: string;
+}) => {
+  const paths = new Set<string>();
+
+  const directPath =
+    typeof details.presentationStoragePath === "string"
+      ? details.presentationStoragePath.trim().replace(/^\/+/, "")
+      : "";
+
+  if (directPath) {
+    paths.add(directPath);
+  }
+
+  for (const extension of PRESENTATION_ALLOWED_EXTENSIONS) {
+    paths.add(buildTeamPresentationStoragePath(teamId, extension));
+  }
+
+  const fileName =
+    typeof details.presentationFileName === "string"
+      ? details.presentationFileName
+      : "";
+  const extensionFromFileName = getPresentationExtension(fileName);
+  if (extensionFromFileName) {
+    paths.add(buildTeamPresentationStoragePath(teamId, extensionFromFileName));
+  }
+
+  return [...paths];
+};
+
+const getStorageSupabaseClient = (supabase: RouteSupabaseClient) =>
+  getServiceRoleSupabaseClient() ?? supabase;
+
 const syncDeletedPresentationMetadata = async ({
   row,
   supabase,
@@ -172,7 +215,8 @@ const syncDeletedPresentationMetadata = async ({
   teamId: string;
   userId: string;
 }) => {
-  if (!supabase.storage?.from) {
+  const storageClient = getStorageSupabaseClient(supabase);
+  if (!storageClient.storage?.from) {
     return row;
   }
 
@@ -204,7 +248,7 @@ const syncDeletedPresentationMetadata = async ({
 
   if (parsedPath) {
     const { data: storageEntries, error: storageListError } =
-      await supabase.storage
+      await storageClient.storage
         .from(PRESENTATION_BUCKET_NAME)
         .list(parsedPath.directory, {
           limit: 100,
@@ -626,6 +670,51 @@ export const deleteTeam = async ({
     return fail("Team id is invalid.", 400);
   }
 
+  const { data: existingTeam, error: existingTeamError } =
+    await findRegistrationByTeamIdForUser(supabase, teamId, userId);
+
+  if (existingTeamError) {
+    return fail(existingTeamError.message || "Failed to fetch team.", 500);
+  }
+
+  if (!existingTeam) {
+    return fail("Team not found.", 404);
+  }
+
+  const storageClient = getStorageSupabaseClient(supabase);
+  if (storageClient.storage?.from) {
+    const existingDetails = getDetailsRecord(existingTeam.details);
+    if (hasPresentationMetadata(existingDetails)) {
+      const pathsToCleanup = getPresentationStoragePathsForCleanup({
+        details: existingDetails,
+        teamId,
+      });
+
+      if (pathsToCleanup.length > 0) {
+        const { error: storageRemoveError } = await storageClient.storage
+          .from(PRESENTATION_BUCKET_NAME)
+          .remove(pathsToCleanup);
+
+        if (
+          storageRemoveError &&
+          !isStorageObjectMissingError(storageRemoveError.message)
+        ) {
+          if (isRlsViolationError(storageRemoveError.message)) {
+            return fail(
+              `Team deletion is blocked by Supabase Storage policy. Please ask an admin to allow authenticated deletes in the ${PRESENTATION_BUCKET_NAME} bucket.`,
+              500,
+            );
+          }
+
+          return fail(
+            storageRemoveError.message || "Failed to remove team presentation.",
+            500,
+          );
+        }
+      }
+    }
+  }
+
   const { data: deleted, error } = await deleteRegistrationByTeamIdForUser({
     supabase,
     teamId,
@@ -710,9 +799,10 @@ export const submitTeamPresentation = async ({
   }
 
   const extension = getPresentationExtension(fileName);
-  const storagePath = `${userId}/${input.teamId}/submission${extension}`;
-  const storage = supabase.storage.from(PRESENTATION_BUCKET_NAME);
-  const { error: uploadError } = await supabase.storage
+  const storagePath = buildTeamPresentationStoragePath(input.teamId, extension);
+  const storageClient = getStorageSupabaseClient(supabase);
+  const storage = storageClient.storage.from(PRESENTATION_BUCKET_NAME);
+  const { error: uploadError } = await storageClient.storage
     .from(PRESENTATION_BUCKET_NAME)
     .upload(storagePath, file, {
       contentType: file.type || undefined,
@@ -722,7 +812,7 @@ export const submitTeamPresentation = async ({
   if (uploadError) {
     if (isRlsViolationError(uploadError.message)) {
       return fail(
-        "Presentation upload is blocked by Supabase Storage policy. Please ask an admin to allow authenticated uploads to the foundathon-presentation bucket.",
+        `Presentation upload is blocked by Supabase Storage policy. Please ask an admin to allow authenticated uploads to the ${PRESENTATION_BUCKET_NAME} bucket.`,
         500,
       );
     }
@@ -798,7 +888,7 @@ export const submitTeamPresentation = async ({
   });
 
   if (error || !data) {
-    await supabase.storage
+    await storageClient.storage
       .from(PRESENTATION_BUCKET_NAME)
       .remove([storagePath])
       .catch(() => undefined);

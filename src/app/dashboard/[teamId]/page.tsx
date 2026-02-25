@@ -1696,21 +1696,22 @@ export default function TeamDashboardPage() {
                           className="h-40 animate-pulse rounded-xl border border-b-4 border-fnblue/40 bg-foreground/5"
                         />
                       ))
-                    : problemStatements.map((statement) => (
+                    : problemStatements.map((statement, index) => (
                         <div
                           key={statement.id}
-                          className="rounded-xl border border-b-4 border-fnblue/45 bg-white p-4 shadow-sm"
+                          className="group relative overflow-hidden rounded-xl border border-b-4 border-fnblue/45 bg-gradient-to-br from-white via-white to-fnblue/5 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                         >
-                          <p className="text-[10px] uppercase tracking-[0.16em] text-fnblue font-semibold">
-                            {statement.id}
+                          <div className="absolute -right-8 -top-8 size-24 rounded-full bg-fnyellow/15 blur-2xl pointer-events-none" />
+                          <p className="relative text-[11px] font-semibold uppercase tracking-[0.16em] text-fnblue/75">
+                            Track {index + 1}
                           </p>
-                          <h4 className="mt-2 text-sm font-black uppercase tracking-[0.06em]">
+                          <h4 className="relative mt-1 text-sm font-black uppercase tracking-[0.04em] leading-snug">
                             {statement.title}
                           </h4>
-                          <p className="mt-2 text-xs text-foreground/75 leading-relaxed">
+                          <p className="relative mt-2 text-xs text-foreground/75 leading-relaxed">
                             {statement.summary}
                           </p>
-                          <div className="mt-4">
+                          <div className="relative mt-4">
                             {statement.isFull ? (
                               <FnButton type="button" tone="gray" disabled>
                                 Full

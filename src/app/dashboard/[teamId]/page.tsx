@@ -8,13 +8,6 @@ import { FnButton } from "@/components/ui/fn-button";
 import { useRouteProgress } from "@/components/ui/route-progress";
 import { toast } from "@/hooks/use-toast";
 import {
-  findProblemStatementSummary,
-  isValidEmailAddress,
-  type ProblemLockEmailPayload,
-  type ProblemLockEmailResponse,
-  toSrmLeadEmail,
-} from "@/lib/problem-lock-email";
-import {
   type NonSrmMember,
   nonSrmMemberSchema,
   type SrmMember,
@@ -42,6 +35,11 @@ type ProblemStatementAvailability = {
   id: string;
   isFull: boolean;
   summary: string;
+  title: string;
+};
+
+type PendingLockProblemStatement = {
+  id: string;
   title: string;
 };
 
@@ -113,6 +111,8 @@ export default function TeamDashboardPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadErrorIsAuth, setLoadErrorIsAuth] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [pendingLockProblemStatement, setPendingLockProblemStatement] =
+    useState<PendingLockProblemStatement | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [createdAt, setCreatedAt] = useState("");
   const [problemStatement, setProblemStatement] =
@@ -544,67 +544,6 @@ export default function TeamDashboardPage() {
     }
   };
 
-  const notifyProblemStatementLockByEmail = async (input: {
-    lockExpiresAtIso: string;
-    lockedAtIso: string;
-    problemStatementId: string;
-    problemStatementTitle: string;
-  }) => {
-    const leadName =
-      teamType === "srm" ? leadSrm.name.trim() : leadNonSrm.name.trim();
-    const leadEmail =
-      teamType === "srm"
-        ? toSrmLeadEmail(leadSrm.netId)
-        : leadNonSrm.collegeEmail.trim().toLowerCase();
-
-    if (!leadName || !isValidEmailAddress(leadEmail)) {
-      return {
-        reason: "invalid_lead_email" as const,
-        sent: false,
-      };
-    }
-
-    const payload: ProblemLockEmailPayload = {
-      notificationType: "lock_confirmed",
-      leadEmail,
-      leadName,
-      lockExpiresAtIso: input.lockExpiresAtIso,
-      lockedAtIso: input.lockedAtIso,
-      problemStatementId: input.problemStatementId,
-      problemStatementSummary: findProblemStatementSummary(
-        problemStatements,
-        input.problemStatementId,
-      ),
-      problemStatementTitle: input.problemStatementTitle,
-      teamName: teamName.trim() || "Unnamed Team",
-    };
-
-    try {
-      const response = await fetch("/api/send", {
-        body: JSON.stringify(payload),
-        headers: { "Content-Type": "application/json" },
-        method: "POST",
-      });
-
-      const data = (await response.json()) as Partial<ProblemLockEmailResponse>;
-      if (response.ok && data.sent === true) {
-        return { sent: true as const };
-      }
-
-      return {
-        error: typeof data.error === "string" ? data.error : undefined,
-        reason:
-          typeof data.reason === "string" ? data.reason : "provider_error",
-        sent: false as const,
-      };
-    } catch {
-      return {
-        reason: "request_failed" as const,
-        sent: false,
-      };
-    }
-  };
-
   const lockLegacyProblemStatement = async (problemStatementId: string) => {
     if (problemStatement.id) {
       return;
@@ -694,35 +633,11 @@ export default function TeamDashboardPage() {
         title: patchData.team.problemStatementTitle ?? "",
       });
 
-      const lockedAtIso =
-        patchData.team.problemStatementLockedAt ?? new Date().toISOString();
-      const emailResult = await notifyProblemStatementLockByEmail({
-        lockExpiresAtIso: lockData.lockExpiresAt,
-        lockedAtIso,
-        problemStatementId: lockData.problemStatement.id,
-        problemStatementTitle: lockData.problemStatement.title,
+      toast({
+        title: "Problem Statement Locked",
+        description: "Problem statement locked successfully.",
+        variant: "success",
       });
-
-      if (emailResult.sent) {
-        toast({
-          title: "Problem Statement Locked",
-          description:
-            "Problem statement locked and confirmation email sent to the lead's mail.",
-          variant: "success",
-        });
-      } else if (emailResult.reason === "invalid_lead_email") {
-        toast({
-          title: "Problem Statement Locked",
-          description:
-            "Problem statement locked, but lead email is missing or invalid. Confirmation email was not sent.",
-        });
-      } else {
-        toast({
-          title: "Problem Statement Locked",
-          description:
-            "Problem statement locked, but we could not send the confirmation email right now.",
-        });
-      }
       await loadProblemStatements();
     } catch {
       toast({
@@ -735,6 +650,36 @@ export default function TeamDashboardPage() {
       setIsAssigningStatement(false);
       setIsLockingProblemStatementId(null);
     }
+  };
+
+  const requestLegacyProblemStatementLock = (
+    problemStatementId: string,
+    problemStatementTitle: string,
+  ) => {
+    if (
+      problemStatement.id ||
+      isAssigningStatement ||
+      isSaving ||
+      isDeleting ||
+      isLoading
+    ) {
+      return;
+    }
+
+    setPendingLockProblemStatement({
+      id: problemStatementId,
+      title: problemStatementTitle,
+    });
+  };
+
+  const confirmLegacyProblemStatementLock = () => {
+    if (!pendingLockProblemStatement) {
+      return;
+    }
+
+    const problemStatementId = pendingLockProblemStatement.id;
+    setPendingLockProblemStatement(null);
+    void lockLegacyProblemStatement(problemStatementId);
   };
 
   const deleteTeam = async () => {
@@ -948,6 +893,10 @@ export default function TeamDashboardPage() {
               This team was registered before statement locking was introduced.
               Choose one statement below to complete your team profile.
             </p>
+            <p className="mt-2 text-sm font-semibold text-fnred">
+              This is a one-time action. Once locked, the problem statement
+              cannot be changed.
+            </p>
 
             <div className="mt-5 grid gap-4 md:grid-cols-2">
               {isLoadingStatements
@@ -980,7 +929,10 @@ export default function TeamDashboardPage() {
                           <FnButton
                             type="button"
                             onClick={() =>
-                              lockLegacyProblemStatement(statement.id)
+                              requestLegacyProblemStatementLock(
+                                statement.id,
+                                statement.title,
+                              )
                             }
                             disabled={
                               isAssigningStatement ||
@@ -1316,6 +1268,49 @@ export default function TeamDashboardPage() {
           </aside>
         </div>
       </div>
+
+      {pendingLockProblemStatement && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="legacy-lock-title"
+        >
+          <div className="w-full max-w-md rounded-xl border border-b-4 border-fnred bg-background p-6 shadow-xl">
+            <p
+              id="legacy-lock-title"
+              className="text-sm uppercase tracking-[0.18em] font-bold text-fnred"
+            >
+              Confirm Problem Statement Lock
+            </p>
+            <p className="mt-3 text-sm text-foreground/80">
+              This action cannot be reverted. Are you sure you want to lock this
+              problem statement?
+            </p>
+            <p className="mt-3 rounded-md border border-foreground/15 bg-foreground/5 px-3 py-2 text-sm font-semibold">
+              {pendingLockProblemStatement.title}
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <FnButton
+                type="button"
+                onClick={() => setPendingLockProblemStatement(null)}
+                tone="gray"
+                size="sm"
+              >
+                Cancel
+              </FnButton>
+              <FnButton
+                type="button"
+                onClick={confirmLegacyProblemStatementLock}
+                tone="red"
+                size="sm"
+              >
+                Yes, Lock Statement
+              </FnButton>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showDeleteConfirm && (
         <div

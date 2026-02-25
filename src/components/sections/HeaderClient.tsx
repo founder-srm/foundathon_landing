@@ -168,7 +168,7 @@ const HeaderClient = ({
 
             <Link
               href="/#hero"
-              className="flex min-w-0 items-center gap-2 text-lg font-mono font-extrabold italic uppercase tracking-tight sm:text-xl md:text-3xl"
+              className="flex min-w-0 items-center gap-2 text-2xl lg:text-3xl font-mono font-extrabold italic uppercase tracking-tight"
             >
               <LineShadowText>Foundathon</LineShadowText>
               <LineShadowText>3.0</LineShadowText>

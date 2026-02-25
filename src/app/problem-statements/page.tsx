@@ -33,6 +33,7 @@ export default function ProblemStatementsPage() {
             <p className="mt-3 text-foreground/75 max-w-3xl">
               Review all tracks before registration. During onboarding, your
               team must lock exactly one statement and then create the team.
+              This lock is final and cannot be changed later.
             </p>
 
             <div className="mt-6 rounded-xl border border-fnblue/25 bg-fnblue/10 p-4 md:p-5">
@@ -43,6 +44,7 @@ export default function ProblemStatementsPage() {
                 <li>Team creation is enabled only after a successful lock.</li>
                 <li>Statement assignment is saved with your team record.</li>
                 <li>Each team can lock one statement per registration.</li>
+                <li>This lock is a one-time action and cannot be reverted.</li>
               </ul>
             </div>
 

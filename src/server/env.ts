@@ -2,7 +2,6 @@ type EnvKey =
   | "FOUNDATHON_NEXT_PUBLIC_SITE_URL"
   | "FOUNDATHON_NODE_ENV"
   | "FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET"
-  | "FOUNDATHON_RESEND_API_KEY"
   | "NEXT_PUBLIC_SUPABASE_ANON_KEY"
   | "NEXT_PUBLIC_SUPABASE_URL";
 
@@ -44,9 +43,6 @@ export const isFoundathonDevelopment = () =>
 
 export const getFoundathonSiteUrl = () =>
   readOptionalEnv("FOUNDATHON_NEXT_PUBLIC_SITE_URL");
-
-export const getFoundathonResendApiKey = () =>
-  readRequiredEnv("FOUNDATHON_RESEND_API_KEY");
 
 export const getProblemLockTokenSecret = () =>
   readRequiredEnv("FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET");

@@ -2575,7 +2575,7 @@ const SrmEditor = ({
       <Input
         label="RA Number"
         value={member.raNumber}
-        onChange={(v) => onChange("raNumber", v)}
+        onChange={(v) => onChange("raNumber", v.toUpperCase())}
         required
         minLength={3}
         maxLength={50}

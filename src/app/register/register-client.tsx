@@ -53,6 +53,36 @@ type PendingLockProblemStatement = {
 const MAX_MEMBERS = 5;
 const ABANDONED_DRAFT_KEY = "foundathon:register-abandoned";
 const LOCK_COUNTDOWN_REFRESH_MS = 1000;
+const STEP1_ERROR_SUMMARY_ID = "register-step1-error-summary";
+const STEP1_ADD_MEMBER_BUTTON_ID = "register-step1-add-member-button";
+const STEP1_INPUT_IDS = {
+  clubName: "register-step1-club-name",
+  collegeName: "register-step1-college-name",
+  leadNonSrmCollegeEmail: "register-step1-lead-non-srm-college-email",
+  leadNonSrmCollegeId: "register-step1-lead-non-srm-college-id",
+  leadNonSrmContact: "register-step1-lead-non-srm-contact",
+  leadNonSrmName: "register-step1-lead-non-srm-name",
+  leadSrmContact: "register-step1-lead-srm-contact",
+  leadSrmDept: "register-step1-lead-srm-dept",
+  leadSrmName: "register-step1-lead-srm-name",
+  leadSrmNetId: "register-step1-lead-srm-net-id",
+  leadSrmRaNumber: "register-step1-lead-srm-ra-number",
+  teamName: "register-step1-team-name",
+} as const;
+const STEP1_ERROR_FOCUS_ORDER = [
+  "teamName",
+  "lead.name",
+  "lead.raNumber",
+  "lead.netId",
+  "lead.collegeId",
+  "lead.collegeEmail",
+  "lead.dept",
+  "lead.contact",
+  "members",
+  "collegeName",
+  "clubName",
+] as const;
+const STEP1_LEAD_PATH_PREFIX = "lead.";
 
 const emptySrmMember = (): SrmMember => ({
   name: "",
@@ -101,6 +131,128 @@ const formatRemainingTime = (remainingMs: number) => {
     .padStart(2, "0")}`;
 };
 
+type Step1ValidationFeedback = {
+  errorsByPath: Record<string, string>;
+  firstInvalidPath: string | null;
+  firstIssueMessage: string;
+  summaryErrors: string[];
+};
+
+const getStep1IssuePath = (path: Array<string | number>) => {
+  const [head, second] = path;
+
+  if (head === "lead" && typeof second === "string") {
+    return `lead.${second}`;
+  }
+
+  if (head === "members") {
+    return "members";
+  }
+
+  if (
+    head === "teamName" ||
+    head === "collegeName" ||
+    head === "clubName" ||
+    head === "lead"
+  ) {
+    return head;
+  }
+
+  return "team";
+};
+
+const buildStep1ValidationFeedback = (
+  issues: Array<{ message: string; path: Array<string | number> }>,
+): Step1ValidationFeedback => {
+  const errorsByPath: Record<string, string> = {};
+
+  for (const issue of issues) {
+    const issuePath = getStep1IssuePath(issue.path);
+    if (!errorsByPath[issuePath]) {
+      errorsByPath[issuePath] = issue.message;
+    }
+  }
+
+  const hasLeadErrors = Object.keys(errorsByPath).some((pathKey) =>
+    pathKey.startsWith(STEP1_LEAD_PATH_PREFIX),
+  );
+
+  const summaryErrors: string[] = [];
+  if (errorsByPath.teamName) {
+    summaryErrors.push(errorsByPath.teamName);
+  }
+  if (hasLeadErrors) {
+    summaryErrors.push(
+      "Lead details are incomplete or invalid. Fix highlighted lead fields to continue.",
+    );
+  }
+  if (errorsByPath.members) {
+    summaryErrors.push(errorsByPath.members);
+  }
+  if (errorsByPath.collegeName) {
+    summaryErrors.push(errorsByPath.collegeName);
+  }
+  if (errorsByPath.clubName) {
+    summaryErrors.push(errorsByPath.clubName);
+  }
+  if (!summaryErrors.length && issues[0]?.message) {
+    summaryErrors.push(issues[0].message);
+  }
+
+  const firstInvalidPath =
+    STEP1_ERROR_FOCUS_ORDER.find((pathKey) => Boolean(errorsByPath[pathKey])) ??
+    Object.keys(errorsByPath)[0] ??
+    null;
+
+  return {
+    errorsByPath,
+    firstInvalidPath,
+    firstIssueMessage:
+      issues[0]?.message ?? "Please fix the team details and try again.",
+    summaryErrors: [...new Set(summaryErrors)],
+  };
+};
+
+const getStep1TargetIdByPath = (path: string | null, teamType: TeamType) => {
+  if (!path) {
+    return STEP1_ERROR_SUMMARY_ID;
+  }
+
+  if (path === "teamName") {
+    return STEP1_INPUT_IDS.teamName;
+  }
+
+  if (path === "members") {
+    return STEP1_ADD_MEMBER_BUTTON_ID;
+  }
+
+  if (path === "collegeName") {
+    return STEP1_INPUT_IDS.collegeName;
+  }
+
+  if (path === "clubName") {
+    return STEP1_INPUT_IDS.clubName;
+  }
+
+  if (teamType === "srm") {
+    if (path === "lead.name") return STEP1_INPUT_IDS.leadSrmName;
+    if (path === "lead.raNumber") return STEP1_INPUT_IDS.leadSrmRaNumber;
+    if (path === "lead.netId") return STEP1_INPUT_IDS.leadSrmNetId;
+    if (path === "lead.dept") return STEP1_INPUT_IDS.leadSrmDept;
+    if (path === "lead.contact") return STEP1_INPUT_IDS.leadSrmContact;
+    if (path === "lead") return STEP1_INPUT_IDS.leadSrmName;
+    return STEP1_ERROR_SUMMARY_ID;
+  }
+
+  if (path === "lead.name") return STEP1_INPUT_IDS.leadNonSrmName;
+  if (path === "lead.collegeId") return STEP1_INPUT_IDS.leadNonSrmCollegeId;
+  if (path === "lead.collegeEmail")
+    return STEP1_INPUT_IDS.leadNonSrmCollegeEmail;
+  if (path === "lead.contact") return STEP1_INPUT_IDS.leadNonSrmContact;
+  if (path === "lead") return STEP1_INPUT_IDS.leadNonSrmName;
+  return STEP1_ERROR_SUMMARY_ID;
+};
+
 const RegisterClient = () => {
   const router = useRouter();
   const { start: startRouteProgress } = useRouteProgress();
@@ -133,6 +285,11 @@ const RegisterClient = () => {
   const [formValidationError, setFormValidationError] = useState<string | null>(
     null,
   );
+  const [hasAttemptedStep1Submit, setHasAttemptedStep1Submit] = useState(false);
+  const [step1ErrorsByPath, setStep1ErrorsByPath] = useState<
+    Record<string, string>
+  >({});
+  const [step1SummaryErrors, setStep1SummaryErrors] = useState<string[]>([]);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [pendingLockProblemStatement, setPendingLockProblemStatement] =
     useState<PendingLockProblemStatement | null>(null);
@@ -186,7 +343,6 @@ const RegisterClient = () => {
     () => teamSubmissionSchema.safeParse(teamPayload),
     [teamPayload],
   );
-  const canProceed = teamPayloadValidation.success;
   const lockExpiryMs = lockedProblemStatement
     ? new Date(lockedProblemStatement.lockExpiresAt).getTime()
     : null;
@@ -196,7 +352,9 @@ const RegisterClient = () => {
       ? "N/A"
       : formatRemainingTime(lockExpiryMs - lockNowMs);
   const canCreateTeam =
-    canProceed && Boolean(lockedProblemStatement) && !isLockExpired;
+    teamPayloadValidation.success &&
+    Boolean(lockedProblemStatement) &&
+    !isLockExpired;
 
   const completedProfiles = useMemo(() => {
     if (teamType === "srm") {
@@ -242,6 +400,48 @@ const RegisterClient = () => {
       step,
       teamName,
     ],
+  );
+
+  const step1LeadSrmErrors = {
+    contact: step1ErrorsByPath["lead.contact"],
+    dept: step1ErrorsByPath["lead.dept"],
+    name: step1ErrorsByPath["lead.name"],
+    netId: step1ErrorsByPath["lead.netId"],
+    raNumber: step1ErrorsByPath["lead.raNumber"],
+  };
+  const step1LeadNonSrmErrors = {
+    collegeEmail: step1ErrorsByPath["lead.collegeEmail"],
+    collegeId: step1ErrorsByPath["lead.collegeId"],
+    contact: step1ErrorsByPath["lead.contact"],
+    name: step1ErrorsByPath["lead.name"],
+  };
+  const step1MembersError = step1ErrorsByPath.members;
+
+  const focusStep1Path = useCallback(
+    (path: string | null) => {
+      if (typeof document === "undefined") {
+        return;
+      }
+
+      const targetId = getStep1TargetIdByPath(path, teamType);
+      const targetElement = document.getElementById(targetId);
+      const fallbackElement = document.getElementById(STEP1_ERROR_SUMMARY_ID);
+      const focusTarget = (targetElement ??
+        fallbackElement) as HTMLElement | null;
+
+      if (!focusTarget) {
+        return;
+      }
+
+      if (typeof focusTarget.scrollIntoView === "function") {
+        focusTarget.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+
+      if (typeof focusTarget.focus === "function") {
+        focusTarget.focus();
+      }
+    },
+    [teamType],
   );
 
   const loadProblemStatements = useCallback(async () => {
@@ -341,10 +541,24 @@ const RegisterClient = () => {
   }, [hasStartedDraft]);
 
   useEffect(() => {
-    if (teamPayloadValidation.success && formValidationError) {
-      setFormValidationError(null);
+    if (!hasAttemptedStep1Submit) {
+      return;
     }
-  }, [formValidationError, teamPayloadValidation.success]);
+
+    if (teamPayloadValidation.success) {
+      setStep1ErrorsByPath({});
+      setStep1SummaryErrors([]);
+      setFormValidationError(null);
+      return;
+    }
+
+    const feedback = buildStep1ValidationFeedback(
+      teamPayloadValidation.error.issues,
+    );
+    setStep1ErrorsByPath(feedback.errorsByPath);
+    setStep1SummaryErrors(feedback.summaryErrors);
+    setFormValidationError(feedback.firstIssueMessage);
+  }, [hasAttemptedStep1Submit, teamPayloadValidation]);
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -402,26 +616,58 @@ const RegisterClient = () => {
   }, []);
 
   const updateSrmLead = (field: keyof SrmMember, value: string | number) => {
-    setLeadSrm((prev) => ({ ...prev, [field]: value }) as SrmMember);
+    const normalizedValue =
+      typeof value === "string"
+        ? field === "netId"
+          ? value.toLowerCase()
+          : field === "raNumber"
+            ? value.toUpperCase()
+            : field === "dept"
+              ? value.toUpperCase()
+              : value
+        : value;
+    setLeadSrm((prev) => ({ ...prev, [field]: normalizedValue }) as SrmMember);
   };
 
   const updateSrmDraft = (field: keyof SrmMember, value: string | number) => {
-    setMemberDraftSrm((prev) => ({ ...prev, [field]: value }) as SrmMember);
+    const normalizedValue =
+      typeof value === "string"
+        ? field === "netId"
+          ? value.toLowerCase()
+          : field === "raNumber"
+            ? value.toUpperCase()
+            : field === "dept"
+              ? value.toUpperCase()
+              : value
+        : value;
+    setMemberDraftSrm(
+      (prev) => ({ ...prev, [field]: normalizedValue }) as SrmMember,
+    );
   };
 
   const updateNonSrmLead = (
     field: keyof NonSrmMember,
     value: string | number,
   ) => {
-    setLeadNonSrm((prev) => ({ ...prev, [field]: value }) as NonSrmMember);
+    const normalizedValue =
+      typeof value === "string" && field === "collegeEmail"
+        ? value.toLowerCase()
+        : value;
+    setLeadNonSrm(
+      (prev) => ({ ...prev, [field]: normalizedValue }) as NonSrmMember,
+    );
   };
 
   const updateNonSrmDraft = (
     field: keyof NonSrmMember,
     value: string | number,
   ) => {
+    const normalizedValue =
+      typeof value === "string" && field === "collegeEmail"
+        ? value.toLowerCase()
+        : value;
     setMemberDraftNonSrm(
-      (prev) => ({ ...prev, [field]: value }) as NonSrmMember,
+      (prev) => ({ ...prev, [field]: normalizedValue }) as NonSrmMember,
     );
   };
 
@@ -475,6 +721,9 @@ const RegisterClient = () => {
 
   const clearCurrentTeam = () => {
     setShowClearConfirm(false);
+    setHasAttemptedStep1Submit(false);
+    setStep1ErrorsByPath({});
+    setStep1SummaryErrors([]);
     setFormValidationError(null);
     setStep(1);
     setTeamName("");
@@ -500,30 +749,58 @@ const RegisterClient = () => {
     });
   };
 
-  const validateTeamPayload = () => {
+  const validateTeamPayload = ({
+    captureStep1ValidationState = false,
+    showToast = true,
+  }: {
+    captureStep1ValidationState?: boolean;
+    showToast?: boolean;
+  } = {}) => {
     if (!teamPayloadValidation.success) {
-      const message =
-        teamPayloadValidation.error.issues[0]?.message ??
-        "Please fix the team details and try again.";
-      setFormValidationError(message);
-      toast({
-        title: "Team Details Invalid",
-        description: message,
-        variant: "destructive",
-      });
-      return null;
+      const feedback = buildStep1ValidationFeedback(
+        teamPayloadValidation.error.issues,
+      );
+      setFormValidationError(feedback.firstIssueMessage);
+      if (captureStep1ValidationState) {
+        setStep1ErrorsByPath(feedback.errorsByPath);
+        setStep1SummaryErrors(feedback.summaryErrors);
+      }
+      if (showToast) {
+        toast({
+          title: "Team Details Invalid",
+          description: feedback.firstIssueMessage,
+          variant: "destructive",
+        });
+      }
+      return {
+        feedback,
+        team: null,
+      };
     }
 
+    if (captureStep1ValidationState) {
+      setStep1ErrorsByPath({});
+      setStep1SummaryErrors([]);
+    }
     setFormValidationError(null);
-    return teamPayloadValidation.data;
+    return {
+      feedback: null,
+      team: teamPayloadValidation.data,
+    };
   };
 
   const goToProblemStatementsStep = () => {
-    const parsed = validateTeamPayload();
-    if (!parsed) {
+    setHasAttemptedStep1Submit(true);
+    const validationResult = validateTeamPayload({
+      captureStep1ValidationState: true,
+      showToast: false,
+    });
+    if (!validationResult.team) {
+      focusStep1Path(validationResult.feedback?.firstInvalidPath ?? null);
       return;
     }
 
+    setHasAttemptedStep1Submit(false);
     setFormValidationError(null);
     setStep(2);
   };
@@ -622,8 +899,8 @@ const RegisterClient = () => {
   };
 
   const createTeam = async () => {
-    const parsedTeam = validateTeamPayload();
-    if (!parsedTeam) {
+    const validationResult = validateTeamPayload();
+    if (!validationResult.team) {
       return;
     }
 
@@ -656,7 +933,7 @@ const RegisterClient = () => {
         body: JSON.stringify({
           lockToken: lockedProblemStatement.lockToken,
           problemStatementId: lockedProblemStatement.id,
-          team: parsedTeam,
+          team: validationResult.team,
         }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
@@ -797,8 +1074,14 @@ const RegisterClient = () => {
                   </p>
                   <Input
                     label="Team Name"
+                    id={STEP1_INPUT_IDS.teamName}
                     value={teamName}
                     onChange={setTeamName}
+                    error={
+                      hasAttemptedStep1Submit
+                        ? step1ErrorsByPath.teamName
+                        : undefined
+                    }
                   />
                 </div>
 
@@ -810,12 +1093,18 @@ const RegisterClient = () => {
                     <div className="grid gap-3 md:grid-cols-2">
                       <Input
                         label="College Name"
+                        id={STEP1_INPUT_IDS.collegeName}
                         value={nonSrmMeta.collegeName}
                         onChange={(value) =>
                           setNonSrmMeta((prev) => ({
                             ...prev,
                             collegeName: value,
                           }))
+                        }
+                        error={
+                          hasAttemptedStep1Submit
+                            ? step1ErrorsByPath.collegeName
+                            : undefined
                         }
                       />
                     </div>
@@ -836,12 +1125,18 @@ const RegisterClient = () => {
                     <div className="mt-3">
                       <Input
                         label="Club Name (or empty)"
+                        id={STEP1_INPUT_IDS.clubName}
                         value={nonSrmMeta.clubName}
                         onChange={(value) =>
                           setNonSrmMeta((prev) => ({
                             ...prev,
                             clubName: value,
                           }))
+                        }
+                        error={
+                          hasAttemptedStep1Submit
+                            ? step1ErrorsByPath.clubName
+                            : undefined
                         }
                       />
                     </div>
@@ -855,8 +1150,19 @@ const RegisterClient = () => {
                       member={leadSrm}
                       onChange={updateSrmLead}
                       className="mt-6"
+                      errors={
+                        hasAttemptedStep1Submit ? step1LeadSrmErrors : undefined
+                      }
+                      inputIds={{
+                        contact: STEP1_INPUT_IDS.leadSrmContact,
+                        dept: STEP1_INPUT_IDS.leadSrmDept,
+                        name: STEP1_INPUT_IDS.leadSrmName,
+                        netId: STEP1_INPUT_IDS.leadSrmNetId,
+                        raNumber: STEP1_INPUT_IDS.leadSrmRaNumber,
+                      }}
                     />
                     <MemberDraftCard
+                      addButtonId={STEP1_ADD_MEMBER_BUTTON_ID}
                       canAddMember={canAddMember}
                       onAdd={addMember}
                       count={membersSrm.length + 2}
@@ -875,8 +1181,20 @@ const RegisterClient = () => {
                       member={leadNonSrm}
                       onChange={updateNonSrmLead}
                       className="mt-6"
+                      errors={
+                        hasAttemptedStep1Submit
+                          ? step1LeadNonSrmErrors
+                          : undefined
+                      }
+                      inputIds={{
+                        collegeEmail: STEP1_INPUT_IDS.leadNonSrmCollegeEmail,
+                        collegeId: STEP1_INPUT_IDS.leadNonSrmCollegeId,
+                        contact: STEP1_INPUT_IDS.leadNonSrmContact,
+                        name: STEP1_INPUT_IDS.leadNonSrmName,
+                      }}
                     />
                     <MemberDraftCard
+                      addButtonId={STEP1_ADD_MEMBER_BUTTON_ID}
                       canAddMember={canAddMember}
                       onAdd={addMember}
                       count={membersNonSrm.length + 2}
@@ -893,7 +1211,28 @@ const RegisterClient = () => {
                 <p className="mt-4 text-xs uppercase tracking-[0.18em] font-semibold text-foreground/70">
                   Team size required: 3 to 5 (including lead)
                 </p>
-                {formValidationError ? (
+                {hasAttemptedStep1Submit && step1MembersError ? (
+                  <p className="mt-2 rounded-md border border-fnred/35 bg-fnred/10 px-3 py-2 text-sm font-semibold text-fnred">
+                    {step1MembersError}
+                  </p>
+                ) : null}
+                {hasAttemptedStep1Submit && step1SummaryErrors.length > 0 ? (
+                  <div
+                    id={STEP1_ERROR_SUMMARY_ID}
+                    className="mt-3 rounded-lg border border-fnorange/35 bg-fnorange/10 px-4 py-3"
+                    tabIndex={-1}
+                  >
+                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-fnorange">
+                      Fix These To Continue
+                    </p>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-foreground/85">
+                      {step1SummaryErrors.map((error) => (
+                        <li key={error}>{error}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {formValidationError && !hasAttemptedStep1Submit ? (
                   <p className="mt-2 rounded-md border border-fnred/35 bg-fnred/10 px-3 py-2 text-sm font-semibold text-fnred">
                     {formValidationError}
                   </p>
@@ -911,7 +1250,7 @@ const RegisterClient = () => {
                   <FnButton
                     type="button"
                     onClick={goToProblemStatementsStep}
-                    disabled={!canProceed || isCreatingTeam || isRedirecting}
+                    disabled={isCreatingTeam || isRedirecting}
                   >
                     Next
                   </FnButton>
@@ -1263,11 +1602,13 @@ const RegisterClient = () => {
 };
 
 const MemberDraftCard = ({
+  addButtonId,
   canAddMember,
   onAdd,
   count,
   children,
 }: {
+  addButtonId?: string;
   canAddMember: boolean;
   onAdd: () => void;
   count: number;
@@ -1279,6 +1620,7 @@ const MemberDraftCard = ({
         Add Member Individually
       </p>
       <FnButton
+        id={addButtonId}
         type="button"
         onClick={onAdd}
         disabled={!canAddMember}
@@ -1298,9 +1640,11 @@ const MemberDraftCard = ({
 );
 
 type InputProps = {
+  id?: string;
   label: string;
   value: string;
   onChange: (value: string) => void;
+  error?: string;
   type?: string;
   required?: boolean;
   minLength?: number;
@@ -1309,9 +1653,11 @@ type InputProps = {
 };
 
 const Input = ({
+  id,
   label,
   value,
   onChange,
+  error,
   type = "text",
   required = false,
   minLength,
@@ -1323,15 +1669,25 @@ const Input = ({
       {label}
     </p>
     <input
+      id={id}
       type={type}
       value={value}
       onChange={(event) => onChange(event.target.value)}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={error && id ? `${id}-error` : undefined}
       required={required}
       minLength={minLength}
       maxLength={maxLength}
       pattern={pattern}
-      className="w-full rounded-md border border-foreground/20 bg-background px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-fnblue/50"
+      className={`w-full rounded-md border bg-background px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-fnblue/50 ${
+        error ? "border-fnred/45" : "border-foreground/20"
+      }`}
     />
+    {error && id ? (
+      <p id={`${id}-error`} className="mt-1 text-xs font-semibold text-fnred">
+        {error}
+      </p>
+    ) : null}
   </label>
 );
 
@@ -1340,6 +1696,8 @@ type SrmEditorProps = {
   member: SrmMember;
   onChange: (field: keyof SrmMember, value: string | number) => void;
   className?: string;
+  errors?: Partial<Record<keyof SrmMember, string>>;
+  inputIds?: Partial<Record<keyof SrmMember, string>>;
 };
 
 const SrmMemberEditor = ({
@@ -1347,6 +1705,8 @@ const SrmMemberEditor = ({
   member,
   onChange,
   className = "",
+  errors,
+  inputIds,
 }: SrmEditorProps) => (
   <div
     className={`rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 md:p-5 shadow-sm ${className}`}
@@ -1357,29 +1717,39 @@ const SrmMemberEditor = ({
     <div className="grid gap-3 md:grid-cols-2">
       <Input
         label="Name"
+        id={inputIds?.name}
         value={member.name}
         onChange={(v) => onChange("name", v)}
+        error={errors?.name}
       />
       <Input
         label="Registration Number"
+        id={inputIds?.raNumber}
         value={member.raNumber}
         onChange={(v) => onChange("raNumber", v)}
+        error={errors?.raNumber}
       />
       <Input
         label="NetID"
+        id={inputIds?.netId}
         value={member.netId}
         onChange={(v) => onChange("netId", v)}
+        error={errors?.netId}
       />
       <Input
         label="Department"
+        id={inputIds?.dept}
         value={member.dept}
         onChange={(v) => onChange("dept", v)}
+        error={errors?.dept}
       />
       <div className="md:col-span-2">
         <NumberInput
           label="Contact"
+          id={inputIds?.contact}
           value={member.contact}
           onChange={(v) => onChange("contact", v)}
+          error={errors?.contact}
         />
       </div>
     </div>
@@ -1391,6 +1761,8 @@ type NonSrmEditorProps = {
   member: NonSrmMember;
   onChange: (field: keyof NonSrmMember, value: string | number) => void;
   className?: string;
+  errors?: Partial<Record<keyof NonSrmMember, string>>;
+  inputIds?: Partial<Record<keyof NonSrmMember, string>>;
 };
 
 const NonSrmMemberEditor = ({
@@ -1398,6 +1770,8 @@ const NonSrmMemberEditor = ({
   member,
   onChange,
   className = "",
+  errors,
+  inputIds,
 }: NonSrmEditorProps) => (
   <div
     className={`rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 md:p-5 shadow-sm ${className}`}
@@ -1408,48 +1782,65 @@ const NonSrmMemberEditor = ({
     <div className="grid gap-3 md:grid-cols-2">
       <Input
         label="Name"
+        id={inputIds?.name}
         value={member.name}
         onChange={(v) => onChange("name", v)}
+        error={errors?.name}
         required
         minLength={2}
         maxLength={100}
       />
       <Input
         label="College ID Number"
+        id={inputIds?.collegeId}
         value={member.collegeId}
         onChange={(v) => onChange("collegeId", v)}
+        error={errors?.collegeId}
         required
         minLength={3}
         maxLength={50}
       />
       <Input
         label="College Email / Personal Email"
+        id={inputIds?.collegeEmail}
         value={member.collegeEmail}
         onChange={(v) => onChange("collegeEmail", v)}
+        error={errors?.collegeEmail}
         type="email"
         required
       />
       <NumberInput
         label="Contact"
+        id={inputIds?.contact}
         value={member.contact}
         onChange={(v) => onChange("contact", v)}
+        error={errors?.contact}
       />
     </div>
   </div>
 );
 
 type NumberInputProps = {
+  id?: string;
   label: string;
   value: number;
   onChange: (value: number) => void;
+  error?: string;
 };
 
-const NumberInput = ({ label, value, onChange }: NumberInputProps) => (
+const NumberInput = ({
+  id,
+  label,
+  value,
+  onChange,
+  error,
+}: NumberInputProps) => (
   <label className="block">
     <p className="text-xs uppercase tracking-[0.2em] text-foreground/70 font-semibold mb-1">
       {label}
     </p>
     <input
+      id={id}
       type="tel"
       inputMode="numeric"
       pattern="[0-9]{10,15}"
@@ -1458,11 +1849,20 @@ const NumberInput = ({ label, value, onChange }: NumberInputProps) => (
         const digits = event.target.value.replace(/\D/g, "");
         onChange(digits ? Number(digits) : 0);
       }}
+      aria-invalid={error ? true : undefined}
+      aria-describedby={error && id ? `${id}-error` : undefined}
       required
       minLength={10}
       maxLength={15}
-      className="w-full rounded-md border border-foreground/20 bg-background px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-fnblue/50"
+      className={`w-full rounded-md border bg-background px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-fnblue/50 ${
+        error ? "border-fnred/45" : "border-foreground/20"
+      }`}
     />
+    {error && id ? (
+      <p id={`${id}-error`} className="mt-1 text-xs font-semibold text-fnred">
+        {error}
+      </p>
+    ) : null}
   </label>
 );
 

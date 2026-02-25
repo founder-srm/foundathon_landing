@@ -5,7 +5,7 @@ import type * as React from "react";
 import { cn } from "@/lib/utils";
 
 const fnButtonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md border border-transparent border-b-4 font-bold transition-discrete duration-200 ease-out hover:shadow-sm active:translate-y-[1px] active:border-b-2 disabled:pointer-events-none active:border-b-1 disabled:opacity-60",
+  "inline-flex items-center justify-center gap-2 rounded-md border border-transparent border-b-4 font-bold transition-discrete duration-200 ease-out hover:shadow-sm active:translate-y-[1px] active:border-b-1 active:py-[calc(var(--fn-btn-py)+1.5px)] active:shadow-none disabled:pointer-events-none disabled:opacity-60",
   {
     variants: {
       tone: {
@@ -17,13 +17,13 @@ const fnButtonVariants = cva(
       },
       kind: {
         solid: "",
-        nav: "border-0 bg-transparent px-2 py-1 font-semibold hover:bg-foreground/10 hover:translate-y-0 hover:shadow-none active:translate-y-0 active:border-b-0",
+        nav: "border-0 bg-transparent px-2 py-1 font-semibold hover:bg-foreground/10 hover:translate-y-0 hover:shadow-none active:translate-y-0 active:border-b-0 active:py-1",
       },
       size: {
-        xs: "px-2 py-1 text-[10px] uppercase tracking-[0.1em]",
-        sm: "px-3 py-2 text-sm",
-        md: "px-4 py-2 text-sm",
-        lg: "px-6 py-3 text-xl",
+        xs: "[--fn-btn-py:0.25rem] px-2 py-[var(--fn-btn-py)] text-[10px] uppercase tracking-[0.1em]",
+        sm: "[--fn-btn-py:0.5rem] px-3 py-[var(--fn-btn-py)] text-sm",
+        md: "[--fn-btn-py:0.5rem] px-4 py-[var(--fn-btn-py)] text-sm",
+        lg: "[--fn-btn-py:0.75rem] px-6 py-[var(--fn-btn-py)] text-xl",
       },
     },
     compoundVariants: [

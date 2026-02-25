@@ -1,9 +1,44 @@
 import Link from "next/link";
 import { FnButton } from "@/components/ui/fn-button";
-import { PROBLEM_STATEMENTS } from "@/data/problem-statements";
+import { PROBLEM_STATEMENTS, PROBLEM_STATEMENT_CAP } from "@/data/problem-statements";
 
 export default function ProblemStatementsPage() {
   const statements = PROBLEM_STATEMENTS;
+  const bentoSpanClasses = [
+    "md:col-span-2 lg:col-span-4",
+    "lg:col-span-2",
+    "lg:col-span-2",
+    "lg:col-span-4",
+    "lg:col-span-3",
+    "lg:col-span-3",
+    "lg:col-span-2",
+    "lg:col-span-4",
+    "lg:col-span-3",
+    "lg:col-span-3",
+  ] as const;
+  const bentoToneClasses = [
+    "border-fnblue/20 from-fnblue/10 via-white to-background",
+    "border-fnyellow/25 from-fnyellow/20 via-white to-background",
+    "border-fngreen/25 from-fngreen/12 via-white to-background",
+    "border-fnorange/25 from-fnorange/14 via-white to-background",
+  ] as const;
+  const keyFacts = [
+    {
+      label: "Tracks",
+      tone: "text-fnblue",
+      value: `${statements.length}`,
+    },
+    {
+      label: "Lock Policy",
+      tone: "text-fnred",
+      value: "One-Time",
+    },
+    {
+      label: "Max Teams / Track",
+      tone: "text-fngreen",
+      value: PROBLEM_STATEMENT_CAP,
+    },
+  ] as const;
 
   return (
     <main className="min-h-screen bg-gray-200 text-foreground relative overflow-hidden">
@@ -27,16 +62,32 @@ export default function ProblemStatementsPage() {
             <p className="inline-flex rounded-full border border-fnblue/35 bg-fnblue/10 px-3 text-xs font-bold uppercase tracking-[0.2em] text-fnblue">
               Problem Statements
             </p>
-            <h1 className="mt-4 text-5xl md:text-7xl font-black uppercase tracking-tight leading-none text-balance">
-              statement board
+            <h1 className="mt-4 text-4xl md:text-6xl font-black uppercase tracking-tight leading-none text-balance">
+              innovation tracks
             </h1>
-            <p className="mt-3 text-foreground/75 max-w-3xl">
+            <p className="mt-4 text-base leading-relaxed text-foreground/75 max-w-3xl">
               Review all tracks before registration. During onboarding, your
               team must lock exactly one statement and then create the team.
               This lock is final and cannot be changed later.
             </p>
 
-            <div className="mt-6 rounded-xl border border-fnblue/25 bg-fnblue/10 p-4 md:p-5">
+            <div className="mt-6 grid gap-3 sm:grid-cols-3">
+              {keyFacts.map((fact) => (
+                <div
+                  key={fact.label}
+                  className="rounded-xl border border-foreground/12 bg-white/80 px-4 py-3 shadow-sm"
+                >
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-foreground/65">
+                    {fact.label}
+                  </p>
+                  <p className={`mt-1 text-xl font-black ${fact.tone}`}>
+                    {fact.value}
+                  </p>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-6 rounded-xl border border-fnblue/25 bg-gradient-to-r from-fnblue/10 via-white to-fnyellow/10 p-4 md:p-5">
               <p className="text-xs uppercase tracking-[0.18em] text-fnblue font-semibold">
                 Lock Rules
               </p>
@@ -61,19 +112,29 @@ export default function ProblemStatementsPage() {
               <p className="text-xs uppercase tracking-[0.18em] text-fnblue font-semibold">
                 Available Problem Statements
               </p>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
-                {statements.map((statement) => (
+              <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-6">
+                {statements.map((statement, index) => (
                   <div
                     key={statement.id}
-                    className="rounded-lg border border-foreground/12 bg-background/90 p-3"
+                    className={`group relative overflow-hidden rounded-xl border border-b-4 bg-gradient-to-br p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${bentoSpanClasses[index % bentoSpanClasses.length]} ${bentoToneClasses[index % bentoToneClasses.length]}`}
                   >
-                    <p className="text-[10px] uppercase tracking-[0.16em] text-fnblue font-semibold">
-                      {statement.id}
-                    </p>
-                    <h3 className="mt-1 text-sm font-bold uppercase tracking-[0.06em]">
+                    <div className="absolute -right-8 -top-8 size-24 rounded-full bg-fnblue/15 blur-2xl pointer-events-none" />
+                    <div className="absolute -bottom-10 -left-10 size-24 rounded-full bg-fnyellow/20 blur-2xl pointer-events-none" />
+                    <div className="relative">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-fnblue/75">
+                          Track {index + 1}
+                        </p>
+                        <span className="inline-flex size-7 items-center justify-center rounded-full border border-fnblue/25 bg-white/90 text-xs font-black text-fnblue transition-colors group-hover:bg-fnblue group-hover:text-white">
+                          {index + 1}
+                        </span>
+                      </div>
+                      <div className="mt-3 h-px w-14 bg-gradient-to-r from-fnblue/45 to-transparent" />
+                    </div>
+                    <h3 className="mt-3 text-[15px] font-black uppercase tracking-[0.05em] leading-tight">
                       {statement.title}
                     </h3>
-                    <p className="mt-1 text-xs text-foreground/75 leading-relaxed">
+                    <p className="mt-3 text-sm text-foreground/75 leading-relaxed">
                       {statement.summary}
                     </p>
                   </div>

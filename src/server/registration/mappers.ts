@@ -31,6 +31,8 @@ const toSrmLocalNetId = (netId: string) => {
     : normalized;
 };
 
+const normalizeSrmDepartment = (dept: string) => dept.trim().toUpperCase();
+
 export const toSrmEmailNetId = (netId: string) => {
   const normalized = netId.trim().toLowerCase();
   return normalized.endsWith(SRM_EMAIL_DOMAIN)
@@ -54,6 +56,10 @@ const normalizeSrmDetailsForSchema = (details: Record<string, unknown>) => {
     lead: lead
       ? {
           ...lead,
+          dept:
+            typeof lead.dept === "string"
+              ? normalizeSrmDepartment(lead.dept)
+              : lead.dept,
           netId:
             typeof lead.netId === "string"
               ? toSrmLocalNetId(lead.netId)
@@ -68,6 +74,10 @@ const normalizeSrmDetailsForSchema = (details: Record<string, unknown>) => {
       const srmMember = member as Record<string, unknown>;
       return {
         ...srmMember,
+        dept:
+          typeof srmMember.dept === "string"
+            ? normalizeSrmDepartment(srmMember.dept)
+            : srmMember.dept,
         netId:
           typeof srmMember.netId === "string"
             ? toSrmLocalNetId(srmMember.netId)
@@ -85,10 +95,12 @@ export const withSrmEmailNetIds = (
         ...submission,
         lead: {
           ...submission.lead,
+          dept: normalizeSrmDepartment(submission.lead.dept),
           netId: toSrmEmailNetId(submission.lead.netId),
         },
         members: submission.members.map((member) => ({
           ...member,
+          dept: normalizeSrmDepartment(member.dept),
           netId: toSrmEmailNetId(member.netId),
         })),
       }

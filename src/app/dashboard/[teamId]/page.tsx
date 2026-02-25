@@ -10,8 +10,10 @@ import {
   UserRoundPen,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import QRCode from "qrcode";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FnButton } from "@/components/ui/fn-button";
 import { useRouteProgress } from "@/components/ui/route-progress";
@@ -25,6 +27,7 @@ import {
 import {
   type NonSrmMember,
   nonSrmMemberSchema,
+  SRM_MAJOR_DEPARTMENTS,
   type SrmMember,
   srmMemberSchema,
   type TeamRecord,
@@ -75,9 +78,11 @@ type PresentationInfo = {
 };
 
 type TeamApprovalStatus = NonNullable<TeamRecord["approvalStatus"]>;
+type ConfirmationStep = "confirm" | "type";
 
 const MAX_MEMBERS = 5;
 const SRM_EMAIL_DOMAIN = "@srmist.edu.in";
+const SRM_DEPARTMENT_DATALIST_ID = "srm-major-departments-dashboard";
 
 const emptySrmMember = (): SrmMember => ({
   name: "",
@@ -144,6 +149,256 @@ const formatBytes = (value: number | null) => {
 
   return `${(value / (1024 * 1024)).toFixed(2)} MB`;
 };
+
+const toTicketLine = (value: string, maxLength: number) => {
+  const normalized = value.trim();
+  if (!normalized) {
+    return "N/A";
+  }
+
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, maxLength - 1)}…`
+    : normalized;
+};
+
+const drawRoundedRect = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+) => {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+};
+
+const loadCanvasImage = (src: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    if (typeof window === "undefined") {
+      reject(new Error("Window is unavailable."));
+      return;
+    }
+
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Failed to load image."));
+    image.src = src;
+  });
+
+const buildAcceptedTeamTicketDataUrl = async ({
+  qrDataUrl,
+  statementTitle,
+  teamId,
+  teamName,
+}: {
+  qrDataUrl: string;
+  statementTitle: string;
+  teamId: string;
+  teamName: string;
+}) => {
+  if (typeof document === "undefined") {
+    throw new Error("Document is unavailable.");
+  }
+
+  const canvas = document.createElement("canvas");
+  const width = 1200;
+  const height = 675;
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Canvas context is unavailable.");
+  }
+
+  const backdropGradient = ctx.createLinearGradient(0, 0, width, height);
+  backdropGradient.addColorStop(0, "#0f172a");
+  backdropGradient.addColorStop(0.56, "#1d4ed8");
+  backdropGradient.addColorStop(1, "#f97316");
+  ctx.fillStyle = backdropGradient;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.globalAlpha = 0.14;
+  ctx.fillStyle = "#ffffff";
+  for (let i = 0; i < 12; i += 1) {
+    const size = 18 + ((i % 4) + 1) * 6;
+    const x = 70 + i * 92;
+    const y = 48 + (i % 3) * 28;
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  const cardX = 58;
+  const cardY = 52;
+  const cardWidth = width - 116;
+  const cardHeight = height - 104;
+  drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, 34);
+  const cardGradient = ctx.createLinearGradient(
+    cardX,
+    cardY,
+    cardX + cardWidth,
+    cardY + cardHeight,
+  );
+  cardGradient.addColorStop(0, "#fff7ed");
+  cardGradient.addColorStop(0.48, "#ffffff");
+  cardGradient.addColorStop(1, "#eff6ff");
+  ctx.fillStyle = cardGradient;
+  ctx.fill();
+
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgba(15, 23, 42, 0.2)";
+  ctx.stroke();
+
+  const splitX = Math.round(cardX + cardWidth * 0.67);
+  ctx.save();
+  ctx.setLineDash([12, 10]);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(30, 64, 175, 0.35)";
+  ctx.beginPath();
+  ctx.moveTo(splitX, cardY + 34);
+  ctx.lineTo(splitX, cardY + cardHeight - 34);
+  ctx.stroke();
+  ctx.restore();
+
+  const punchRadius = 24;
+  ctx.fillStyle = "#1d4ed8";
+  ctx.beginPath();
+  ctx.arc(splitX, cardY, punchRadius, 0, Math.PI, true);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(splitX, cardY + cardHeight, punchRadius, Math.PI, 0, true);
+  ctx.fill();
+
+  const leftX = cardX + 52;
+  const leftMaxWidth = splitX - leftX - 48;
+  const teamNameLine = toTicketLine(teamName, 34);
+  const statementLine = toTicketLine(statementTitle, 54);
+
+  ctx.fillStyle = "#1d4ed8";
+  ctx.font = "800 22px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("FOUNDATHON 3.0", leftX, cardY + 56);
+
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "800 50px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("TEAM ACCESS PASS", leftX, cardY + 124);
+
+  const statusPillX = leftX;
+  const statusPillY = cardY + 150;
+  const statusPillWidth = 276;
+  const statusPillHeight = 46;
+  const statusText = "STATUS: ACCEPTED";
+
+  drawRoundedRect(
+    ctx,
+    statusPillX,
+    statusPillY,
+    statusPillWidth,
+    statusPillHeight,
+    16,
+  );
+  ctx.fillStyle = "#dcfce7";
+  ctx.fill();
+  ctx.fillStyle = "#166534";
+  let statusFontSize = 21;
+  while (statusFontSize > 14) {
+    ctx.font = `700 ${statusFontSize}px 'Helvetica Neue', Arial, sans-serif`;
+    if (ctx.measureText(statusText).width <= statusPillWidth - 24) {
+      break;
+    }
+    statusFontSize -= 1;
+  }
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(
+    statusText,
+    statusPillX + statusPillWidth / 2,
+    statusPillY + statusPillHeight / 2,
+  );
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+
+  ctx.fillStyle = "rgba(15, 23, 42, 0.65)";
+  ctx.font = "700 18px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("TEAM NAME", leftX, cardY + 238);
+  ctx.fillStyle = "#111827";
+  ctx.font = "800 40px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(teamNameLine, leftX, cardY + 286, leftMaxWidth);
+
+  ctx.fillStyle = "rgba(15, 23, 42, 0.65)";
+  ctx.font = "700 18px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("TEAM ID", leftX, cardY + 340);
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "700 26px 'SFMono-Regular', Menlo, Consolas, monospace";
+  ctx.fillText(teamId, leftX, cardY + 378, leftMaxWidth);
+
+  ctx.fillStyle = "rgba(15, 23, 42, 0.65)";
+  ctx.font = "700 18px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("LOCKED TRACK", leftX, cardY + 430);
+  ctx.fillStyle = "#1f2937";
+  ctx.font = "700 26px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(statementLine, leftX, cardY + 468, leftMaxWidth);
+
+  ctx.fillStyle = "rgba(15, 23, 42, 0.7)";
+  ctx.font = "600 16px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(
+    `Issued: ${new Date().toLocaleString()}`,
+    leftX,
+    cardY + cardHeight - 34,
+  );
+
+  const qrPanelX = splitX + 40;
+  const qrPanelY = cardY + 86;
+  const qrPanelWidth = cardX + cardWidth - qrPanelX - 34;
+  const qrPanelHeight = cardHeight - 172;
+  drawRoundedRect(ctx, qrPanelX, qrPanelY, qrPanelWidth, qrPanelHeight, 22);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(59, 130, 246, 0.35)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = "#1e3a8a";
+  ctx.font = "800 20px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("SCAN TEAM QR", qrPanelX + 26, qrPanelY + 42);
+
+  const qrImage = await loadCanvasImage(qrDataUrl);
+  const qrSize = 230;
+  const qrX = qrPanelX + (qrPanelWidth - qrSize) / 2;
+  const qrY = qrPanelY + 66;
+  drawRoundedRect(ctx, qrX - 12, qrY - 12, qrSize + 24, qrSize + 24, 16);
+  ctx.fillStyle = "#f8fafc";
+  ctx.fill();
+  ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
+
+  ctx.fillStyle = "rgba(15, 23, 42, 0.68)";
+  ctx.font = "700 14px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(
+    "Carry this pass during check-in.",
+    qrPanelX + 26,
+    qrY + qrSize + 54,
+  );
+
+  return canvas.toDataURL("image/png");
+};
+
+const snapshotMembers = (members: SrmMember[] | NonSrmMember[]) =>
+  JSON.stringify(members);
+
+const normalizeConfirmationText = (value: string) =>
+  value.trim().replace(/\s+/g, " ").toLowerCase();
 
 const toPresentationPreviewUrl = (publicUrl: string) => {
   const normalizedUrl = publicUrl.trim();
@@ -273,8 +528,15 @@ export default function TeamDashboardPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadErrorIsAuth, setLoadErrorIsAuth] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmationStep, setDeleteConfirmationStep] =
+    useState<ConfirmationStep>("confirm");
+  const [deleteConfirmationInput, setDeleteConfirmationInput] = useState("");
   const [pendingLockProblemStatement, setPendingLockProblemStatement] =
     useState<PendingLockProblemStatement | null>(null);
+  const [legacyLockConfirmationStep, setLegacyLockConfirmationStep] =
+    useState<ConfirmationStep>("confirm");
+  const [legacyLockConfirmationInput, setLegacyLockConfirmationInput] =
+    useState("");
   const [teamApprovalStatusFromDb, setTeamApprovalStatusFromDb] = useState<
     TeamApprovalStatus | undefined
   >(undefined);
@@ -291,12 +553,29 @@ export default function TeamDashboardPage() {
   const [showPresentationPreview, setShowPresentationPreview] = useState(false);
   const [isSubmittingPresentation, setIsSubmittingPresentation] =
     useState(false);
+  const [lastSavedMembersSnapshot, setLastSavedMembersSnapshot] = useState("");
   const [problemStatements, setProblemStatements] = useState<
     ProblemStatementAvailability[]
   >([]);
   const [updatedAt, setUpdatedAt] = useState("");
+  const [teamIdQrDataUrl, setTeamIdQrDataUrl] = useState("");
+  const [isGeneratingTeamQr, setIsGeneratingTeamQr] = useState(false);
+  const [teamQrGenerationError, setTeamQrGenerationError] = useState(false);
+  const [showTeamTicketModal, setShowTeamTicketModal] = useState(false);
+  const [teamTicketPreviewDataUrl, setTeamTicketPreviewDataUrl] = useState("");
+  const [isGeneratingTeamTicketPreview, setIsGeneratingTeamTicketPreview] =
+    useState(false);
+  const [teamTicketPreviewError, setTeamTicketPreviewError] = useState(false);
+  const [isDownloadingTeamTicket, setIsDownloadingTeamTicket] = useState(false);
+  const [isSharingTeamTicket, setIsSharingTeamTicket] = useState(false);
 
   const currentMembers = teamType === "srm" ? membersSrm : membersNonSrm;
+  const currentMembersSnapshot = useMemo(
+    () => snapshotMembers(currentMembers),
+    [currentMembers],
+  );
+  const hasUnsavedMemberChanges =
+    !isLoading && currentMembersSnapshot !== lastSavedMembersSnapshot;
   const currentLeadId =
     teamType === "srm" ? leadSrm.netId : leadNonSrm.collegeId;
   const memberCount = 1 + currentMembers.length;
@@ -304,6 +583,11 @@ export default function TeamDashboardPage() {
   const createdQuery = searchParams.get("created");
   const activeTab = parseDashboardTab(rawTab);
   const isPresentationSubmitted = Boolean(presentation.publicUrl);
+  const resolvedTeamApprovalStatus = resolveTeamApprovalStatus({
+    dbStatus: teamApprovalStatusFromDb,
+    isPresentationSubmitted,
+  });
+  const shouldShowAcceptedQr = resolvedTeamApprovalStatus === "accepted";
   const presentationPreviewUrl = useMemo(
     () => toPresentationPreviewUrl(presentation.publicUrl),
     [presentation.publicUrl],
@@ -316,6 +600,17 @@ export default function TeamDashboardPage() {
     return leadNonSrm.collegeEmail.trim().toLowerCase();
   }, [leadNonSrm.collegeEmail, leadSrm.netId, teamType]);
   const canAddMember = memberCount < MAX_MEMBERS;
+  const deleteConfirmationPhrase = `delete ${teamName.trim() || "team"}`;
+  const legacyLockConfirmationPhrase = pendingLockProblemStatement
+    ? `lock ${pendingLockProblemStatement.title}`
+    : "";
+  const canConfirmDelete =
+    normalizeConfirmationText(deleteConfirmationInput) ===
+    normalizeConfirmationText(deleteConfirmationPhrase);
+  const canConfirmLegacyLock =
+    Boolean(pendingLockProblemStatement) &&
+    normalizeConfirmationText(legacyLockConfirmationInput) ===
+      normalizeConfirmationText(legacyLockConfirmationPhrase);
   const getCurrentMemberId = (member: SrmMember | NonSrmMember) =>
     teamType === "srm"
       ? (member as SrmMember).netId
@@ -522,10 +817,12 @@ export default function TeamDashboardPage() {
         if (team.teamType === "srm") {
           setLeadSrm(team.lead);
           setMembersSrm(team.members);
+          setLastSavedMembersSnapshot(snapshotMembers(team.members));
           setDraftSrm(emptySrmMember());
         } else {
           setLeadNonSrm(team.lead);
           setMembersNonSrm(team.members);
+          setLastSavedMembersSnapshot(snapshotMembers(team.members));
           setDraftNonSrm(emptyNonSrmMember());
           setMetaNonSrm({
             collegeName: team.collegeName,
@@ -580,6 +877,129 @@ export default function TeamDashboardPage() {
       window.removeEventListener("keydown", handleEscape);
     };
   }, [showPresentationPreview]);
+
+  useEffect(() => {
+    if (!showTeamTicketModal) {
+      return;
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowTeamTicketModal(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [showTeamTicketModal]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!shouldShowAcceptedQr || !teamId) {
+      setTeamIdQrDataUrl("");
+      setIsGeneratingTeamQr(false);
+      setTeamQrGenerationError(false);
+      setShowTeamTicketModal(false);
+      setTeamTicketPreviewDataUrl("");
+      setIsGeneratingTeamTicketPreview(false);
+      setTeamTicketPreviewError(false);
+      return;
+    }
+
+    setIsGeneratingTeamQr(true);
+    setTeamQrGenerationError(false);
+
+    void QRCode.toDataURL(teamId, {
+      color: {
+        dark: "#0F172A",
+        light: "#FFFFFF",
+      },
+      errorCorrectionLevel: "H",
+      margin: 1,
+      width: 176,
+    })
+      .then((dataUrl: string) => {
+        if (cancelled) {
+          return;
+        }
+        setTeamIdQrDataUrl(dataUrl);
+        setTeamQrGenerationError(false);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setTeamIdQrDataUrl("");
+        setTeamQrGenerationError(true);
+      })
+      .finally(() => {
+        if (cancelled) {
+          return;
+        }
+        setIsGeneratingTeamQr(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [shouldShowAcceptedQr, teamId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!showTeamTicketModal || !teamIdQrDataUrl) {
+      setTeamTicketPreviewDataUrl("");
+      setIsGeneratingTeamTicketPreview(false);
+      setTeamTicketPreviewError(false);
+      return;
+    }
+
+    setIsGeneratingTeamTicketPreview(true);
+    setTeamTicketPreviewError(false);
+
+    void buildAcceptedTeamTicketDataUrl({
+      qrDataUrl: teamIdQrDataUrl,
+      statementTitle: problemStatement.title || "No track selected",
+      teamId,
+      teamName: teamName || "Unnamed Team",
+    })
+      .then((dataUrl) => {
+        if (cancelled) {
+          return;
+        }
+
+        setTeamTicketPreviewDataUrl(dataUrl);
+        setTeamTicketPreviewError(false);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+
+        setTeamTicketPreviewDataUrl("");
+        setTeamTicketPreviewError(true);
+      })
+      .finally(() => {
+        if (cancelled) {
+          return;
+        }
+
+        setIsGeneratingTeamTicketPreview(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    problemStatement.title,
+    showTeamTicketModal,
+    teamId,
+    teamIdQrDataUrl,
+    teamName,
+  ]);
 
   if (loadError) {
     return (
@@ -642,7 +1062,8 @@ export default function TeamDashboardPage() {
       setDraftSrm(emptySrmMember());
       toast({
         title: "Member Added to Draft",
-        description: "The member has been added. Remember to save changes!",
+        description:
+          "Member draft updated. Click Save Member Changes to persist.",
         variant: "success",
       });
       return;
@@ -663,7 +1084,8 @@ export default function TeamDashboardPage() {
     setDraftNonSrm(emptyNonSrmMember());
     toast({
       title: "Member Added to Draft",
-      description: "The member has been added. Remember to save changes!",
+      description:
+        "Member draft updated. Click Save Member Changes to persist.",
       variant: "success",
     });
   };
@@ -728,13 +1150,18 @@ export default function TeamDashboardPage() {
 
     toast({
       title: "Member Draft Updated",
-      description: "Member changes are valid. Remember to save changes!",
+      description:
+        "Member draft updated. Click Save Member Changes to persist.",
       variant: "success",
     });
     cancelEditMember();
   };
 
   const saveChanges = async () => {
+    if (!hasUnsavedMemberChanges) {
+      return;
+    }
+
     const parsed = teamSubmissionSchema.safeParse(teamPayload);
     if (!parsed.success) {
       const message =
@@ -775,10 +1202,16 @@ export default function TeamDashboardPage() {
       setTeamApprovalStatusFromDb(
         normalizeApprovalStatus(data.team.approvalStatus),
       );
+      if (data.team.teamType === "srm") {
+        setMembersSrm(data.team.members);
+      } else {
+        setMembersNonSrm(data.team.members);
+      }
+      setLastSavedMembersSnapshot(snapshotMembers(data.team.members));
       setFormError(null);
       toast({
         title: "Team Changes Saved",
-        description: "Your latest team details have been saved successfully.",
+        description: "Member changes have been saved successfully.",
         variant: "success",
       });
     } catch {
@@ -925,16 +1358,37 @@ export default function TeamDashboardPage() {
       id: problemStatementId,
       title: problemStatementTitle,
     });
+    setLegacyLockConfirmationStep("confirm");
+    setLegacyLockConfirmationInput("");
   };
 
   const confirmLegacyProblemStatementLock = () => {
-    if (!pendingLockProblemStatement) {
+    if (!pendingLockProblemStatement || !canConfirmLegacyLock) {
       return;
     }
 
     const problemStatementId = pendingLockProblemStatement.id;
     setPendingLockProblemStatement(null);
+    setLegacyLockConfirmationStep("confirm");
+    setLegacyLockConfirmationInput("");
     void lockLegacyProblemStatement(problemStatementId);
+  };
+
+  const closeLegacyLockConfirm = () => {
+    setPendingLockProblemStatement(null);
+    setLegacyLockConfirmationStep("confirm");
+    setLegacyLockConfirmationInput("");
+  };
+
+  const proceedLegacyLockToTypeStep = () => {
+    if (!pendingLockProblemStatement) {
+      return;
+    }
+    setLegacyLockConfirmationStep("type");
+  };
+
+  const backLegacyLockToConfirmStep = () => {
+    setLegacyLockConfirmationStep("confirm");
   };
 
   const clearPendingPresentationSelection = () => {
@@ -1088,7 +1542,7 @@ export default function TeamDashboardPage() {
   };
 
   const deleteTeam = async () => {
-    if (isDeleting) {
+    if (isDeleting || !canConfirmDelete) {
       return;
     }
 
@@ -1103,7 +1557,7 @@ export default function TeamDashboardPage() {
             "The team was removed successfully. Redirecting to registration page.",
           variant: "success",
         });
-        setShowDeleteConfirm(false);
+        closeDeleteConfirm();
         isNavigating = true;
         startRouteProgress();
         router.push("/register");
@@ -1127,6 +1581,26 @@ export default function TeamDashboardPage() {
         setIsDeleting(false);
       }
     }
+  };
+
+  const openDeleteConfirm = () => {
+    setDeleteConfirmationStep("confirm");
+    setDeleteConfirmationInput("");
+    setShowDeleteConfirm(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    setShowDeleteConfirm(false);
+    setDeleteConfirmationStep("confirm");
+    setDeleteConfirmationInput("");
+  };
+
+  const proceedDeleteToTypeStep = () => {
+    setDeleteConfirmationStep("type");
+  };
+
+  const backDeleteToConfirmStep = () => {
+    setDeleteConfirmationStep("confirm");
   };
 
   const goToTab = (tab: DashboardTab) => {
@@ -1181,6 +1655,138 @@ export default function TeamDashboardPage() {
     }
   };
 
+  const openTeamTicketModal = () => {
+    if (!shouldShowAcceptedQr || !teamIdQrDataUrl || teamQrGenerationError) {
+      return;
+    }
+
+    setShowTeamTicketModal(true);
+  };
+
+  const closeTeamTicketModal = () => {
+    setShowTeamTicketModal(false);
+  };
+
+  const downloadTeamTicket = async () => {
+    if (isDownloadingTeamTicket || !teamIdQrDataUrl) {
+      return;
+    }
+
+    setIsDownloadingTeamTicket(true);
+    try {
+      const ticketDataUrl =
+        teamTicketPreviewDataUrl ||
+        (await buildAcceptedTeamTicketDataUrl({
+          qrDataUrl: teamIdQrDataUrl,
+          statementTitle: problemStatement.title || "No track selected",
+          teamId,
+          teamName: teamName || "Unnamed Team",
+        }));
+
+      if (typeof document === "undefined") {
+        throw new Error("Document unavailable");
+      }
+
+      const anchor = document.createElement("a");
+      anchor.href = ticketDataUrl;
+      anchor.download = `foundathon-ticket-${teamId.replace(/[^a-zA-Z0-9_-]/g, "-")}.png`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+
+      toast({
+        title: "Ticket Downloaded",
+        description: "Your QR ticket has been downloaded successfully.",
+        variant: "success",
+      });
+    } catch {
+      toast({
+        title: "Ticket Download Failed",
+        description:
+          "Couldn't generate the ticket right now. Please try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloadingTeamTicket(false);
+    }
+  };
+
+  const shareTeamTicketOnWhatsApp = async () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const dashboardUrl = `${window.location.origin}/dashboard/${teamId}`;
+    const message = [
+      "Foundathon 3.0 - Accepted Team Ticket",
+      `Team: ${teamName || "Unnamed Team"}`,
+      `Team ID: ${teamId}`,
+      `Track: ${problemStatement.title || "N/A"}`,
+      `Dashboard: ${dashboardUrl}`,
+    ].join("\n");
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    const redirectToWhatsApp = () => {
+      const openedWindow = window.open(
+        whatsappUrl,
+        "_blank",
+        "noopener,noreferrer",
+      );
+      if (!openedWindow) {
+        window.location.assign(whatsappUrl);
+      }
+    };
+
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.share === "function" &&
+      teamIdQrDataUrl
+    ) {
+      setIsSharingTeamTicket(true);
+      try {
+        const ticketDataUrl =
+          teamTicketPreviewDataUrl ||
+          (await buildAcceptedTeamTicketDataUrl({
+            qrDataUrl: teamIdQrDataUrl,
+            statementTitle: problemStatement.title || "No track selected",
+            teamId,
+            teamName: teamName || "Unnamed Team",
+          }));
+
+        const response = await fetch(ticketDataUrl);
+        const ticketBlob = await response.blob();
+        const ticketFile = new File(
+          [ticketBlob],
+          `foundathon-ticket-${teamId.replace(/[^a-zA-Z0-9_-]/g, "-")}.png`,
+          {
+            type: "image/png",
+          },
+        );
+
+        const canShareTicket =
+          typeof navigator.canShare === "function"
+            ? navigator.canShare({ files: [ticketFile] })
+            : false;
+
+        if (canShareTicket) {
+          await navigator.share({
+            files: [ticketFile],
+            text: message,
+            title: "Foundathon 3.0 - Accepted Team Ticket",
+          });
+          return;
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+      } finally {
+        setIsSharingTeamTicket(false);
+      }
+    }
+
+    redirectToWhatsApp();
+  };
+
   const teamTypeLabel = teamType === "srm" ? "SRM Team" : "Non-SRM Team";
   const problemStatementTitle =
     problemStatement.title || "No problem statement selected";
@@ -1198,10 +1804,6 @@ export default function TeamDashboardPage() {
     !isPresentationSubmitted &&
     !isSubmittingPresentation &&
     !isLoading;
-  const resolvedTeamApprovalStatus = resolveTeamApprovalStatus({
-    dbStatus: teamApprovalStatusFromDb,
-    isPresentationSubmitted,
-  });
   const teamApprovalStatusMeta = getTeamApprovalStatusMeta(
     resolvedTeamApprovalStatus,
   );
@@ -1347,7 +1949,7 @@ export default function TeamDashboardPage() {
             <section
               className={`relative overflow-visible rounded-2xl border border-b-4 p-5 shadow-lg md:p-6 ${teamApprovalStatusMeta.panelClass}`}
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/70">
                     Team Review Status
@@ -1365,21 +1967,51 @@ export default function TeamDashboardPage() {
                   </p>
                 </div>
 
-                <div className="relative group shrink-0">
-                  <button
-                    type="button"
-                    aria-label="Status meaning"
-                    className="inline-flex size-8 items-center justify-center rounded-full border border-foreground/20 bg-white/85 text-foreground/75 transition-colors hover:bg-white hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/45"
-                  >
-                    <Info size={16} strokeWidth={2.6} />
-                  </button>
-                  <div
-                    role="tooltip"
-                    className="pointer-events-none absolute right-0 z-20 mt-2 w-72 rounded-lg border border-foreground/15 bg-background px-3 py-2 text-xs leading-relaxed text-foreground/85 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-                  >
-                    {teamApprovalStatusMeta.label}:{" "}
-                    {teamApprovalStatusMeta.description}
+                <div className="flex w-full flex-col gap-3 md:w-auto md:items-end">
+                  <div className="relative group self-end">
+                    <button
+                      type="button"
+                      aria-label="Status meaning"
+                      className="inline-flex size-8 items-center justify-center rounded-full border border-foreground/20 bg-white/85 text-foreground/75 transition-colors hover:bg-white hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/45"
+                    >
+                      <Info size={16} strokeWidth={2.6} />
+                    </button>
+                    <div
+                      role="tooltip"
+                      className="pointer-events-none absolute right-0 z-20 mt-2 w-72 rounded-lg border border-foreground/15 bg-background px-3 py-2 text-xs leading-relaxed text-foreground/85 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                    >
+                      {teamApprovalStatusMeta.label}:{" "}
+                      {teamApprovalStatusMeta.description}
+                    </div>
                   </div>
+
+                  {shouldShowAcceptedQr ? (
+                    <div className="w-full rounded-xl border border-fngreen/35 bg-white/90 p-3 shadow-sm md:w-[220px]">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-fngreen">
+                        Team Ticket
+                      </p>
+                      {isGeneratingTeamQr ? (
+                        <p className="mt-2 text-xs leading-relaxed text-foreground/75">
+                          Preparing accepted-team QR...
+                        </p>
+                      ) : teamQrGenerationError ? (
+                        <p className="mt-2 text-xs leading-relaxed text-foreground/75">
+                          Couldn&apos;t generate QR code right now. Please
+                          refresh once.
+                        </p>
+                      ) : null}
+                      <FnButton
+                        type="button"
+                        tone="green"
+                        size="sm"
+                        className="mt-3 w-full justify-center"
+                        onClick={openTeamTicketModal}
+                        disabled={isGeneratingTeamQr || teamQrGenerationError}
+                      >
+                        View QR Ticket
+                      </FnButton>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </section>
@@ -1696,21 +2328,22 @@ export default function TeamDashboardPage() {
                           className="h-40 animate-pulse rounded-xl border border-b-4 border-fnblue/40 bg-foreground/5"
                         />
                       ))
-                    : problemStatements.map((statement) => (
+                    : problemStatements.map((statement, index) => (
                         <div
                           key={statement.id}
-                          className="rounded-xl border border-b-4 border-fnblue/45 bg-white p-4 shadow-sm"
+                          className="group relative overflow-hidden rounded-xl border border-b-4 border-fnblue/45 bg-gradient-to-br from-white via-white to-fnblue/5 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                         >
-                          <p className="text-[10px] uppercase tracking-[0.16em] text-fnblue font-semibold">
-                            {statement.id}
+                          <div className="absolute -right-8 -top-8 size-24 rounded-full bg-fnyellow/15 blur-2xl pointer-events-none" />
+                          <p className="relative text-[11px] font-semibold uppercase tracking-[0.16em] text-fnblue/75">
+                            Track {index + 1}
                           </p>
-                          <h4 className="mt-2 text-sm font-black uppercase tracking-[0.06em]">
+                          <h4 className="relative mt-1 text-sm font-black uppercase tracking-[0.04em] leading-snug">
                             {statement.title}
                           </h4>
-                          <p className="mt-2 text-xs text-foreground/75 leading-relaxed">
+                          <p className="relative mt-2 text-xs text-foreground/75 leading-relaxed">
                             {statement.summary}
                           </p>
-                          <div className="mt-4">
+                          <div className="relative mt-4">
                             {statement.isFull ? (
                               <FnButton type="button" tone="gray" disabled>
                                 Full
@@ -1748,111 +2381,103 @@ export default function TeamDashboardPage() {
             <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
               <section className="rounded-2xl border border-b-4 border-fnblue bg-background/95 p-6 shadow-lg md:p-8">
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnblue">
-                  Team Details
+                  Manage Team
                 </p>
                 <h2 className="mt-2 text-2xl font-black tracking-tight uppercase">
-                  Edit Team Information
+                  Manage Team Roster
                 </h2>
+                <p className="mt-2 text-sm leading-relaxed text-foreground/75">
+                  Add, edit, and remove member profiles. Team identity fields
+                  are locked after registration.
+                </p>
 
                 <div className="mt-6 rounded-xl border border-b-4 border-fnblue/40 bg-white p-4">
-                  <Input
-                    label="Team Name"
-                    value={teamName}
-                    onChange={setTeamName}
-                  />
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnblue">
+                    Locked Team Profile
+                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-foreground/75">
+                    These fields are locked after team creation: Team Name, Lead
+                    Details
+                    {teamType === "non_srm" ? ", College + Club Profile." : "."}
+                  </p>
+                  <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
+                    <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
+                        Team Name
+                      </p>
+                      <p className="mt-1 font-semibold">{teamName || "N/A"}</p>
+                    </div>
+                    <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
+                        Team Type
+                      </p>
+                      <p className="mt-1 font-semibold">{teamTypeLabel}</p>
+                    </div>
+                    <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
+                        Lead Name
+                      </p>
+                      <p className="mt-1 font-semibold">
+                        {(teamType === "srm"
+                          ? leadSrm.name
+                          : leadNonSrm.name) || "N/A"}
+                      </p>
+                    </div>
+                    <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
+                        Lead ID
+                      </p>
+                      <p className="mt-1 font-semibold">
+                        {currentLeadId || "N/A"}
+                      </p>
+                    </div>
+                    {teamType === "non_srm" ? (
+                      <>
+                        <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
+                            College Name
+                          </p>
+                          <p className="mt-1 font-semibold">
+                            {metaNonSrm.collegeName || "N/A"}
+                          </p>
+                        </div>
+                        <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
+                            Club Profile
+                          </p>
+                          <p className="mt-1 font-semibold">
+                            {metaNonSrm.isClub
+                              ? metaNonSrm.clubName || "Club team"
+                              : "Independent Team"}
+                          </p>
+                        </div>
+                      </>
+                    ) : null}
+                  </div>
                 </div>
 
-                {teamType === "non_srm" ? (
-                  <div className="mt-6 rounded-xl border border-b-4 border-fngreen/45 bg-white p-4">
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <Input
-                        label="College Name"
-                        value={metaNonSrm.collegeName}
-                        onChange={(value) =>
-                          setMetaNonSrm((prev) => ({
-                            ...prev,
-                            collegeName: value,
-                          }))
-                        }
-                      />
-                    </div>
-                    <label className="mt-3 inline-flex items-center gap-2 text-sm font-semibold">
-                      <input
-                        type="checkbox"
-                        checked={metaNonSrm.isClub}
-                        onChange={(event) =>
-                          setMetaNonSrm((prev) => ({
-                            ...prev,
-                            isClub: event.target.checked,
-                            clubName: event.target.checked ? prev.clubName : "",
-                          }))
-                        }
-                      />
-                      Team represents a club
-                    </label>
-                    <div className="mt-3">
-                      <Input
-                        label="Club Name"
-                        value={metaNonSrm.clubName}
-                        onChange={(value) =>
-                          setMetaNonSrm((prev) => ({
-                            ...prev,
-                            clubName: value,
-                          }))
-                        }
-                      />
-                    </div>
-                  </div>
-                ) : null}
-
                 {teamType === "srm" ? (
-                  <>
-                    <SrmEditor
-                      title="Team Lead"
-                      member={leadSrm}
-                      onChange={(field, value) =>
-                        setLeadSrm(
-                          (prev) => ({ ...prev, [field]: value }) as SrmMember,
-                        )
-                      }
-                      className="mt-6 border-b-4 border-fnblue/45"
-                    />
-                    <SrmEditor
-                      title="Member Draft"
-                      member={draftSrm}
-                      onChange={(field, value) =>
-                        setDraftSrm(
-                          (prev) => ({ ...prev, [field]: value }) as SrmMember,
-                        )
-                      }
-                      className="mt-4 border-b-4 border-fngreen/45"
-                    />
-                  </>
+                  <SrmEditor
+                    title="Member Draft"
+                    member={draftSrm}
+                    onChange={(field, value) =>
+                      setDraftSrm(
+                        (prev) => ({ ...prev, [field]: value }) as SrmMember,
+                      )
+                    }
+                    className="mt-6 border-b-4 border-fngreen/45"
+                  />
                 ) : (
-                  <>
-                    <NonSrmEditor
-                      title="Team Lead"
-                      member={leadNonSrm}
-                      onChange={(field, value) =>
-                        setLeadNonSrm(
-                          (prev) =>
-                            ({ ...prev, [field]: value }) as NonSrmMember,
-                        )
-                      }
-                      className="mt-6 border-b-4 border-fnblue/45"
-                    />
-                    <NonSrmEditor
-                      title="Member Draft"
-                      member={draftNonSrm}
-                      onChange={(field, value) =>
-                        setDraftNonSrm(
-                          (prev) =>
-                            ({ ...prev, [field]: value }) as NonSrmMember,
-                        )
-                      }
-                      className="mt-4 border-b-4 border-fngreen/45"
-                    />
-                  </>
+                  <NonSrmEditor
+                    title="Member Draft"
+                    member={draftNonSrm}
+                    onChange={(field, value) =>
+                      setDraftNonSrm(
+                        (prev) => ({ ...prev, [field]: value }) as NonSrmMember,
+                      )
+                    }
+                    className="mt-6 border-b-4 border-fngreen/45"
+                  />
                 )}
 
                 {editingIndex !== null ? (
@@ -1911,6 +2536,15 @@ export default function TeamDashboardPage() {
                       {formError}
                     </p>
                   ) : null}
+                  <p
+                    className={`w-full text-xs font-semibold uppercase tracking-[0.16em] ${
+                      hasUnsavedMemberChanges ? "text-fnorange" : "text-fngreen"
+                    }`}
+                  >
+                    {hasUnsavedMemberChanges
+                      ? "Unsaved roster changes"
+                      : "Roster synced"}
+                  </p>
                   <FnButton
                     type="button"
                     onClick={addMember}
@@ -1925,13 +2559,21 @@ export default function TeamDashboardPage() {
                     onClick={saveChanges}
                     loading={isSaving}
                     loadingText="Saving..."
-                    disabled={isSaving || isDeleting || isAssigningStatement}
+                    disabled={
+                      isSaving ||
+                      isDeleting ||
+                      isAssigningStatement ||
+                      !hasUnsavedMemberChanges
+                    }
+                    tone={hasUnsavedMemberChanges ? "blue" : "gray"}
                   >
-                    Save Changes
+                    {hasUnsavedMemberChanges
+                      ? "Save Member Changes"
+                      : "All Changes Saved"}
                   </FnButton>
                   <FnButton
                     type="button"
-                    onClick={() => setShowDeleteConfirm(true)}
+                    onClick={openDeleteConfirm}
                     tone="red"
                     disabled={isDeleting || isAssigningStatement}
                   >
@@ -2194,6 +2836,130 @@ export default function TeamDashboardPage() {
         ) : null}
       </div>
 
+      {showTeamTicketModal && shouldShowAcceptedQr ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="team-ticket-title"
+        >
+          <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-b-4 border-fngreen bg-background shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-foreground/10 px-4 py-3 md:px-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fngreen">
+                  Accepted Team Pass
+                </p>
+                <h3
+                  id="team-ticket-title"
+                  className="mt-1 text-lg font-black uppercase tracking-tight md:text-xl"
+                >
+                  Team QR Ticket
+                </h3>
+              </div>
+              <button
+                type="button"
+                aria-label="Close team ticket modal"
+                onClick={closeTeamTicketModal}
+                className="inline-flex size-8 items-center justify-center rounded-md border border-foreground/20 bg-white text-foreground/70 transition-colors hover:bg-fnblue/10 hover:text-fnblue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/40"
+              >
+                <X size={16} strokeWidth={2.6} />
+              </button>
+            </div>
+
+            <div className="grid gap-5 bg-white/70 p-4 md:grid-cols-[1.2fr_0.8fr] md:p-5">
+              <div className="rounded-xl border border-foreground/10 bg-foreground/5 p-3">
+                {isGeneratingTeamTicketPreview ? (
+                  <div className="h-[220px] w-full animate-pulse rounded-lg bg-foreground/10 md:h-[260px]" />
+                ) : teamTicketPreviewError ? (
+                  <div className="flex h-[220px] flex-col items-center justify-center rounded-lg border border-fnred/25 bg-fnred/5 px-4 text-center md:h-[260px]">
+                    <p className="text-sm font-semibold text-fnred">
+                      Ticket preview unavailable right now.
+                    </p>
+                    <p className="mt-2 text-xs text-foreground/75">
+                      You can still download and share using the actions on the
+                      right.
+                    </p>
+                  </div>
+                ) : teamTicketPreviewDataUrl ? (
+                  <Image
+                    src={teamTicketPreviewDataUrl}
+                    alt={`Ticket preview for team ${teamName || teamId}`}
+                    width={1200}
+                    height={675}
+                    unoptimized
+                    className="w-full rounded-lg border border-foreground/10 bg-white"
+                  />
+                ) : (
+                  <div className="flex h-[220px] items-center justify-center rounded-lg border border-foreground/10 bg-background text-sm text-foreground/75 md:h-[260px]">
+                    Ticket preview is being prepared.
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3 rounded-xl border border-foreground/10 bg-background p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fngreen">
+                  Ticket Details
+                </p>
+                <p className="text-sm">
+                  <span className="font-semibold">Team:</span>{" "}
+                  {teamName || "Unnamed Team"}
+                </p>
+                <p className="text-sm">
+                  <span className="font-semibold">Team ID:</span>{" "}
+                  <span className="font-mono text-xs">{teamId}</span>
+                </p>
+                <p className="text-sm">
+                  <span className="font-semibold">Track:</span>{" "}
+                  {problemStatement.title || "N/A"}
+                </p>
+                <p className="text-xs text-foreground/70">
+                  Download this hot ticket layout for on-ground check-ins or
+                  share the accepted team details instantly on WhatsApp.
+                </p>
+
+                <div className="pt-1 space-y-2">
+                  <FnButton
+                    type="button"
+                    className="w-full justify-center"
+                    onClick={downloadTeamTicket}
+                    loading={isDownloadingTeamTicket}
+                    loadingText="Preparing Ticket..."
+                    disabled={isGeneratingTeamQr || teamQrGenerationError}
+                  >
+                    <Download size={16} strokeWidth={3} />
+                    Download Ticket PNG
+                  </FnButton>
+                  <FnButton
+                    type="button"
+                    tone="green"
+                    className="w-full justify-center"
+                    onClick={shareTeamTicketOnWhatsApp}
+                    loading={isSharingTeamTicket}
+                    loadingText="Opening Share..."
+                    disabled={
+                      isGeneratingTeamQr ||
+                      teamQrGenerationError ||
+                      isSharingTeamTicket
+                    }
+                  >
+                    <ExternalLink size={16} strokeWidth={3} />
+                    Share on WhatsApp
+                  </FnButton>
+                  <FnButton
+                    type="button"
+                    tone="gray"
+                    className="w-full justify-center"
+                    onClick={copyTeamId}
+                  >
+                    Copy Team ID
+                  </FnButton>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {showPresentationPreview && isPresentationSubmitted ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
@@ -2342,24 +3108,64 @@ export default function TeamDashboardPage() {
             <p className="mt-3 rounded-md border border-foreground/15 bg-foreground/5 px-3 py-2 text-sm font-semibold">
               {pendingLockProblemStatement.title}
             </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <FnButton
-                type="button"
-                onClick={() => setPendingLockProblemStatement(null)}
-                tone="gray"
-                size="sm"
-              >
-                Cancel
-              </FnButton>
-              <FnButton
-                type="button"
-                onClick={confirmLegacyProblemStatementLock}
-                tone="red"
-                size="sm"
-              >
-                Yes, Lock Statement
-              </FnButton>
-            </div>
+            {legacyLockConfirmationStep === "confirm" ? (
+              <div className="mt-6 flex justify-end gap-2">
+                <FnButton
+                  type="button"
+                  onClick={closeLegacyLockConfirm}
+                  tone="gray"
+                  size="sm"
+                >
+                  Cancel
+                </FnButton>
+                <FnButton
+                  type="button"
+                  onClick={proceedLegacyLockToTypeStep}
+                  tone="red"
+                  size="sm"
+                >
+                  Continue
+                </FnButton>
+              </div>
+            ) : (
+              <>
+                <p className="mt-3 text-xs text-foreground/70">
+                  Type{" "}
+                  <span className="font-mono">
+                    {legacyLockConfirmationPhrase}
+                  </span>{" "}
+                  to continue.
+                </p>
+                <input
+                  type="text"
+                  value={legacyLockConfirmationInput}
+                  onChange={(event) =>
+                    setLegacyLockConfirmationInput(event.target.value)
+                  }
+                  placeholder={legacyLockConfirmationPhrase}
+                  className="mt-2 w-full rounded-md border border-foreground/20 bg-white px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-fnblue/50"
+                />
+                <div className="mt-6 flex justify-end gap-2">
+                  <FnButton
+                    type="button"
+                    onClick={backLegacyLockToConfirmStep}
+                    tone="gray"
+                    size="sm"
+                  >
+                    Back
+                  </FnButton>
+                  <FnButton
+                    type="button"
+                    onClick={confirmLegacyProblemStatementLock}
+                    tone="red"
+                    size="sm"
+                    disabled={!canConfirmLegacyLock}
+                  >
+                    Yes, Lock Statement
+                  </FnButton>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -2382,32 +3188,77 @@ export default function TeamDashboardPage() {
               This action permanently removes the team record and cannot be
               undone.
             </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <FnButton
-                type="button"
-                onClick={() => setShowDeleteConfirm(false)}
-                tone="gray"
-                size="sm"
-                disabled={isDeleting}
-              >
-                Cancel
-              </FnButton>
-              <FnButton
-                type="button"
-                onClick={deleteTeam}
-                tone="red"
-                size="sm"
-                loading={isDeleting}
-                loadingText="Deleting..."
-                disabled={isDeleting}
-              >
-                <Trash2 size={16} strokeWidth={3} />
-                Delete Team
-              </FnButton>
-            </div>
+            {deleteConfirmationStep === "confirm" ? (
+              <div className="mt-6 flex justify-end gap-2">
+                <FnButton
+                  type="button"
+                  onClick={closeDeleteConfirm}
+                  tone="gray"
+                  size="sm"
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </FnButton>
+                <FnButton
+                  type="button"
+                  onClick={proceedDeleteToTypeStep}
+                  tone="red"
+                  size="sm"
+                  disabled={isDeleting}
+                >
+                  Continue
+                </FnButton>
+              </div>
+            ) : (
+              <>
+                <p className="mt-3 text-xs text-foreground/70">
+                  Type{" "}
+                  <span className="font-mono">{deleteConfirmationPhrase}</span>{" "}
+                  to continue.
+                </p>
+                <input
+                  type="text"
+                  value={deleteConfirmationInput}
+                  onChange={(event) =>
+                    setDeleteConfirmationInput(event.target.value)
+                  }
+                  placeholder={deleteConfirmationPhrase}
+                  className="mt-2 w-full rounded-md border border-foreground/20 bg-white px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-fnblue/50"
+                />
+                <div className="mt-6 flex justify-end gap-2">
+                  <FnButton
+                    type="button"
+                    onClick={backDeleteToConfirmStep}
+                    tone="gray"
+                    size="sm"
+                    disabled={isDeleting}
+                  >
+                    Back
+                  </FnButton>
+                  <FnButton
+                    type="button"
+                    onClick={deleteTeam}
+                    tone="red"
+                    size="sm"
+                    loading={isDeleting}
+                    loadingText="Deleting..."
+                    disabled={isDeleting || !canConfirmDelete}
+                  >
+                    <Trash2 size={16} strokeWidth={3} />
+                    Delete Team
+                  </FnButton>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
+
+      <datalist id={SRM_DEPARTMENT_DATALIST_ID}>
+        {SRM_MAJOR_DEPARTMENTS.map((department) => (
+          <option key={department} value={department} />
+        ))}
+      </datalist>
     </main>
   );
 }
@@ -2415,6 +3266,7 @@ type InputProps = {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  list?: string;
   type?: string;
   required?: boolean;
   minLength?: number;
@@ -2488,6 +3340,7 @@ const Input = ({
   label,
   value,
   onChange,
+  list,
   type = "text",
   required = false,
   minLength,
@@ -2502,6 +3355,7 @@ const Input = ({
       type={type}
       value={value}
       onChange={(event) => onChange(event.target.value)}
+      list={list}
       required={required}
       minLength={minLength}
       maxLength={maxLength}
@@ -2540,7 +3394,7 @@ const SrmEditor = ({
       <Input
         label="RA Number"
         value={member.raNumber}
-        onChange={(v) => onChange("raNumber", v)}
+        onChange={(v) => onChange("raNumber", v.toUpperCase())}
         required
         minLength={3}
         maxLength={50}
@@ -2556,7 +3410,8 @@ const SrmEditor = ({
       <Input
         label="Department"
         value={member.dept}
-        onChange={(v) => onChange("dept", v)}
+        onChange={(v) => onChange("dept", v.toUpperCase())}
+        list={SRM_DEPARTMENT_DATALIST_ID}
         required
         minLength={2}
         maxLength={50}

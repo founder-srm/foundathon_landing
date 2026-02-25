@@ -1,4 +1,5 @@
 export const PRESENTATION_BUCKET_NAME = "foundathon-presentation";
+export const PRESENTATION_REGISTRATIONS_FOLDER = "registrations";
 export const PRESENTATION_TEMPLATE_PATH = "/foundathon-ppt-template.pptx";
 export const PRESENTATION_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 

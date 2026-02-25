@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { toTeamRecord } from "@/server/registration/mappers";
+import {
+  toTeamRecord,
+  withSrmEmailNetIds,
+} from "@/server/registration/mappers";
 
 const baseRow = {
   id: "11111111-1111-4111-8111-111111111111",
@@ -45,7 +48,7 @@ describe("toTeamRecord", () => {
         presentationMimeType:
           "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         presentationPublicUrl: "https://example.com/public/team-deck.pptx",
-        presentationStoragePath: "user-1/team-id/submission.pptx",
+        presentationStoragePath: "registrations/team-id/submission.pptx",
         presentationUploadedAt: "2026-02-20T10:05:00.000Z",
       },
     });
@@ -89,5 +92,46 @@ describe("toTeamRecord", () => {
 
     expect(team).not.toBeNull();
     expect(team?.approvalStatus).toBe("submitted");
+  });
+});
+
+describe("withSrmEmailNetIds", () => {
+  it("normalizes SRM department values to uppercase", () => {
+    const normalized = withSrmEmailNetIds({
+      teamType: "srm",
+      teamName: "Pitch Pioneers",
+      lead: {
+        name: "Lead",
+        raNumber: "RA0000000000001",
+        netId: "od7270",
+        dept: "cse ai",
+        contact: 9876543210,
+      },
+      members: [
+        {
+          name: "M1",
+          raNumber: "RA0000000000002",
+          netId: "ab1234",
+          dept: "ece",
+          contact: 9876543211,
+        },
+        {
+          name: "M2",
+          raNumber: "RA0000000000003",
+          netId: "cd5678",
+          dept: "mech ",
+          contact: 9876543212,
+        },
+      ],
+    });
+
+    expect(normalized.teamType).toBe("srm");
+    if (normalized.teamType !== "srm") {
+      throw new Error("Expected SRM team submission.");
+    }
+
+    expect(normalized.lead.dept).toBe("CSE AI");
+    expect(normalized.members[0]?.dept).toBe("ECE");
+    expect(normalized.members[1]?.dept).toBe("MECH");
   });
 });

@@ -159,6 +159,7 @@ If your team uses Doppler/CI secret injection, that is fine, but local dev still
 | --- | --- | --- | --- | --- | --- |
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Yes | Public + Server | `src/lib/register-api.ts`, `src/utils/supabase/*`, auth routes | Base Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Yes | Public + Server | `src/lib/register-api.ts`, `src/utils/supabase/*`, auth routes | Supabase anon key |
+| `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE` | Optional | Recommended for PPT uploads | Server only | `src/server/supabase/service-role-client.ts`, registration service storage ops | Bypasses Storage RLS for server-side upload/delete/list |
 | `FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET` | Yes (for lock flow) | Yes | Server only | `src/lib/problem-lock-token.ts` | HMAC signing secret |
 | `FOUNDATHON_NEXT_PUBLIC_SITE_URL` | Optional | Recommended | Public + Server | `src/app/sitemap.ts`, `src/app/robots.ts`, auth + send routes | Canonical host + callback base |
 | `FOUNDATHON_NODE_ENV` | Optional | Optional | Runtime | auth login/callback | Set to `development` locally |
@@ -169,6 +170,7 @@ If your team uses Doppler/CI secret injection, that is fine, but local dev still
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+NEXT_PUBLIC_SUPABASE_SERVICE_ROLE=<service-role-key>
 FOUNDATHON_NEXT_PUBLIC_SITE_URL=http://localhost:3000
 FOUNDATHON_RESEND_API_KEY=<resend-key>
 FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET=<openssl-random>
@@ -876,6 +878,7 @@ bun run test
 - [ ] Deploy target sets Node runtime compatible with Next 16
 - [ ] `NEXT_PUBLIC_SUPABASE_URL` configured
 - [ ] `NEXT_PUBLIC_SUPABASE_ANON_KEY` configured
+- [ ] `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE` configured (recommended for PPT upload/delete)
 - [ ] `FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET` configured
 - [ ] `FOUNDATHON_NEXT_PUBLIC_SITE_URL` configured
 - [ ] `FOUNDATHON_RESEND_API_KEY` configured (if email notifications should send)
@@ -901,6 +904,10 @@ Check:
 
 - `NEXT_PUBLIC_SUPABASE_URL`
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+If PPT upload/delete fails with storage policy errors, also set:
+
+- `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE` (or `SUPABASE_SERVICE_ROLE_KEY`)
 
 ### Error: "PROBLEM_LOCK_TOKEN_SECRET is not configured"
 

@@ -144,7 +144,12 @@ type Step1ValidationFeedback = {
   summaryErrors: string[];
 };
 
-const getStep1IssuePath = (path: Array<string | number>) => {
+type Step1ValidationIssue = {
+  message: string;
+  path: ReadonlyArray<PropertyKey>;
+};
+
+const getStep1IssuePath = (path: ReadonlyArray<PropertyKey>) => {
   const [head, second] = path;
 
   if (head === "lead" && typeof second === "string") {
@@ -168,7 +173,7 @@ const getStep1IssuePath = (path: Array<string | number>) => {
 };
 
 const buildStep1ValidationFeedback = (
-  issues: Array<{ message: string; path: Array<string | number> }>,
+  issues: ReadonlyArray<Step1ValidationIssue>,
 ): Step1ValidationFeedback => {
   const errorsByPath: Record<string, string> = {};
 
@@ -1353,7 +1358,7 @@ const RegisterClient = () => {
                       return (
                         <div
                           key={statement.id}
-                          className="group relative overflow-hidden rounded-xl border border-foreground/12 bg-gradient-to-br from-white via-white to-fnblue/5 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                          className="group relative overflow-hidden rounded-xl border border-foreground/12 bg-linear-to-br from-white via-white to-fnblue/5 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                         >
                           <div className="absolute -right-8 -top-8 size-24 rounded-full bg-fnyellow/15 blur-2xl pointer-events-none" />
                           <p className="relative text-[11px] font-semibold uppercase tracking-[0.16em] text-fnblue/75">

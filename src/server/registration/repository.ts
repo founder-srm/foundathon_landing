@@ -7,7 +7,7 @@ export const listRegistrationsForUser = (
 ) =>
   supabase
     .from("eventsregistrations")
-    .select("id, created_at, details")
+    .select("id, created_at, details, is_approved")
     .eq("event_id", EVENT_ID)
     .eq("application_id", userId)
     .order("created_at", { ascending: false });
@@ -19,7 +19,7 @@ export const findRegistrationByTeamIdForUser = (
 ) =>
   supabase
     .from("eventsregistrations")
-    .select("id, created_at, details")
+    .select("id, created_at, details, is_approved")
     .eq("id", teamId)
     .eq("event_id", EVENT_ID)
     .eq("application_id", userId)
@@ -85,7 +85,7 @@ export const updateRegistrationDetailsByTeamIdForUser = ({
     .eq("id", teamId)
     .eq("event_id", EVENT_ID)
     .eq("application_id", userId)
-    .select("id, created_at, details")
+    .select("id, created_at, details, is_approved")
     .maybeSingle();
 
 export const deleteRegistrationByQueryIdForUser = ({

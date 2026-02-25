@@ -29,6 +29,17 @@ vi.mock("@/components/ui/route-progress", () => ({
   }),
 }));
 
+const getProblemStatementLockCallCount = () => {
+  const fetchMock = global.fetch as unknown as {
+    mock: { calls: Array<[RequestInfo | URL]> };
+  };
+
+  return fetchMock.mock.calls.filter(
+    ([input]) =>
+      typeof input === "string" && input === "/api/problem-statements/lock",
+  ).length;
+};
+
 describe("Register page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -126,6 +137,60 @@ describe("Register page", () => {
     expect(screen.getByText(/Campus Mobility Optimizer/i)).toBeInTheDocument();
     expect(screen.queryByText(/current cap/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/remaining/i)).not.toBeInTheDocument();
+  });
+
+  it("shows confirmation before locking a problem statement", async () => {
+    const user = userEvent.setup();
+    render(<RegisterClient />);
+
+    await user.type(screen.getByLabelText(/Team Name/i), "Board Breakers");
+
+    const nameInputs = screen.getAllByLabelText(/^Name$/i);
+    const raInputs = screen.getAllByLabelText(/Registration Number/i);
+    const netIdInputs = screen.getAllByLabelText(/^NetID$/i);
+    const deptInputs = screen.getAllByLabelText(/Department/i);
+    const contactInputs = screen.getAllByLabelText(/Contact/i);
+
+    await user.type(nameInputs[0], "Lead One");
+    await user.type(raInputs[0], "RA1234567890123");
+    await user.type(netIdInputs[0], "ab1234");
+    await user.type(deptInputs[0], "CSE");
+    await user.type(contactInputs[0], "9876543210");
+
+    await user.type(nameInputs[1], "Member One");
+    await user.type(raInputs[1], "RA1234567890124");
+    await user.type(netIdInputs[1], "cd5678");
+    await user.type(deptInputs[1], "ECE");
+    await user.type(contactInputs[1], "9876543211");
+
+    await user.click(screen.getByRole("button", { name: /add member/i }));
+
+    await user.type(screen.getAllByLabelText(/^Name$/i)[1], "Member Two");
+    await user.type(
+      screen.getAllByLabelText(/Registration Number/i)[1],
+      "RA1234567890125",
+    );
+    await user.type(screen.getAllByLabelText(/^NetID$/i)[1], "ef9012");
+    await user.type(screen.getAllByLabelText(/Department/i)[1], "MECH");
+    await user.type(screen.getAllByLabelText(/Contact/i)[1], "9876543212");
+
+    await user.click(screen.getByRole("button", { name: /add member/i }));
+    await user.click(screen.getByRole("button", { name: /next/i }));
+
+    const lockCallCountBefore = getProblemStatementLockCallCount();
+    await user.click(
+      await screen.findByRole("button", { name: /lock problem statement/i }),
+    );
+
+    expect(
+      screen.getByText(/this action cannot be reverted/i),
+    ).toBeInTheDocument();
+    expect(getProblemStatementLockCallCount()).toBe(lockCallCountBefore);
+
+    await user.click(
+      screen.getByRole("button", { name: /yes, lock statement/i }),
+    );
+    expect(getProblemStatementLockCallCount()).toBe(lockCallCountBefore + 1);
   });
 
   it("register page redirects signed-out users to login", async () => {

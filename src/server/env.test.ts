@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
   getFoundathonNodeEnv,
-  getFoundathonResendApiKey,
   getFoundathonSiteUrl,
   getProblemLockTokenSecret,
   getSupabaseEnv,
@@ -12,7 +11,6 @@ const ENV_KEYS = [
   "FOUNDATHON_NEXT_PUBLIC_SITE_URL",
   "FOUNDATHON_NODE_ENV",
   "FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET",
-  "FOUNDATHON_RESEND_API_KEY",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "NEXT_PUBLIC_SUPABASE_URL",
 ] as const;
@@ -61,21 +59,17 @@ describe("server/env", () => {
     expect(isFoundathonDevelopment()).toBe(true);
   });
 
-  it("returns optional values and required token/api key readers", () => {
+  it("returns optional site URL and required token", () => {
     process.env.FOUNDATHON_NEXT_PUBLIC_SITE_URL = "https://foundathon.example";
-    process.env.FOUNDATHON_RESEND_API_KEY = "resend-key";
     process.env.FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET = "lock-secret";
 
     expect(getFoundathonSiteUrl()).toBe("https://foundathon.example");
-    expect(getFoundathonResendApiKey()).toBe("resend-key");
     expect(getProblemLockTokenSecret()).toBe("lock-secret");
   });
 
   it("returns null for empty required values", () => {
-    process.env.FOUNDATHON_RESEND_API_KEY = "";
     process.env.FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET = "   ";
 
-    expect(getFoundathonResendApiKey()).toBeNull();
     expect(getProblemLockTokenSecret()).toBeNull();
   });
 });

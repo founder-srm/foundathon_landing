@@ -137,6 +137,253 @@ describe("/api/register/[teamId] route", () => {
     expect(body.team.id).toBe(teamId);
   });
 
+  it("GET clears stale presentation metadata when storage object is missing", async () => {
+    const stalePresentationRow = {
+      ...row,
+      details: {
+        ...row.details,
+        presentationFileName: "team-deck.pptx",
+        presentationFileSizeBytes: 1024,
+        presentationMimeType:
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        presentationPublicUrl: "https://example.com/public/team-deck.pptx",
+        presentationStoragePath: "user-1/team-id/submission.pptx",
+        presentationUploadedAt: "2026-02-20T08:00:00.000Z",
+      },
+    };
+
+    const existingMaybeSingle = vi.fn().mockResolvedValue({
+      data: stalePresentationRow,
+      error: null,
+    });
+    const existingSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: existingMaybeSingle,
+          }),
+        }),
+      }),
+    });
+
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        ...row,
+        details: {},
+      },
+      error: null,
+    });
+    const updateRecord = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            select: vi.fn().mockReturnValue({
+              maybeSingle,
+            }),
+          }),
+        }),
+      }),
+    });
+    const from = vi
+      .fn()
+      .mockReturnValueOnce({ select: existingSelect })
+      .mockReturnValueOnce({ update: updateRecord });
+
+    const list = vi.fn().mockResolvedValue({ data: [], error: null });
+    const storageFrom = vi.fn().mockReturnValue({ list });
+
+    mocks.createSupabaseClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: "user-1" } },
+          error: null,
+        }),
+      },
+      from,
+      storage: {
+        from: storageFrom,
+      },
+    });
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 404 }));
+
+    try {
+      const { GET } = await import("./route");
+      const req = new NextRequest(`http://localhost/api/register/${teamId}`);
+      const res = await GET(req, makeParams(teamId));
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.team.id).toBe(teamId);
+      expect(storageFrom).toHaveBeenCalledWith("foundathon-presentation");
+      expect(list).toHaveBeenCalledWith("user-1/team-id", {
+        limit: 100,
+      });
+      const updatePayload = updateRecord.mock.calls[0]?.[0];
+      expect(updatePayload).toBeDefined();
+      expect(updatePayload.details.presentationPublicUrl).toBeUndefined();
+      expect(updatePayload.details.presentationStoragePath).toBeUndefined();
+      expect(updatePayload.details.presentationUploadedAt).toBeUndefined();
+      expect(updatePayload.details.presentationFileName).toBeUndefined();
+      expect(updatePayload.details.presentationMimeType).toBeUndefined();
+      expect(updatePayload.details.presentationFileSizeBytes).toBeUndefined();
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("GET keeps presentation metadata when storage list is empty but public file is reachable", async () => {
+    const stalePresentationRow = {
+      ...row,
+      details: {
+        ...row.details,
+        presentationFileName: "team-deck.pptx",
+        presentationFileSizeBytes: 1024,
+        presentationMimeType:
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        presentationPublicUrl: "https://example.com/public/team-deck.pptx",
+        presentationStoragePath: "user-1/team-id/submission.pptx",
+        presentationUploadedAt: "2026-02-20T08:00:00.000Z",
+      },
+    };
+
+    const existingMaybeSingle = vi.fn().mockResolvedValue({
+      data: stalePresentationRow,
+      error: null,
+    });
+    const existingSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: existingMaybeSingle,
+          }),
+        }),
+      }),
+    });
+
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: stalePresentationRow,
+      error: null,
+    });
+    const updateRecord = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            select: vi.fn().mockReturnValue({
+              maybeSingle,
+            }),
+          }),
+        }),
+      }),
+    });
+    const from = vi
+      .fn()
+      .mockReturnValueOnce({ select: existingSelect })
+      .mockReturnValueOnce({ update: updateRecord });
+
+    const list = vi.fn().mockResolvedValue({ data: [], error: null });
+    const storageFrom = vi.fn().mockReturnValue({ list });
+
+    mocks.createSupabaseClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: "user-1" } },
+          error: null,
+        }),
+      },
+      from,
+      storage: {
+        from: storageFrom,
+      },
+    });
+
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response(null, { status: 200 }));
+
+    try {
+      const { GET } = await import("./route");
+      const req = new NextRequest(`http://localhost/api/register/${teamId}`);
+      const res = await GET(req, makeParams(teamId));
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.team.id).toBe(teamId);
+      expect(fetchSpy).toHaveBeenCalled();
+      expect(updateRecord).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("GET keeps presentation metadata when storage list is blocked by policy", async () => {
+    const stalePresentationRow = {
+      ...row,
+      details: {
+        ...row.details,
+        presentationFileName: "team-deck.pptx",
+        presentationFileSizeBytes: 1024,
+        presentationMimeType:
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        presentationPublicUrl: "https://example.com/public/team-deck.pptx",
+        presentationStoragePath: "user-1/team-id/submission.pptx",
+        presentationUploadedAt: "2026-02-20T08:00:00.000Z",
+      },
+    };
+
+    const existingMaybeSingle = vi.fn().mockResolvedValue({
+      data: stalePresentationRow,
+      error: null,
+    });
+    const existingSelect = vi.fn().mockReturnValue({
+      eq: vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          eq: vi.fn().mockReturnValue({
+            maybeSingle: existingMaybeSingle,
+          }),
+        }),
+      }),
+    });
+
+    const from = vi.fn().mockReturnValueOnce({ select: existingSelect });
+
+    const list = vi.fn().mockResolvedValue({
+      data: null,
+      error: { message: "new row violates row-level security policy" },
+    });
+    const storageFrom = vi.fn().mockReturnValue({ list });
+
+    mocks.createSupabaseClient.mockResolvedValue({
+      auth: {
+        getUser: vi.fn().mockResolvedValue({
+          data: { user: { id: "user-1" } },
+          error: null,
+        }),
+      },
+      from,
+      storage: {
+        from: storageFrom,
+      },
+    });
+
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    try {
+      const { GET } = await import("./route");
+      const req = new NextRequest(`http://localhost/api/register/${teamId}`);
+      const res = await GET(req, makeParams(teamId));
+      const body = await res.json();
+
+      expect(res.status).toBe(200);
+      expect(body.team.id).toBe(teamId);
+      expect(fetchSpy).not.toHaveBeenCalled();
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
   it("PATCH updates team when payload is valid", async () => {
     const existingMaybeSingle = vi.fn().mockResolvedValue({
       data: {
@@ -146,6 +393,13 @@ describe("/api/register/[teamId] route", () => {
           problemStatementId: "ps-01",
           problemStatementLockedAt: "2026-02-19T08:00:00.000Z",
           problemStatementTitle: "Campus Mobility Optimizer",
+          presentationFileName: "team-deck.pptx",
+          presentationFileSizeBytes: 1024,
+          presentationMimeType:
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+          presentationPublicUrl: "https://example.com/public/team-deck.pptx",
+          presentationStoragePath: "user-1/team-id/submission.pptx",
+          presentationUploadedAt: "2026-02-20T08:00:00.000Z",
         },
       },
       error: null,
@@ -211,6 +465,13 @@ describe("/api/register/[teamId] route", () => {
           problemStatementId: "ps-01",
           problemStatementLockedAt: "2026-02-19T08:00:00.000Z",
           problemStatementTitle: "Campus Mobility Optimizer",
+          presentationFileName: "team-deck.pptx",
+          presentationFileSizeBytes: 1024,
+          presentationMimeType:
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+          presentationPublicUrl: "https://example.com/public/team-deck.pptx",
+          presentationStoragePath: "user-1/team-id/submission.pptx",
+          presentationUploadedAt: "2026-02-20T08:00:00.000Z",
         }),
       }),
     );

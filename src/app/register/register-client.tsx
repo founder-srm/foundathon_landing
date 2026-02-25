@@ -14,13 +14,6 @@ import { FnButton } from "@/components/ui/fn-button";
 import { useRouteProgress } from "@/components/ui/route-progress";
 import { toast } from "@/hooks/use-toast";
 import {
-  findProblemStatementSummary,
-  isValidEmailAddress,
-  type ProblemLockEmailPayload,
-  type ProblemLockEmailResponse,
-  toSrmLeadEmail,
-} from "@/lib/problem-lock-email";
-import {
   type NonSrmMember,
   nonSrmMemberSchema,
   type SrmMember,
@@ -49,6 +42,11 @@ type LockedProblemStatement = {
   lockExpiresAt: string;
   lockedAtIso: string;
   lockToken: string;
+  title: string;
+};
+
+type PendingLockProblemStatement = {
+  id: string;
   title: string;
 };
 
@@ -136,16 +134,14 @@ const RegisterClient = () => {
     null,
   );
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [pendingLockProblemStatement, setPendingLockProblemStatement] =
+    useState<PendingLockProblemStatement | null>(null);
   const [lockNowMs, setLockNowMs] = useState(() => Date.now());
 
   const hasCreatedTeamRef = useRef(false);
   const hasStartedDraftRef = useRef(false);
   const allowUnmountWarningRef = useRef(false);
   const hasShownExpiredLockToastRef = useRef(false);
-  const hasSentAbandonLockEmailRef = useRef(false);
-  const notifyProblemStatementAbandonedByEmailRef = useRef<() => void>(
-    () => undefined,
-  );
 
   const currentMembers = teamType === "srm" ? membersSrm : membersNonSrm;
   const currentLead = teamType === "srm" ? leadSrm : leadNonSrm;
@@ -318,7 +314,6 @@ const RegisterClient = () => {
     }
 
     setLockedProblemStatement(null);
-    hasSentAbandonLockEmailRef.current = false;
     void loadProblemStatements();
   }, [isLockExpired, loadProblemStatements, lockedProblemStatement]);
 
@@ -376,7 +371,6 @@ const RegisterClient = () => {
       }
 
       window.localStorage.setItem(ABANDONED_DRAFT_KEY, "1");
-      notifyProblemStatementAbandonedByEmailRef.current();
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -398,7 +392,6 @@ const RegisterClient = () => {
       if (typeof window !== "undefined") {
         window.localStorage.setItem(ABANDONED_DRAFT_KEY, "1");
       }
-      notifyProblemStatementAbandonedByEmailRef.current();
 
       toast({
         title: "Team Was Not Created",
@@ -486,7 +479,6 @@ const RegisterClient = () => {
     setStep(1);
     setTeamName("");
     setLockedProblemStatement(null);
-    hasSentAbandonLockEmailRef.current = false;
     setProblemStatements([]);
 
     if (teamType === "srm") {
@@ -536,154 +528,6 @@ const RegisterClient = () => {
     setStep(2);
   };
 
-  const notifyProblemStatementLockByEmail = async (input: {
-    lockExpiresAtIso: string;
-    lockedAtIso: string;
-    problemStatementId: string;
-    problemStatementTitle: string;
-  }) => {
-    const leadName =
-      teamType === "srm" ? leadSrm.name.trim() : leadNonSrm.name.trim();
-    const leadEmail =
-      teamType === "srm"
-        ? toSrmLeadEmail(leadSrm.netId)
-        : leadNonSrm.collegeEmail.trim().toLowerCase();
-
-    if (!leadName || !isValidEmailAddress(leadEmail)) {
-      return {
-        reason: "invalid_lead_email" as const,
-        sent: false,
-      };
-    }
-
-    const payload: ProblemLockEmailPayload = {
-      notificationType: "lock_confirmed",
-      leadEmail,
-      leadName,
-      lockExpiresAtIso: input.lockExpiresAtIso,
-      lockedAtIso: input.lockedAtIso,
-      problemStatementId: input.problemStatementId,
-      problemStatementSummary: findProblemStatementSummary(
-        problemStatements,
-        input.problemStatementId,
-      ),
-      problemStatementTitle: input.problemStatementTitle,
-      teamName: teamName.trim() || "Unnamed Team",
-    };
-
-    try {
-      const response = await fetch("/api/send", {
-        body: JSON.stringify(payload),
-        headers: { "Content-Type": "application/json" },
-        method: "POST",
-      });
-
-      const data = (await response.json()) as Partial<ProblemLockEmailResponse>;
-      if (response.ok && data.sent === true) {
-        return { sent: true as const };
-      }
-
-      return {
-        error: typeof data.error === "string" ? data.error : undefined,
-        reason:
-          typeof data.reason === "string" ? data.reason : "provider_error",
-        sent: false as const,
-      };
-    } catch {
-      return {
-        reason: "request_failed" as const,
-        sent: false,
-      };
-    }
-  };
-
-  const notifyProblemStatementAbandonedByEmail = useCallback(() => {
-    if (typeof window === "undefined") {
-      return;
-    }
-
-    if (hasSentAbandonLockEmailRef.current || hasCreatedTeamRef.current) {
-      return;
-    }
-
-    if (!lockedProblemStatement) {
-      return;
-    }
-
-    const lockExpiresAtMs = new Date(
-      lockedProblemStatement.lockExpiresAt,
-    ).getTime();
-    if (!Number.isFinite(lockExpiresAtMs) || lockExpiresAtMs <= Date.now()) {
-      return;
-    }
-
-    const leadName =
-      teamType === "srm" ? leadSrm.name.trim() : leadNonSrm.name.trim();
-    const leadEmail =
-      teamType === "srm"
-        ? toSrmLeadEmail(leadSrm.netId)
-        : leadNonSrm.collegeEmail.trim().toLowerCase();
-    if (!leadName || !isValidEmailAddress(leadEmail)) {
-      return;
-    }
-
-    const abandonedAtIso = new Date().toISOString();
-    const payload: ProblemLockEmailPayload = {
-      abandonedAtIso,
-      leadEmail,
-      leadName,
-      lockExpiresAtIso: lockedProblemStatement.lockExpiresAt,
-      lockedAtIso: lockedProblemStatement.lockedAtIso,
-      notificationType: "lock_abandoned",
-      problemStatementId: lockedProblemStatement.id,
-      problemStatementSummary: findProblemStatementSummary(
-        problemStatements,
-        lockedProblemStatement.id,
-      ),
-      problemStatementTitle: lockedProblemStatement.title,
-      teamName: teamName.trim() || "Unnamed Team",
-    };
-    const serializedPayload = JSON.stringify(payload);
-
-    let beaconQueued = false;
-    if (
-      typeof navigator !== "undefined" &&
-      typeof navigator.sendBeacon === "function"
-    ) {
-      beaconQueued = navigator.sendBeacon(
-        "/api/send",
-        new Blob([serializedPayload], {
-          type: "application/json",
-        }),
-      );
-    }
-
-    if (!beaconQueued) {
-      void fetch("/api/send", {
-        body: serializedPayload,
-        headers: { "Content-Type": "application/json" },
-        keepalive: true,
-        method: "POST",
-      }).catch(() => undefined);
-    }
-
-    hasSentAbandonLockEmailRef.current = true;
-  }, [
-    leadNonSrm.collegeEmail,
-    leadNonSrm.name,
-    leadSrm.name,
-    leadSrm.netId,
-    lockedProblemStatement,
-    problemStatements,
-    teamName,
-    teamType,
-  ]);
-
-  useEffect(() => {
-    notifyProblemStatementAbandonedByEmailRef.current =
-      notifyProblemStatementAbandonedByEmail;
-  }, [notifyProblemStatementAbandonedByEmail]);
-
   const lockProblemStatement = async (problemStatementId: string) => {
     if (lockedProblemStatement) {
       return;
@@ -731,35 +575,11 @@ const RegisterClient = () => {
         lockToken: data.lockToken,
         title: data.problemStatement.title,
       });
-      hasSentAbandonLockEmailRef.current = false;
-
-      const emailResult = await notifyProblemStatementLockByEmail({
-        lockExpiresAtIso: data.lockExpiresAt,
-        lockedAtIso,
-        problemStatementId: data.problemStatement.id,
-        problemStatementTitle: data.problemStatement.title,
+      toast({
+        title: "Problem Statement Locked",
+        description: "Problem statement locked successfully.",
+        variant: "success",
       });
-
-      if (emailResult.sent) {
-        toast({
-          title: "Problem Statement Locked",
-          description:
-            "Problem statement locked and confirmation email sent to the lead's mail.",
-          variant: "success",
-        });
-      } else if (emailResult.reason === "invalid_lead_email") {
-        toast({
-          title: "Problem Statement Locked",
-          description:
-            "Problem statement locked, but lead email is missing or invalid. Confirmation email was not sent.",
-        });
-      } else {
-        toast({
-          title: "Problem Statement Locked",
-          description:
-            "Problem statement locked, but we could not send the confirmation email right now.",
-        });
-      }
     } catch {
       toast({
         title: "Lock Request Failed",
@@ -770,6 +590,35 @@ const RegisterClient = () => {
     } finally {
       setIsLockingProblemStatementId(null);
     }
+  };
+
+  const requestProblemStatementLock = (
+    problemStatementId: string,
+    problemStatementTitle: string,
+  ) => {
+    if (
+      lockedProblemStatement ||
+      isCreatingTeam ||
+      isRedirecting ||
+      Boolean(isLockingProblemStatementId)
+    ) {
+      return;
+    }
+
+    setPendingLockProblemStatement({
+      id: problemStatementId,
+      title: problemStatementTitle,
+    });
+  };
+
+  const confirmProblemStatementLock = () => {
+    if (!pendingLockProblemStatement) {
+      return;
+    }
+
+    const problemStatementId = pendingLockProblemStatement.id;
+    setPendingLockProblemStatement(null);
+    void lockProblemStatement(problemStatementId);
   };
 
   const createTeam = async () => {
@@ -839,7 +688,7 @@ const RegisterClient = () => {
       setIsRedirecting(true);
       isNavigating = true;
       startRouteProgress();
-      router.push(`/dashboard/${data.team.id}`);
+      router.push(`/dashboard/${data.team.id}?created=1`);
     } catch {
       setIsRedirecting(false);
       toast({
@@ -1080,7 +929,8 @@ const RegisterClient = () => {
                     </p>
                   </div>
                   <p className="mt-2 text-sm text-foreground/70">
-                    Lock one statement to continue.
+                    Lock one statement to continue. This can only be done once,
+                    and the statement cannot be changed after lock.
                   </p>
                 </div>
 
@@ -1120,6 +970,7 @@ const RegisterClient = () => {
                       const lockDisabled =
                         Boolean(lockedProblemStatement) ||
                         statement.isFull ||
+                        Boolean(isLockingProblemStatementId) ||
                         isCreatingTeam ||
                         isRedirecting;
 
@@ -1151,7 +1002,10 @@ const RegisterClient = () => {
                               <FnButton
                                 type="button"
                                 onClick={() =>
-                                  lockProblemStatement(statement.id)
+                                  requestProblemStatementLock(
+                                    statement.id,
+                                    statement.title,
+                                  )
                                 }
                                 disabled={lockDisabled}
                                 loading={
@@ -1320,6 +1174,49 @@ const RegisterClient = () => {
           </aside>
         </div>
       </div>
+
+      {pendingLockProblemStatement ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="lock-problem-statement-title"
+        >
+          <div className="w-full max-w-md rounded-2xl border border-b-4 border-fnred bg-background p-6 shadow-2xl">
+            <p
+              id="lock-problem-statement-title"
+              className="text-sm font-bold uppercase tracking-[0.18em] text-fnred"
+            >
+              Confirm Problem Statement Lock
+            </p>
+            <p className="mt-3 text-sm text-foreground/80">
+              This action cannot be reverted. Are you sure you want to lock this
+              problem statement?
+            </p>
+            <p className="mt-3 rounded-md border border-foreground/15 bg-foreground/5 px-3 py-2 text-sm font-semibold">
+              {pendingLockProblemStatement.title}
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <FnButton
+                type="button"
+                onClick={() => setPendingLockProblemStatement(null)}
+                tone="gray"
+                size="sm"
+              >
+                Cancel
+              </FnButton>
+              <FnButton
+                type="button"
+                onClick={confirmProblemStatementLock}
+                tone="red"
+                size="sm"
+              >
+                Yes, Lock Statement
+              </FnButton>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showClearConfirm ? (
         <div

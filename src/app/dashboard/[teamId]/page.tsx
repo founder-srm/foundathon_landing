@@ -75,6 +75,7 @@ type PresentationInfo = {
 };
 
 type TeamApprovalStatus = NonNullable<TeamRecord["approvalStatus"]>;
+type ConfirmationStep = "confirm" | "type";
 
 const MAX_MEMBERS = 5;
 const SRM_EMAIL_DOMAIN = "@srmist.edu.in";
@@ -147,6 +148,9 @@ const formatBytes = (value: number | null) => {
 
 const snapshotMembers = (members: SrmMember[] | NonSrmMember[]) =>
   JSON.stringify(members);
+
+const normalizeConfirmationText = (value: string) =>
+  value.trim().replace(/\s+/g, " ").toLowerCase();
 
 const toPresentationPreviewUrl = (publicUrl: string) => {
   const normalizedUrl = publicUrl.trim();
@@ -276,8 +280,15 @@ export default function TeamDashboardPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loadErrorIsAuth, setLoadErrorIsAuth] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmationStep, setDeleteConfirmationStep] =
+    useState<ConfirmationStep>("confirm");
+  const [deleteConfirmationInput, setDeleteConfirmationInput] = useState("");
   const [pendingLockProblemStatement, setPendingLockProblemStatement] =
     useState<PendingLockProblemStatement | null>(null);
+  const [legacyLockConfirmationStep, setLegacyLockConfirmationStep] =
+    useState<ConfirmationStep>("confirm");
+  const [legacyLockConfirmationInput, setLegacyLockConfirmationInput] =
+    useState("");
   const [teamApprovalStatusFromDb, setTeamApprovalStatusFromDb] = useState<
     TeamApprovalStatus | undefined
   >(undefined);
@@ -326,6 +337,17 @@ export default function TeamDashboardPage() {
     return leadNonSrm.collegeEmail.trim().toLowerCase();
   }, [leadNonSrm.collegeEmail, leadSrm.netId, teamType]);
   const canAddMember = memberCount < MAX_MEMBERS;
+  const deleteConfirmationPhrase = `delete ${teamName.trim() || "team"}`;
+  const legacyLockConfirmationPhrase = pendingLockProblemStatement
+    ? `lock ${pendingLockProblemStatement.title}`
+    : "";
+  const canConfirmDelete =
+    normalizeConfirmationText(deleteConfirmationInput) ===
+    normalizeConfirmationText(deleteConfirmationPhrase);
+  const canConfirmLegacyLock =
+    Boolean(pendingLockProblemStatement) &&
+    normalizeConfirmationText(legacyLockConfirmationInput) ===
+      normalizeConfirmationText(legacyLockConfirmationPhrase);
   const getCurrentMemberId = (member: SrmMember | NonSrmMember) =>
     teamType === "srm"
       ? (member as SrmMember).netId
@@ -950,16 +972,37 @@ export default function TeamDashboardPage() {
       id: problemStatementId,
       title: problemStatementTitle,
     });
+    setLegacyLockConfirmationStep("confirm");
+    setLegacyLockConfirmationInput("");
   };
 
   const confirmLegacyProblemStatementLock = () => {
-    if (!pendingLockProblemStatement) {
+    if (!pendingLockProblemStatement || !canConfirmLegacyLock) {
       return;
     }
 
     const problemStatementId = pendingLockProblemStatement.id;
     setPendingLockProblemStatement(null);
+    setLegacyLockConfirmationStep("confirm");
+    setLegacyLockConfirmationInput("");
     void lockLegacyProblemStatement(problemStatementId);
+  };
+
+  const closeLegacyLockConfirm = () => {
+    setPendingLockProblemStatement(null);
+    setLegacyLockConfirmationStep("confirm");
+    setLegacyLockConfirmationInput("");
+  };
+
+  const proceedLegacyLockToTypeStep = () => {
+    if (!pendingLockProblemStatement) {
+      return;
+    }
+    setLegacyLockConfirmationStep("type");
+  };
+
+  const backLegacyLockToConfirmStep = () => {
+    setLegacyLockConfirmationStep("confirm");
   };
 
   const clearPendingPresentationSelection = () => {
@@ -1113,7 +1156,7 @@ export default function TeamDashboardPage() {
   };
 
   const deleteTeam = async () => {
-    if (isDeleting) {
+    if (isDeleting || !canConfirmDelete) {
       return;
     }
 
@@ -1128,7 +1171,7 @@ export default function TeamDashboardPage() {
             "The team was removed successfully. Redirecting to registration page.",
           variant: "success",
         });
-        setShowDeleteConfirm(false);
+        closeDeleteConfirm();
         isNavigating = true;
         startRouteProgress();
         router.push("/register");
@@ -1152,6 +1195,26 @@ export default function TeamDashboardPage() {
         setIsDeleting(false);
       }
     }
+  };
+
+  const openDeleteConfirm = () => {
+    setDeleteConfirmationStep("confirm");
+    setDeleteConfirmationInput("");
+    setShowDeleteConfirm(true);
+  };
+
+  const closeDeleteConfirm = () => {
+    setShowDeleteConfirm(false);
+    setDeleteConfirmationStep("confirm");
+    setDeleteConfirmationInput("");
+  };
+
+  const proceedDeleteToTypeStep = () => {
+    setDeleteConfirmationStep("type");
+  };
+
+  const backDeleteToConfirmStep = () => {
+    setDeleteConfirmationStep("confirm");
   };
 
   const goToTab = (tab: DashboardTab) => {
@@ -1966,7 +2029,7 @@ export default function TeamDashboardPage() {
                   </FnButton>
                   <FnButton
                     type="button"
-                    onClick={() => setShowDeleteConfirm(true)}
+                    onClick={openDeleteConfirm}
                     tone="red"
                     disabled={isDeleting || isAssigningStatement}
                   >
@@ -2377,24 +2440,64 @@ export default function TeamDashboardPage() {
             <p className="mt-3 rounded-md border border-foreground/15 bg-foreground/5 px-3 py-2 text-sm font-semibold">
               {pendingLockProblemStatement.title}
             </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <FnButton
-                type="button"
-                onClick={() => setPendingLockProblemStatement(null)}
-                tone="gray"
-                size="sm"
-              >
-                Cancel
-              </FnButton>
-              <FnButton
-                type="button"
-                onClick={confirmLegacyProblemStatementLock}
-                tone="red"
-                size="sm"
-              >
-                Yes, Lock Statement
-              </FnButton>
-            </div>
+            {legacyLockConfirmationStep === "confirm" ? (
+              <div className="mt-6 flex justify-end gap-2">
+                <FnButton
+                  type="button"
+                  onClick={closeLegacyLockConfirm}
+                  tone="gray"
+                  size="sm"
+                >
+                  Cancel
+                </FnButton>
+                <FnButton
+                  type="button"
+                  onClick={proceedLegacyLockToTypeStep}
+                  tone="red"
+                  size="sm"
+                >
+                  Continue
+                </FnButton>
+              </div>
+            ) : (
+              <>
+                <p className="mt-3 text-xs text-foreground/70">
+                  Type{" "}
+                  <span className="font-mono">
+                    {legacyLockConfirmationPhrase}
+                  </span>{" "}
+                  to continue.
+                </p>
+                <input
+                  type="text"
+                  value={legacyLockConfirmationInput}
+                  onChange={(event) =>
+                    setLegacyLockConfirmationInput(event.target.value)
+                  }
+                  placeholder={legacyLockConfirmationPhrase}
+                  className="mt-2 w-full rounded-md border border-foreground/20 bg-white px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-fnblue/50"
+                />
+                <div className="mt-6 flex justify-end gap-2">
+                  <FnButton
+                    type="button"
+                    onClick={backLegacyLockToConfirmStep}
+                    tone="gray"
+                    size="sm"
+                  >
+                    Back
+                  </FnButton>
+                  <FnButton
+                    type="button"
+                    onClick={confirmLegacyProblemStatementLock}
+                    tone="red"
+                    size="sm"
+                    disabled={!canConfirmLegacyLock}
+                  >
+                    Yes, Lock Statement
+                  </FnButton>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -2417,29 +2520,68 @@ export default function TeamDashboardPage() {
               This action permanently removes the team record and cannot be
               undone.
             </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <FnButton
-                type="button"
-                onClick={() => setShowDeleteConfirm(false)}
-                tone="gray"
-                size="sm"
-                disabled={isDeleting}
-              >
-                Cancel
-              </FnButton>
-              <FnButton
-                type="button"
-                onClick={deleteTeam}
-                tone="red"
-                size="sm"
-                loading={isDeleting}
-                loadingText="Deleting..."
-                disabled={isDeleting}
-              >
-                <Trash2 size={16} strokeWidth={3} />
-                Delete Team
-              </FnButton>
-            </div>
+            {deleteConfirmationStep === "confirm" ? (
+              <div className="mt-6 flex justify-end gap-2">
+                <FnButton
+                  type="button"
+                  onClick={closeDeleteConfirm}
+                  tone="gray"
+                  size="sm"
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </FnButton>
+                <FnButton
+                  type="button"
+                  onClick={proceedDeleteToTypeStep}
+                  tone="red"
+                  size="sm"
+                  disabled={isDeleting}
+                >
+                  Continue
+                </FnButton>
+              </div>
+            ) : (
+              <>
+                <p className="mt-3 text-xs text-foreground/70">
+                  Type{" "}
+                  <span className="font-mono">{deleteConfirmationPhrase}</span>{" "}
+                  to continue.
+                </p>
+                <input
+                  type="text"
+                  value={deleteConfirmationInput}
+                  onChange={(event) =>
+                    setDeleteConfirmationInput(event.target.value)
+                  }
+                  placeholder={deleteConfirmationPhrase}
+                  className="mt-2 w-full rounded-md border border-foreground/20 bg-white px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-fnblue/50"
+                />
+                <div className="mt-6 flex justify-end gap-2">
+                  <FnButton
+                    type="button"
+                    onClick={backDeleteToConfirmStep}
+                    tone="gray"
+                    size="sm"
+                    disabled={isDeleting}
+                  >
+                    Back
+                  </FnButton>
+                  <FnButton
+                    type="button"
+                    onClick={deleteTeam}
+                    tone="red"
+                    size="sm"
+                    loading={isDeleting}
+                    loadingText="Deleting..."
+                    disabled={isDeleting || !canConfirmDelete}
+                  >
+                    <Trash2 size={16} strokeWidth={3} />
+                    Delete Team
+                  </FnButton>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

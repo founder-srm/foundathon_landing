@@ -234,6 +234,11 @@ describe("Register page", () => {
     ).toBeInTheDocument();
     expect(getProblemStatementLockCallCount()).toBe(lockCallCountBefore);
 
+    await user.click(screen.getByRole("button", { name: /continue/i }));
+    await user.type(
+      screen.getByPlaceholderText(/lock campus mobility optimizer/i),
+      "lock campus mobility optimizer",
+    );
     await user.click(
       screen.getByRole("button", { name: /yes, lock statement/i }),
     );

@@ -49,6 +49,7 @@ type PendingLockProblemStatement = {
   id: string;
   title: string;
 };
+type ConfirmationStep = "confirm" | "type";
 
 const MAX_MEMBERS = 5;
 const ABANDONED_DRAFT_KEY = "foundathon:register-abandoned";
@@ -130,6 +131,9 @@ const formatRemainingTime = (remainingMs: number) => {
     .toString()
     .padStart(2, "0")}`;
 };
+
+const normalizeConfirmationText = (value: string) =>
+  value.trim().replace(/\s+/g, " ").toLowerCase();
 
 type Step1ValidationFeedback = {
   errorsByPath: Record<string, string>;
@@ -293,6 +297,9 @@ const RegisterClient = () => {
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [pendingLockProblemStatement, setPendingLockProblemStatement] =
     useState<PendingLockProblemStatement | null>(null);
+  const [lockConfirmationStep, setLockConfirmationStep] =
+    useState<ConfirmationStep>("confirm");
+  const [lockConfirmationInput, setLockConfirmationInput] = useState("");
   const [lockNowMs, setLockNowMs] = useState(() => Date.now());
 
   const hasCreatedTeamRef = useRef(false);
@@ -311,6 +318,13 @@ const RegisterClient = () => {
       : (member as NonSrmMember).collegeId;
 
   const canAddMember = memberCount < MAX_MEMBERS;
+  const lockConfirmationPhrase = pendingLockProblemStatement
+    ? `lock ${pendingLockProblemStatement.title}`
+    : "";
+  const canConfirmProblemStatementLock =
+    Boolean(pendingLockProblemStatement) &&
+    normalizeConfirmationText(lockConfirmationInput) ===
+      normalizeConfirmationText(lockConfirmationPhrase);
   const teamPayload = useMemo(
     () =>
       teamType === "srm"
@@ -886,16 +900,37 @@ const RegisterClient = () => {
       id: problemStatementId,
       title: problemStatementTitle,
     });
+    setLockConfirmationStep("confirm");
+    setLockConfirmationInput("");
   };
 
   const confirmProblemStatementLock = () => {
-    if (!pendingLockProblemStatement) {
+    if (!pendingLockProblemStatement || !canConfirmProblemStatementLock) {
       return;
     }
 
     const problemStatementId = pendingLockProblemStatement.id;
     setPendingLockProblemStatement(null);
+    setLockConfirmationStep("confirm");
+    setLockConfirmationInput("");
     void lockProblemStatement(problemStatementId);
+  };
+
+  const closeProblemStatementLockConfirm = () => {
+    setPendingLockProblemStatement(null);
+    setLockConfirmationStep("confirm");
+    setLockConfirmationInput("");
+  };
+
+  const proceedToProblemStatementLockTypeStep = () => {
+    if (!pendingLockProblemStatement) {
+      return;
+    }
+    setLockConfirmationStep("type");
+  };
+
+  const backToProblemStatementLockConfirmStep = () => {
+    setLockConfirmationStep("confirm");
   };
 
   const createTeam = async () => {
@@ -1536,24 +1571,62 @@ const RegisterClient = () => {
             <p className="mt-3 rounded-md border border-foreground/15 bg-foreground/5 px-3 py-2 text-sm font-semibold">
               {pendingLockProblemStatement.title}
             </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <FnButton
-                type="button"
-                onClick={() => setPendingLockProblemStatement(null)}
-                tone="gray"
-                size="sm"
-              >
-                Cancel
-              </FnButton>
-              <FnButton
-                type="button"
-                onClick={confirmProblemStatementLock}
-                tone="red"
-                size="sm"
-              >
-                Yes, Lock Statement
-              </FnButton>
-            </div>
+            {lockConfirmationStep === "confirm" ? (
+              <div className="mt-6 flex justify-end gap-2">
+                <FnButton
+                  type="button"
+                  onClick={closeProblemStatementLockConfirm}
+                  tone="gray"
+                  size="sm"
+                >
+                  Cancel
+                </FnButton>
+                <FnButton
+                  type="button"
+                  onClick={proceedToProblemStatementLockTypeStep}
+                  tone="red"
+                  size="sm"
+                >
+                  Continue
+                </FnButton>
+              </div>
+            ) : (
+              <>
+                <p className="mt-3 text-xs text-foreground/70">
+                  Type{" "}
+                  <span className="font-mono">{lockConfirmationPhrase}</span> to
+                  continue.
+                </p>
+                <input
+                  type="text"
+                  value={lockConfirmationInput}
+                  onChange={(event) =>
+                    setLockConfirmationInput(event.target.value)
+                  }
+                  placeholder={lockConfirmationPhrase}
+                  className="mt-2 w-full rounded-md border border-foreground/20 bg-white px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-fnblue/50"
+                />
+                <div className="mt-6 flex justify-end gap-2">
+                  <FnButton
+                    type="button"
+                    onClick={backToProblemStatementLockConfirmStep}
+                    tone="gray"
+                    size="sm"
+                  >
+                    Back
+                  </FnButton>
+                  <FnButton
+                    type="button"
+                    onClick={confirmProblemStatementLock}
+                    tone="red"
+                    size="sm"
+                    disabled={!canConfirmProblemStatementLock}
+                  >
+                    Yes, Lock Statement
+                  </FnButton>
+                </div>
+              </>
+            )}
           </div>
         </div>
       ) : null}

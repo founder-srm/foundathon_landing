@@ -7,7 +7,7 @@ export const SRM_MAJOR_DEPARTMENTS = [
   "NWC",
   "ECE",
   "BIOMEDICAL",
-  "BIOTECHBOLOGY",
+  "BIOTECHNOLOGY",
   "EEE",
   "AEROSPACE",
   "MECHANICAL",

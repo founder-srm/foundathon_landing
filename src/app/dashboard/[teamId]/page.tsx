@@ -10,8 +10,10 @@ import {
   UserRoundPen,
   X,
 } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
+import QRCode from "qrcode";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FnButton } from "@/components/ui/fn-button";
 import { useRouteProgress } from "@/components/ui/route-progress";
@@ -146,6 +148,250 @@ const formatBytes = (value: number | null) => {
   }
 
   return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+};
+
+const toTicketLine = (value: string, maxLength: number) => {
+  const normalized = value.trim();
+  if (!normalized) {
+    return "N/A";
+  }
+
+  return normalized.length > maxLength
+    ? `${normalized.slice(0, maxLength - 1)}…`
+    : normalized;
+};
+
+const drawRoundedRect = (
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  radius: number,
+) => {
+  const r = Math.min(radius, width / 2, height / 2);
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + width - r, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + r);
+  ctx.lineTo(x + width, y + height - r);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - r, y + height);
+  ctx.lineTo(x + r, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+};
+
+const loadCanvasImage = (src: string) =>
+  new Promise<HTMLImageElement>((resolve, reject) => {
+    if (typeof window === "undefined") {
+      reject(new Error("Window is unavailable."));
+      return;
+    }
+
+    const image = new window.Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Failed to load image."));
+    image.src = src;
+  });
+
+const buildAcceptedTeamTicketDataUrl = async ({
+  qrDataUrl,
+  statementTitle,
+  teamId,
+  teamName,
+}: {
+  qrDataUrl: string;
+  statementTitle: string;
+  teamId: string;
+  teamName: string;
+}) => {
+  if (typeof document === "undefined") {
+    throw new Error("Document is unavailable.");
+  }
+
+  const canvas = document.createElement("canvas");
+  const width = 1200;
+  const height = 675;
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Canvas context is unavailable.");
+  }
+
+  const backdropGradient = ctx.createLinearGradient(0, 0, width, height);
+  backdropGradient.addColorStop(0, "#0f172a");
+  backdropGradient.addColorStop(0.56, "#1d4ed8");
+  backdropGradient.addColorStop(1, "#f97316");
+  ctx.fillStyle = backdropGradient;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.globalAlpha = 0.14;
+  ctx.fillStyle = "#ffffff";
+  for (let i = 0; i < 12; i += 1) {
+    const size = 18 + ((i % 4) + 1) * 6;
+    const x = 70 + i * 92;
+    const y = 48 + (i % 3) * 28;
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  const cardX = 58;
+  const cardY = 52;
+  const cardWidth = width - 116;
+  const cardHeight = height - 104;
+  drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, 34);
+  const cardGradient = ctx.createLinearGradient(
+    cardX,
+    cardY,
+    cardX + cardWidth,
+    cardY + cardHeight,
+  );
+  cardGradient.addColorStop(0, "#fff7ed");
+  cardGradient.addColorStop(0.48, "#ffffff");
+  cardGradient.addColorStop(1, "#eff6ff");
+  ctx.fillStyle = cardGradient;
+  ctx.fill();
+
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "rgba(15, 23, 42, 0.2)";
+  ctx.stroke();
+
+  const splitX = Math.round(cardX + cardWidth * 0.67);
+  ctx.save();
+  ctx.setLineDash([12, 10]);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = "rgba(30, 64, 175, 0.35)";
+  ctx.beginPath();
+  ctx.moveTo(splitX, cardY + 34);
+  ctx.lineTo(splitX, cardY + cardHeight - 34);
+  ctx.stroke();
+  ctx.restore();
+
+  const punchRadius = 24;
+  ctx.fillStyle = "#1d4ed8";
+  ctx.beginPath();
+  ctx.arc(splitX, cardY, punchRadius, 0, Math.PI, true);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(splitX, cardY + cardHeight, punchRadius, Math.PI, 0, true);
+  ctx.fill();
+
+  const leftX = cardX + 52;
+  const leftMaxWidth = splitX - leftX - 48;
+  const teamNameLine = toTicketLine(teamName, 34);
+  const statementLine = toTicketLine(statementTitle, 54);
+
+  ctx.fillStyle = "#1d4ed8";
+  ctx.font = "800 22px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("FOUNDATHON 3.0", leftX, cardY + 56);
+
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "800 50px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("TEAM ACCESS PASS", leftX, cardY + 124);
+
+  const statusPillX = leftX;
+  const statusPillY = cardY + 150;
+  const statusPillWidth = 276;
+  const statusPillHeight = 46;
+  const statusText = "STATUS: ACCEPTED";
+
+  drawRoundedRect(
+    ctx,
+    statusPillX,
+    statusPillY,
+    statusPillWidth,
+    statusPillHeight,
+    16,
+  );
+  ctx.fillStyle = "#dcfce7";
+  ctx.fill();
+  ctx.fillStyle = "#166534";
+  let statusFontSize = 21;
+  while (statusFontSize > 14) {
+    ctx.font = `700 ${statusFontSize}px 'Helvetica Neue', Arial, sans-serif`;
+    if (ctx.measureText(statusText).width <= statusPillWidth - 24) {
+      break;
+    }
+    statusFontSize -= 1;
+  }
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(
+    statusText,
+    statusPillX + statusPillWidth / 2,
+    statusPillY + statusPillHeight / 2,
+  );
+  ctx.textAlign = "left";
+  ctx.textBaseline = "alphabetic";
+
+  ctx.fillStyle = "rgba(15, 23, 42, 0.65)";
+  ctx.font = "700 18px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("TEAM NAME", leftX, cardY + 238);
+  ctx.fillStyle = "#111827";
+  ctx.font = "800 40px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(teamNameLine, leftX, cardY + 286, leftMaxWidth);
+
+  ctx.fillStyle = "rgba(15, 23, 42, 0.65)";
+  ctx.font = "700 18px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("TEAM ID", leftX, cardY + 340);
+  ctx.fillStyle = "#0f172a";
+  ctx.font = "700 26px 'SFMono-Regular', Menlo, Consolas, monospace";
+  ctx.fillText(teamId, leftX, cardY + 378, leftMaxWidth);
+
+  ctx.fillStyle = "rgba(15, 23, 42, 0.65)";
+  ctx.font = "700 18px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("LOCKED TRACK", leftX, cardY + 430);
+  ctx.fillStyle = "#1f2937";
+  ctx.font = "700 26px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(statementLine, leftX, cardY + 468, leftMaxWidth);
+
+  ctx.fillStyle = "rgba(15, 23, 42, 0.7)";
+  ctx.font = "600 16px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(
+    `Issued: ${new Date().toLocaleString()}`,
+    leftX,
+    cardY + cardHeight - 34,
+  );
+
+  const qrPanelX = splitX + 40;
+  const qrPanelY = cardY + 86;
+  const qrPanelWidth = cardX + cardWidth - qrPanelX - 34;
+  const qrPanelHeight = cardHeight - 172;
+  drawRoundedRect(ctx, qrPanelX, qrPanelY, qrPanelWidth, qrPanelHeight, 22);
+  ctx.fillStyle = "#ffffff";
+  ctx.fill();
+  ctx.strokeStyle = "rgba(59, 130, 246, 0.35)";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  ctx.fillStyle = "#1e3a8a";
+  ctx.font = "800 20px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("SCAN TEAM QR", qrPanelX + 26, qrPanelY + 42);
+
+  const qrImage = await loadCanvasImage(qrDataUrl);
+  const qrSize = 230;
+  const qrX = qrPanelX + (qrPanelWidth - qrSize) / 2;
+  const qrY = qrPanelY + 66;
+  drawRoundedRect(ctx, qrX - 12, qrY - 12, qrSize + 24, qrSize + 24, 16);
+  ctx.fillStyle = "#f8fafc";
+  ctx.fill();
+  ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
+
+  ctx.fillStyle = "rgba(15, 23, 42, 0.68)";
+  ctx.font = "700 14px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(
+    "Carry this pass during check-in.",
+    qrPanelX + 26,
+    qrY + qrSize + 54,
+  );
+
+  return canvas.toDataURL("image/png");
 };
 
 const snapshotMembers = (members: SrmMember[] | NonSrmMember[]) =>
@@ -312,6 +558,16 @@ export default function TeamDashboardPage() {
     ProblemStatementAvailability[]
   >([]);
   const [updatedAt, setUpdatedAt] = useState("");
+  const [teamIdQrDataUrl, setTeamIdQrDataUrl] = useState("");
+  const [isGeneratingTeamQr, setIsGeneratingTeamQr] = useState(false);
+  const [teamQrGenerationError, setTeamQrGenerationError] = useState(false);
+  const [showTeamTicketModal, setShowTeamTicketModal] = useState(false);
+  const [teamTicketPreviewDataUrl, setTeamTicketPreviewDataUrl] = useState("");
+  const [isGeneratingTeamTicketPreview, setIsGeneratingTeamTicketPreview] =
+    useState(false);
+  const [teamTicketPreviewError, setTeamTicketPreviewError] = useState(false);
+  const [isDownloadingTeamTicket, setIsDownloadingTeamTicket] = useState(false);
+  const [isSharingTeamTicket, setIsSharingTeamTicket] = useState(false);
 
   const currentMembers = teamType === "srm" ? membersSrm : membersNonSrm;
   const currentMembersSnapshot = useMemo(
@@ -327,6 +583,11 @@ export default function TeamDashboardPage() {
   const createdQuery = searchParams.get("created");
   const activeTab = parseDashboardTab(rawTab);
   const isPresentationSubmitted = Boolean(presentation.publicUrl);
+  const resolvedTeamApprovalStatus = resolveTeamApprovalStatus({
+    dbStatus: teamApprovalStatusFromDb,
+    isPresentationSubmitted,
+  });
+  const shouldShowAcceptedQr = resolvedTeamApprovalStatus === "accepted";
   const presentationPreviewUrl = useMemo(
     () => toPresentationPreviewUrl(presentation.publicUrl),
     [presentation.publicUrl],
@@ -616,6 +877,129 @@ export default function TeamDashboardPage() {
       window.removeEventListener("keydown", handleEscape);
     };
   }, [showPresentationPreview]);
+
+  useEffect(() => {
+    if (!showTeamTicketModal) {
+      return;
+    }
+
+    const handleEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setShowTeamTicketModal(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleEscape);
+    return () => {
+      window.removeEventListener("keydown", handleEscape);
+    };
+  }, [showTeamTicketModal]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!shouldShowAcceptedQr || !teamId) {
+      setTeamIdQrDataUrl("");
+      setIsGeneratingTeamQr(false);
+      setTeamQrGenerationError(false);
+      setShowTeamTicketModal(false);
+      setTeamTicketPreviewDataUrl("");
+      setIsGeneratingTeamTicketPreview(false);
+      setTeamTicketPreviewError(false);
+      return;
+    }
+
+    setIsGeneratingTeamQr(true);
+    setTeamQrGenerationError(false);
+
+    void QRCode.toDataURL(teamId, {
+      color: {
+        dark: "#0F172A",
+        light: "#FFFFFF",
+      },
+      errorCorrectionLevel: "H",
+      margin: 1,
+      width: 176,
+    })
+      .then((dataUrl: string) => {
+        if (cancelled) {
+          return;
+        }
+        setTeamIdQrDataUrl(dataUrl);
+        setTeamQrGenerationError(false);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setTeamIdQrDataUrl("");
+        setTeamQrGenerationError(true);
+      })
+      .finally(() => {
+        if (cancelled) {
+          return;
+        }
+        setIsGeneratingTeamQr(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [shouldShowAcceptedQr, teamId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!showTeamTicketModal || !teamIdQrDataUrl) {
+      setTeamTicketPreviewDataUrl("");
+      setIsGeneratingTeamTicketPreview(false);
+      setTeamTicketPreviewError(false);
+      return;
+    }
+
+    setIsGeneratingTeamTicketPreview(true);
+    setTeamTicketPreviewError(false);
+
+    void buildAcceptedTeamTicketDataUrl({
+      qrDataUrl: teamIdQrDataUrl,
+      statementTitle: problemStatement.title || "No track selected",
+      teamId,
+      teamName: teamName || "Unnamed Team",
+    })
+      .then((dataUrl) => {
+        if (cancelled) {
+          return;
+        }
+
+        setTeamTicketPreviewDataUrl(dataUrl);
+        setTeamTicketPreviewError(false);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+
+        setTeamTicketPreviewDataUrl("");
+        setTeamTicketPreviewError(true);
+      })
+      .finally(() => {
+        if (cancelled) {
+          return;
+        }
+
+        setIsGeneratingTeamTicketPreview(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    problemStatement.title,
+    showTeamTicketModal,
+    teamId,
+    teamIdQrDataUrl,
+    teamName,
+  ]);
 
   if (loadError) {
     return (
@@ -1271,6 +1655,138 @@ export default function TeamDashboardPage() {
     }
   };
 
+  const openTeamTicketModal = () => {
+    if (!shouldShowAcceptedQr || !teamIdQrDataUrl || teamQrGenerationError) {
+      return;
+    }
+
+    setShowTeamTicketModal(true);
+  };
+
+  const closeTeamTicketModal = () => {
+    setShowTeamTicketModal(false);
+  };
+
+  const downloadTeamTicket = async () => {
+    if (isDownloadingTeamTicket || !teamIdQrDataUrl) {
+      return;
+    }
+
+    setIsDownloadingTeamTicket(true);
+    try {
+      const ticketDataUrl =
+        teamTicketPreviewDataUrl ||
+        (await buildAcceptedTeamTicketDataUrl({
+          qrDataUrl: teamIdQrDataUrl,
+          statementTitle: problemStatement.title || "No track selected",
+          teamId,
+          teamName: teamName || "Unnamed Team",
+        }));
+
+      if (typeof document === "undefined") {
+        throw new Error("Document unavailable");
+      }
+
+      const anchor = document.createElement("a");
+      anchor.href = ticketDataUrl;
+      anchor.download = `foundathon-ticket-${teamId.replace(/[^a-zA-Z0-9_-]/g, "-")}.png`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+
+      toast({
+        title: "Ticket Downloaded",
+        description: "Your QR ticket has been downloaded successfully.",
+        variant: "success",
+      });
+    } catch {
+      toast({
+        title: "Ticket Download Failed",
+        description:
+          "Couldn't generate the ticket right now. Please try again in a moment.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDownloadingTeamTicket(false);
+    }
+  };
+
+  const shareTeamTicketOnWhatsApp = async () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const dashboardUrl = `${window.location.origin}/dashboard/${teamId}`;
+    const message = [
+      "Foundathon 3.0 - Accepted Team Ticket",
+      `Team: ${teamName || "Unnamed Team"}`,
+      `Team ID: ${teamId}`,
+      `Track: ${problemStatement.title || "N/A"}`,
+      `Dashboard: ${dashboardUrl}`,
+    ].join("\n");
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    const redirectToWhatsApp = () => {
+      const openedWindow = window.open(
+        whatsappUrl,
+        "_blank",
+        "noopener,noreferrer",
+      );
+      if (!openedWindow) {
+        window.location.assign(whatsappUrl);
+      }
+    };
+
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.share === "function" &&
+      teamIdQrDataUrl
+    ) {
+      setIsSharingTeamTicket(true);
+      try {
+        const ticketDataUrl =
+          teamTicketPreviewDataUrl ||
+          (await buildAcceptedTeamTicketDataUrl({
+            qrDataUrl: teamIdQrDataUrl,
+            statementTitle: problemStatement.title || "No track selected",
+            teamId,
+            teamName: teamName || "Unnamed Team",
+          }));
+
+        const response = await fetch(ticketDataUrl);
+        const ticketBlob = await response.blob();
+        const ticketFile = new File(
+          [ticketBlob],
+          `foundathon-ticket-${teamId.replace(/[^a-zA-Z0-9_-]/g, "-")}.png`,
+          {
+            type: "image/png",
+          },
+        );
+
+        const canShareTicket =
+          typeof navigator.canShare === "function"
+            ? navigator.canShare({ files: [ticketFile] })
+            : false;
+
+        if (canShareTicket) {
+          await navigator.share({
+            files: [ticketFile],
+            text: message,
+            title: "Foundathon 3.0 - Accepted Team Ticket",
+          });
+          return;
+        }
+      } catch (error) {
+        if (error instanceof Error && error.name === "AbortError") {
+          return;
+        }
+      } finally {
+        setIsSharingTeamTicket(false);
+      }
+    }
+
+    redirectToWhatsApp();
+  };
+
   const teamTypeLabel = teamType === "srm" ? "SRM Team" : "Non-SRM Team";
   const problemStatementTitle =
     problemStatement.title || "No problem statement selected";
@@ -1288,10 +1804,6 @@ export default function TeamDashboardPage() {
     !isPresentationSubmitted &&
     !isSubmittingPresentation &&
     !isLoading;
-  const resolvedTeamApprovalStatus = resolveTeamApprovalStatus({
-    dbStatus: teamApprovalStatusFromDb,
-    isPresentationSubmitted,
-  });
   const teamApprovalStatusMeta = getTeamApprovalStatusMeta(
     resolvedTeamApprovalStatus,
   );
@@ -1437,7 +1949,7 @@ export default function TeamDashboardPage() {
             <section
               className={`relative overflow-visible rounded-2xl border border-b-4 p-5 shadow-lg md:p-6 ${teamApprovalStatusMeta.panelClass}`}
             >
-              <div className="flex items-start justify-between gap-4">
+              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/70">
                     Team Review Status
@@ -1455,21 +1967,51 @@ export default function TeamDashboardPage() {
                   </p>
                 </div>
 
-                <div className="relative group shrink-0">
-                  <button
-                    type="button"
-                    aria-label="Status meaning"
-                    className="inline-flex size-8 items-center justify-center rounded-full border border-foreground/20 bg-white/85 text-foreground/75 transition-colors hover:bg-white hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/45"
-                  >
-                    <Info size={16} strokeWidth={2.6} />
-                  </button>
-                  <div
-                    role="tooltip"
-                    className="pointer-events-none absolute right-0 z-20 mt-2 w-72 rounded-lg border border-foreground/15 bg-background px-3 py-2 text-xs leading-relaxed text-foreground/85 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-                  >
-                    {teamApprovalStatusMeta.label}:{" "}
-                    {teamApprovalStatusMeta.description}
+                <div className="flex w-full flex-col gap-3 md:w-auto md:items-end">
+                  <div className="relative group self-end">
+                    <button
+                      type="button"
+                      aria-label="Status meaning"
+                      className="inline-flex size-8 items-center justify-center rounded-full border border-foreground/20 bg-white/85 text-foreground/75 transition-colors hover:bg-white hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/45"
+                    >
+                      <Info size={16} strokeWidth={2.6} />
+                    </button>
+                    <div
+                      role="tooltip"
+                      className="pointer-events-none absolute right-0 z-20 mt-2 w-72 rounded-lg border border-foreground/15 bg-background px-3 py-2 text-xs leading-relaxed text-foreground/85 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                    >
+                      {teamApprovalStatusMeta.label}:{" "}
+                      {teamApprovalStatusMeta.description}
+                    </div>
                   </div>
+
+                  {shouldShowAcceptedQr ? (
+                    <div className="w-full rounded-xl border border-fngreen/35 bg-white/90 p-3 shadow-sm md:w-[220px]">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-fngreen">
+                        Team Ticket
+                      </p>
+                      {isGeneratingTeamQr ? (
+                        <p className="mt-2 text-xs leading-relaxed text-foreground/75">
+                          Preparing accepted-team QR...
+                        </p>
+                      ) : teamQrGenerationError ? (
+                        <p className="mt-2 text-xs leading-relaxed text-foreground/75">
+                          Couldn&apos;t generate QR code right now. Please
+                          refresh once.
+                        </p>
+                      ) : null}
+                      <FnButton
+                        type="button"
+                        tone="green"
+                        size="sm"
+                        className="mt-3 w-full justify-center"
+                        onClick={openTeamTicketModal}
+                        disabled={isGeneratingTeamQr || teamQrGenerationError}
+                      >
+                        View QR Ticket
+                      </FnButton>
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </section>
@@ -2293,6 +2835,130 @@ export default function TeamDashboardPage() {
           </section>
         ) : null}
       </div>
+
+      {showTeamTicketModal && shouldShowAcceptedQr ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="team-ticket-title"
+        >
+          <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-b-4 border-fngreen bg-background shadow-2xl">
+            <div className="flex items-start justify-between gap-3 border-b border-foreground/10 px-4 py-3 md:px-5">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fngreen">
+                  Accepted Team Pass
+                </p>
+                <h3
+                  id="team-ticket-title"
+                  className="mt-1 text-lg font-black uppercase tracking-tight md:text-xl"
+                >
+                  Team QR Ticket
+                </h3>
+              </div>
+              <button
+                type="button"
+                aria-label="Close team ticket modal"
+                onClick={closeTeamTicketModal}
+                className="inline-flex size-8 items-center justify-center rounded-md border border-foreground/20 bg-white text-foreground/70 transition-colors hover:bg-fnblue/10 hover:text-fnblue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/40"
+              >
+                <X size={16} strokeWidth={2.6} />
+              </button>
+            </div>
+
+            <div className="grid gap-5 bg-white/70 p-4 md:grid-cols-[1.2fr_0.8fr] md:p-5">
+              <div className="rounded-xl border border-foreground/10 bg-foreground/5 p-3">
+                {isGeneratingTeamTicketPreview ? (
+                  <div className="h-[220px] w-full animate-pulse rounded-lg bg-foreground/10 md:h-[260px]" />
+                ) : teamTicketPreviewError ? (
+                  <div className="flex h-[220px] flex-col items-center justify-center rounded-lg border border-fnred/25 bg-fnred/5 px-4 text-center md:h-[260px]">
+                    <p className="text-sm font-semibold text-fnred">
+                      Ticket preview unavailable right now.
+                    </p>
+                    <p className="mt-2 text-xs text-foreground/75">
+                      You can still download and share using the actions on the
+                      right.
+                    </p>
+                  </div>
+                ) : teamTicketPreviewDataUrl ? (
+                  <Image
+                    src={teamTicketPreviewDataUrl}
+                    alt={`Ticket preview for team ${teamName || teamId}`}
+                    width={1200}
+                    height={675}
+                    unoptimized
+                    className="w-full rounded-lg border border-foreground/10 bg-white"
+                  />
+                ) : (
+                  <div className="flex h-[220px] items-center justify-center rounded-lg border border-foreground/10 bg-background text-sm text-foreground/75 md:h-[260px]">
+                    Ticket preview is being prepared.
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-3 rounded-xl border border-foreground/10 bg-background p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fngreen">
+                  Ticket Details
+                </p>
+                <p className="text-sm">
+                  <span className="font-semibold">Team:</span>{" "}
+                  {teamName || "Unnamed Team"}
+                </p>
+                <p className="text-sm">
+                  <span className="font-semibold">Team ID:</span>{" "}
+                  <span className="font-mono text-xs">{teamId}</span>
+                </p>
+                <p className="text-sm">
+                  <span className="font-semibold">Track:</span>{" "}
+                  {problemStatement.title || "N/A"}
+                </p>
+                <p className="text-xs text-foreground/70">
+                  Download this hot ticket layout for on-ground check-ins or
+                  share the accepted team details instantly on WhatsApp.
+                </p>
+
+                <div className="pt-1 space-y-2">
+                  <FnButton
+                    type="button"
+                    className="w-full justify-center"
+                    onClick={downloadTeamTicket}
+                    loading={isDownloadingTeamTicket}
+                    loadingText="Preparing Ticket..."
+                    disabled={isGeneratingTeamQr || teamQrGenerationError}
+                  >
+                    <Download size={16} strokeWidth={3} />
+                    Download Ticket PNG
+                  </FnButton>
+                  <FnButton
+                    type="button"
+                    tone="green"
+                    className="w-full justify-center"
+                    onClick={shareTeamTicketOnWhatsApp}
+                    loading={isSharingTeamTicket}
+                    loadingText="Opening Share..."
+                    disabled={
+                      isGeneratingTeamQr ||
+                      teamQrGenerationError ||
+                      isSharingTeamTicket
+                    }
+                  >
+                    <ExternalLink size={16} strokeWidth={3} />
+                    Share on WhatsApp
+                  </FnButton>
+                  <FnButton
+                    type="button"
+                    tone="gray"
+                    className="w-full justify-center"
+                    onClick={copyTeamId}
+                  >
+                    Copy Team ID
+                  </FnButton>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {showPresentationPreview && isPresentationSubmitted ? (
         <div

@@ -15,7 +15,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FnButton } from "@/components/ui/fn-button";
 import { useRouteProgress } from "@/components/ui/route-progress";
 import { toast } from "@/hooks/use-toast";
@@ -2279,16 +2279,16 @@ export default function TeamDashboardPage() {
             id="dashboard-panel-rules"
             role="tabpanel"
             aria-labelledby="dashboard-tab-rules"
-            className="space-y-6 font-sans"
+            className="space-y-6"
           >
             <section className="rounded-2xl border border-b-4 border-fnblue bg-background/95 p-6 shadow-lg md:p-8">
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-fnblue">
+              <p className="text-xs font-extrabold uppercase tracking-widest text-fnblue">
                 Rules
               </p>
-              <h2 className="mt-3 text-3xl font-black tracking-tight">
+              <h2 className="mt-3 text-3xl uppercase font-black tracking-tight">
                 Operating Rules for Team Dashboard
               </h2>
-              <p className="mt-3 max-w-3xl text-base leading-relaxed text-foreground/75">
+              <p className="mt-3 max-w-3xl text-base leading-relaxed text-foreground/80 font-medium">
                 These rules define how your team progresses through statement
                 lock, roster management, and one-time presentation submission.
               </p>
@@ -2300,16 +2300,16 @@ export default function TeamDashboardPage() {
                   key={group.id}
                   className="rounded-2xl border border-b-4 border-fngreen/45 bg-white p-6 shadow-lg"
                 >
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-fngreen">
+                  <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
                     {group.label}
                   </p>
-                  <p className="mt-3 text-sm leading-relaxed text-foreground/70">
+                  <p className="mt-3 text-sm leading-relaxed text-foreground/80 font-medium">
                     {group.description}
                   </p>
-                  <ul className="mt-4 space-y-2 text-sm leading-relaxed text-foreground/85">
+                  <ul className="mt-4 space-y-2 text-sm leading-relaxed text-foreground/90 font-medium">
                     {group.items.map((item) => (
-                      <li key={item} className="flex gap-2">
-                        <span className="mt-1 inline-flex size-1.5 shrink-0 rounded-full bg-fnblue" />
+                      <li key={item} className="flex items-center gap-2">
+                        <span className="inline-flex size-1 shrink-0 rounded-full bg-fnblue" />
                         <span>{item}</span>
                       </li>
                     ))}
@@ -2319,18 +2319,18 @@ export default function TeamDashboardPage() {
             </div>
 
             <section className="rounded-2xl border border-b-4 border-fnred bg-fnred/5 p-6 shadow-lg">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-fnred">
+              <p className="text-xs font-extrabold uppercase tracking-widest text-fnred">
                 Irreversible Actions
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <span className="rounded-full border border-fnred/40 bg-fnred/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-fnred">
-                  Problem Lock: Once
+                <span className="rounded-full border border-fnred/40 bg-fnred/10 px-3 text-xs font-bold uppercase tracking-widest text-fnred">
+                  Problem Lock
                 </span>
-                <span className="rounded-full border border-fnred/40 bg-fnred/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-fnred">
-                  PPT Submission: Once
+                <span className="rounded-full border border-fnred/40 bg-fnred/10 px-3 text-xs font-bold uppercase tracking-widest text-fnred">
+                  PPT Submission
                 </span>
-                <span className="rounded-full border border-fnred/40 bg-fnred/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-fnred">
-                  Team Delete: Permanent
+                <span className="rounded-full border border-fnred/40 bg-fnred/10 px-3 text-xs font-bold uppercase tracking-widest text-fnred">
+                  Team Recovery on Deletion
                 </span>
               </div>
             </section>
@@ -2422,77 +2422,56 @@ export default function TeamDashboardPage() {
 
             <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
               <section className="rounded-2xl border border-b-4 border-fnblue bg-background/95 p-6 shadow-lg md:p-8">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnblue">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-fnblue">
                   Manage Team
                 </p>
                 <h2 className="mt-2 text-2xl font-black tracking-tight uppercase">
                   Manage Team Roster
                 </h2>
-                <p className="mt-2 text-sm leading-relaxed text-foreground/75">
+                <p className="mt-2 text-sm leading-relaxed text-foreground/80 font-medium">
                   Add, edit, and remove member profiles. Team identity fields
                   are locked after registration.
                 </p>
 
                 <div className="mt-6 rounded-xl border border-b-4 border-fnblue/40 bg-white p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnblue">
+                  <p className="text-xs font-extrabold uppercase tracking-widest text-fnblue">
                     Locked Team Profile
                   </p>
-                  <p className="mt-2 text-sm leading-relaxed text-foreground/75">
+                  <p className="mt-2 text-sm leading-relaxed text-foreground/80 font-medium">
                     These fields are locked after team creation: Team Name, Lead
                     Details
                     {teamType === "non_srm" ? ", College + Club Profile." : "."}
                   </p>
-                  <div className="mt-4 grid gap-3 text-sm md:grid-cols-2">
-                    <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
-                        Team Name
-                      </p>
-                      <p className="mt-1 font-semibold">{teamName || "N/A"}</p>
-                    </div>
-                    <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
-                        Team Type
-                      </p>
-                      <p className="mt-1 font-semibold">{teamTypeLabel}</p>
-                    </div>
-                    <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
-                        Lead Name
-                      </p>
-                      <p className="mt-1 font-semibold">
-                        {(teamType === "srm"
-                          ? leadSrm.name
-                          : leadNonSrm.name) || "N/A"}
-                      </p>
-                    </div>
-                    <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
-                        Lead ID
-                      </p>
-                      <p className="mt-1 font-semibold">
-                        {currentLeadId || "N/A"}
-                      </p>
-                    </div>
+                  <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
+                    <LockedProfileField
+                      label="Team Name"
+                      value={teamName || "N/A"}
+                    />
+                    <LockedProfileField
+                      label="Lead Name"
+                      value={
+                        (teamType === "srm" ? leadSrm.name : leadNonSrm.name) ||
+                        "N/A"
+                      }
+                    />
+                    <LockedProfileField
+                      label="Lead ID"
+                      value={currentLeadId || "N/A"}
+                    />
                     {teamType === "non_srm" ? (
                       <>
-                        <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
-                            College Name
-                          </p>
-                          <p className="mt-1 font-semibold">
-                            {metaNonSrm.collegeName || "N/A"}
-                          </p>
-                        </div>
-                        <div className="rounded-md border border-foreground/12 bg-foreground/5 px-3 py-2">
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
-                            Club Profile
-                          </p>
-                          <p className="mt-1 font-semibold">
-                            {metaNonSrm.isClub
+                        <LockedProfileField
+                          label="College Name"
+                          value={metaNonSrm.collegeName || "N/A"}
+                        />
+                        <LockedProfileField
+                          label="Club Profile"
+                          value={
+                            metaNonSrm.isClub
                               ? metaNonSrm.clubName || "Club team"
-                              : "Independent Team"}
-                          </p>
-                        </div>
+                              : "Independent Team"
+                          }
+                        />
                       </>
                     ) : null}
                   </div>
@@ -2524,7 +2503,7 @@ export default function TeamDashboardPage() {
 
                 {editingIndex !== null ? (
                   <div className="mt-4 rounded-xl border border-b-4 border-fnorange/50 bg-fnorange/10 p-4">
-                    <p className="mb-2 text-xs font-bold uppercase tracking-[0.2em] text-foreground/80">
+                    <p className="mb-2 text-xs font-extrabold uppercase tracking-widest text-fnorange">
                       Editing Member {editingIndex + 1}
                     </p>
                     {teamType === "srm" ? (
@@ -2627,50 +2606,61 @@ export default function TeamDashboardPage() {
 
               <aside className="space-y-4 self-start">
                 <div className="rounded-2xl border border-b-4 border-fngreen bg-background/95 p-6 shadow-lg">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fngreen">
+                  <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
                     Team Identity
                   </p>
-                  <p className="mt-3 text-sm font-semibold">Team: {teamName}</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <p className="text-sm font-semibold">Team ID: {teamId}</p>
-                    <button
-                      type="button"
-                      aria-label="Copy Team ID"
-                      title="Copy Team ID"
-                      className={copyTeamIdButtonClass}
-                      onClick={copyTeamId}
-                    >
-                      <Copy size={14} strokeWidth={2.5} />
-                    </button>
-                  </div>
-                  <p className="text-sm font-semibold">
-                    Lead:{" "}
-                    {(teamType === "srm" ? leadSrm.name : leadNonSrm.name) ||
-                      "N/A"}
-                  </p>
-                  <p className="text-sm font-semibold">
-                    Lead ID: {currentLeadId || "N/A"}
-                  </p>
+                  <TeamIdentityItem
+                    label="Team"
+                    value={teamName || "N/A"}
+                    className="mt-3"
+                  />
+                  <TeamIdentityItem
+                    label="Team ID"
+                    value={teamId}
+                    className="mt-1"
+                    action={
+                      <button
+                        type="button"
+                        aria-label="Copy Team ID"
+                        title="Copy Team ID"
+                        className={copyTeamIdButtonClass}
+                        onClick={copyTeamId}
+                      >
+                        <Copy size={14} strokeWidth={2.5} />
+                      </button>
+                    }
+                  />
+                  <TeamIdentityItem
+                    label="Lead"
+                    value={
+                      (teamType === "srm" ? leadSrm.name : leadNonSrm.name) ||
+                      "N/A"
+                    }
+                  />
+                  <TeamIdentityItem label="Lead ID" value={currentLeadId || "N/A"} />
                   {teamType === "non_srm" ? (
                     <>
-                      <p className="text-sm font-semibold">
-                        College: {metaNonSrm.collegeName || "N/A"}
-                      </p>
-                      <p className="text-sm font-semibold">
-                        Club:{" "}
-                        {metaNonSrm.isClub
-                          ? metaNonSrm.clubName || "Club team"
-                          : "Independent Team"}
-                      </p>
+                      <TeamIdentityItem
+                        label="College"
+                        value={metaNonSrm.collegeName || "N/A"}
+                      />
+                      <TeamIdentityItem
+                        label="Club"
+                        value={
+                          metaNonSrm.isClub
+                            ? metaNonSrm.clubName || "Club team"
+                            : "Independent Team"
+                        }
+                      />
                     </>
                   ) : null}
-                  <p className="mt-3 text-xs text-foreground/70">
+                  {/* <p className="mt-3 text-xs text-foreground/70">
                     Created: {formatDateTime(createdAt)}
-                  </p>
+                  </p> */}
                 </div>
 
                 <div className="rounded-2xl border border-b-4 border-fnyellow bg-background/95 p-6 shadow-lg">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnyellow">
+                  <p className="text-xs font-extrabold uppercase tracking-widest text-fnyellow">
                     Members
                   </p>
                   <div className="mt-3 overflow-x-auto">
@@ -2744,13 +2734,13 @@ export default function TeamDashboardPage() {
             className="space-y-6"
           >
             <section className="rounded-2xl border border-b-4 border-fnorange bg-background/95 p-6 shadow-lg">
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnorange">
+              <p className="text-xs font-extrabold uppercase tracking-widest text-fnorange">
                 Actions
               </p>
               <h2 className="mt-2 text-2xl font-black tracking-tight uppercase">
                 PPT Submission Controls
               </h2>
-              <p className="mt-2 text-sm text-foreground/75 md:text-base">
+              <p className="mt-2 text-sm text-foreground/80 font-medium md:text-base">
                 Download the official template and manage one-time PPT
                 submission for your team.
               </p>
@@ -2766,13 +2756,13 @@ export default function TeamDashboardPage() {
 
             {!hasLockedProblemStatement ? (
               <section className="rounded-2xl border border-b-4 border-fnred bg-background/95 p-6 shadow-lg">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnred">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-fnred">
                   Submission Blocked
                 </p>
                 <h3 className="mt-2 text-2xl font-black uppercase tracking-tight">
                   lock a problem statement first
                 </h3>
-                <p className="mt-2 text-sm text-foreground/75 md:text-base">
+                <p className="mt-2 text-sm text-foreground/80 font-medium md:text-base">
                   PPT submission is enabled only after your team has an official
                   locked problem statement.
                 </p>
@@ -2784,13 +2774,13 @@ export default function TeamDashboardPage() {
               </section>
             ) : (
               <section className="rounded-2xl border border-b-4 border-fngreen bg-background/95 p-6 shadow-lg">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fngreen">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
                   Presentation Submission
                 </p>
                 <h3 className="mt-2 text-2xl font-black uppercase tracking-tight">
                   submit your PPT for review
                 </h3>
-                <p className="mt-2 text-sm text-foreground/75 md:text-base">
+                <p className="mt-2 text-sm text-foreground/80 font-medium md:text-base">
                   Submit your PPT for review. An admin will approve your
                   participation soon. You may receive approval mail on{" "}
                   <span className="font-semibold text-foreground">
@@ -2815,7 +2805,7 @@ export default function TeamDashboardPage() {
 
                 {isPresentationSubmitted ? (
                   <div className="mt-5 rounded-xl border border-b-4 border-fngreen/45 bg-fngreen/5 p-4">
-                    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-fngreen">
+                    <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
                       Submitted
                     </p>
                     <p className="mt-2 text-sm font-semibold">
@@ -3347,6 +3337,45 @@ const HighlightTile = ({
   </div>
 );
 
+const LockedProfileField = ({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) => (
+  <div className="rounded-md border border-foreground/12 bg-foreground/2 px-3 py-2">
+    <p className="text-xs font-extrabold text-fnblue">
+      {label}
+    </p>
+    <p className="mt-1 font-semibold">{value}</p>
+  </div>
+);
+
+const TeamIdentityItem = ({
+  label,
+  value,
+  className,
+  action,
+}: {
+  label: string;
+  value: string;
+  className?: string;
+  action?: ReactNode;
+}) =>
+  action ? (
+    <div className={cn("flex items-center gap-2", className)}>
+      <p className="text-sm font-bold">
+        {label}: <span className="font-medium font-sans">{value}</span>
+      </p>
+      {action}
+    </div>
+  ) : (
+    <p className={cn("text-sm font-bold", className)}>
+      {label}: <span className="font-medium">{value}</span>
+    </p>
+  );
+
 const MetricRow = ({
   label,
   value,
@@ -3390,7 +3419,7 @@ const Input = ({
   pattern,
 }: InputProps) => (
   <label className="block">
-    <p className="text-xs uppercase tracking-[0.2em] text-foreground/70 font-semibold mb-1">
+    <p className="text-xs font-extrabold uppercase tracking-widest text-gray-600 ml-2 mb-1">
       {label}
     </p>
     <input
@@ -3421,7 +3450,7 @@ const SrmEditor = ({
   <div
     className={`rounded-xl border border-foreground/12 bg-slate-50 p-4 shadow-sm ${className}`}
   >
-    <p className="text-sm font-bold uppercase tracking-[0.08em] mb-3">
+    <p className="text-xs font-extrabold uppercase tracking-widest text-fnblue mb-3">
       {title}
     </p>
     <div className="grid gap-3 md:grid-cols-2">
@@ -3527,7 +3556,7 @@ type NumberInputProps = {
 
 const NumberInput = ({ label, value, onChange }: NumberInputProps) => (
   <label className="block">
-    <p className="text-xs uppercase tracking-[0.2em] text-foreground/70 font-semibold mb-1">
+    <p className="text-xs font-extrabold uppercase tracking-widest text-gray-600 ml-2 mb-1">
       {label}
     </p>
     <input

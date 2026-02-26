@@ -2878,7 +2878,7 @@ export default function TeamDashboardPage() {
           <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-b-4 border-fngreen bg-background shadow-2xl">
             <div className="flex items-start justify-between gap-3 border-b border-foreground/10 px-4 py-3 md:px-5">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fngreen">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
                   Accepted Team Pass
                 </p>
                 <h3
@@ -2901,13 +2901,13 @@ export default function TeamDashboardPage() {
             <div className="grid gap-5 bg-white/70 p-4 md:grid-cols-[1.2fr_0.8fr] md:p-5">
               <div className="rounded-xl border border-foreground/10 bg-foreground/5 p-3">
                 {isGeneratingTeamTicketPreview ? (
-                  <div className="h-[220px] w-full animate-pulse rounded-lg bg-foreground/10 md:h-[260px]" />
+                  <div className="h-55 w-full animate-pulse rounded-lg bg-foreground/10 md:h-65" />
                 ) : teamTicketPreviewError ? (
-                  <div className="flex h-[220px] flex-col items-center justify-center rounded-lg border border-fnred/25 bg-fnred/5 px-4 text-center md:h-[260px]">
+                  <div className="flex h-55 flex-col items-center justify-center rounded-lg border border-fnred/25 bg-fnred/5 px-4 text-center md:h-65">
                     <p className="text-sm font-semibold text-fnred">
                       Ticket preview unavailable right now.
                     </p>
-                    <p className="mt-2 text-xs text-foreground/75">
+                    <p className="mt-2 text-xs text-foreground/80 font-medium">
                       You can still download and share using the actions on the
                       right.
                     </p>
@@ -2922,14 +2922,14 @@ export default function TeamDashboardPage() {
                     className="w-full rounded-lg border border-foreground/10 bg-white"
                   />
                 ) : (
-                  <div className="flex h-[220px] items-center justify-center rounded-lg border border-foreground/10 bg-background text-sm text-foreground/75 md:h-[260px]">
+                  <div className="flex h-55 items-center justify-center rounded-lg border border-foreground/10 bg-background text-sm text-foreground/75 md:h-65">
                     Ticket preview is being prepared.
                   </div>
                 )}
               </div>
 
               <div className="space-y-3 rounded-xl border border-foreground/10 bg-background p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fngreen">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
                   Ticket Details
                 </p>
                 <p className="text-sm">
@@ -2944,7 +2944,7 @@ export default function TeamDashboardPage() {
                   <span className="font-semibold">Track:</span>{" "}
                   {problemStatement.title || "N/A"}
                 </p>
-                <p className="text-xs text-foreground/70">
+                <p className="text-xs text-foreground/60">
                   Download this hot ticket layout for on-ground check-ins or
                   share the accepted team details instantly on WhatsApp.
                 </p>
@@ -3002,7 +3002,7 @@ export default function TeamDashboardPage() {
           <div className="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-b-4 border-fnblue bg-background shadow-2xl">
             <div className="flex items-start justify-between gap-3 border-b border-foreground/10 px-4 py-3 md:px-5">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnblue">
+                <p className="text-xs font-extrabold uppercase tracking-widest text-fnblue">
                   Presentation Preview
                 </p>
                 <h3
@@ -3016,7 +3016,7 @@ export default function TeamDashboardPage() {
                 type="button"
                 aria-label="Close presentation preview"
                 onClick={() => setShowPresentationPreview(false)}
-                className="inline-flex size-8 items-center justify-center rounded-md border border-foreground/20 bg-white text-foreground/70 transition-colors hover:bg-fnblue/10 hover:text-fnblue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/40"
+                className="inline-flex size-8 items-center justify-center rounded-md border border-foreground/20 bg-white text-foreground/70 transition-colors hover:bg-fnred/10 hover:text-fnred focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnred/40"
               >
                 <X size={16} strokeWidth={2.6} />
               </button>

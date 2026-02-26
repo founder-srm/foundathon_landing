@@ -30,13 +30,13 @@ const Hero = async () => {
       <div className="bg-fnblue blur-[100px] size-120 rounded-full absolute -bottom-24 right-0 opacity-20 z-10" />
       <div className="fncontainer relative flex items-center justify-center min-h-[92vh] z-10 py-20">
         <div className="flex flex-col items-center gap-7 max-w-5xl">
-          <div className="text-sm md:text-lg rounded-full px-4 uppercase font-bold tracking-wide bg-fngreen/20 text-fngreen border-2 border-fngreen text-center">
+          <div className="text-xs sm:text-sm md:text-lg rounded-full px-4 uppercase font-bold tracking-wide bg-fngreen/20 text-fngreen border-2 border-fngreen text-center">
             {content.caption}
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tighter uppercase text-center text-balance leading-16">
+          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter uppercase text-center text-balance leading-10 md:leading-14">
             {content.heading}{" "}
-            <span className="text-fnblue italic font-extrabold">
+            <span className="text-fnblue italic">
               {content.headingHighlight}
             </span>
           </h1>
@@ -52,7 +52,7 @@ const Hero = async () => {
             </VideoText>
           </div> */}
 
-          <p className="text-foreground/70 text-center max-w-3xl text-lg">
+          <p className="text-foreground/80 text-center max-w-3xl text-md md:text-lg font-medium leading-5 md:leading-6">
             {content.description}
           </p>
           <div className="flex items-center mt-6 gap-4 flex-wrap justify-center">

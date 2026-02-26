@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildDashboardTabUrl,
   DASHBOARD_DEFAULT_TAB,
+  DASHBOARD_TABS,
   isDashboardTab,
   parseDashboardTab,
 } from "./dashboard-tabs";
@@ -63,5 +64,12 @@ describe("dashboard tab helpers", () => {
     expect(isDashboardTab("")).toBe(false);
     expect(isDashboardTab("overviews")).toBe(false);
     expect(isDashboardTab(null)).toBe(false);
+  });
+
+  it("exposes Event Details as the rules tab label", () => {
+    const rulesTab = DASHBOARD_TABS.find((tab) => tab.id === "rules");
+
+    expect(rulesTab).toBeDefined();
+    expect(rulesTab?.label).toBe("Event Details");
   });
 });

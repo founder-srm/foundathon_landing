@@ -15,9 +15,9 @@ export const DASHBOARD_TABS: DashboardTabConfig[] = [
     label: "Team Overview",
   },
   {
-    description: "Flow, constraints, and non-reversible rules.",
+    description: "Event schedule, venues, and participation guidelines.",
     id: "rules",
-    label: "Rules",
+    label: "Event Details",
   },
   {
     description: "Edit roster and complete legacy lock tasks.",
@@ -25,9 +25,9 @@ export const DASHBOARD_TABS: DashboardTabConfig[] = [
     label: "Manage Team",
   },
   {
-    description: "Submit and manage one-time PPT actions.",
+    description: "Submit and manage your one-time team presentation.",
     id: "actions",
-    label: "Actions",
+    label: "PPT Submission",
   },
 ];
 

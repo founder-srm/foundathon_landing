@@ -2,6 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { EVENT_ID } from "@/lib/register-api";
+import { isBlockedLoginEmail } from "@/server/auth/email-policy";
 import { createClient } from "@/utils/supabase/server";
 
 export type AuthUiState = {
@@ -24,6 +25,10 @@ export const getAuthUiState = cache(async (): Promise<AuthUiState> => {
   } = await supabase.auth.getUser();
 
   if (!user) {
+    return { isSignedIn: false, teamId: null };
+  }
+
+  if (isBlockedLoginEmail(user.email)) {
     return { isSignedIn: false, teamId: null };
   }
 

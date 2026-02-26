@@ -8,6 +8,8 @@ import {
   type Variant,
 } from "motion/react";
 import { type ReactNode, useRef, useState } from "react";
+import { cn } from "@/lib/utils";
+import { useMotionPreferences } from "./motion-preferences";
 
 export type InViewProps = {
   children: ReactNode;
@@ -19,6 +21,8 @@ export type InViewProps = {
   viewOptions?: UseInViewOptions;
   as?: React.ElementType;
   once?: boolean;
+  className?: string;
+  respectReducedMotion?: boolean;
 };
 
 const defaultVariants = {
@@ -33,17 +37,34 @@ export function InView({
   viewOptions,
   as = "div",
   once,
+  className,
+  respectReducedMotion = true,
 }: InViewProps) {
+  const { resolved } = useMotionPreferences();
+  const isReducedMotion = respectReducedMotion && resolved === "reduced";
   const ref = useRef<Element>(null);
   const isInView = useInView(ref, viewOptions);
 
   const [isViewed, setIsViewed] = useState(false);
 
   const MotionComponent = motion[as as keyof typeof motion] as typeof as;
+  const StaticComponent = as;
+
+  if (isReducedMotion) {
+    return (
+      <StaticComponent
+        data-inview-mode="static"
+        className={cn("h-full", className)}
+      >
+        {children}
+      </StaticComponent>
+    );
+  }
 
   return (
     <MotionComponent
       ref={ref}
+      data-inview-mode="motion"
       initial="hidden"
       onAnimationComplete={() => {
         if (once) setIsViewed(true);
@@ -51,7 +72,7 @@ export function InView({
       animate={isInView || isViewed ? "visible" : "hidden"}
       variants={variants}
       transition={transition}
-      className="h-full"
+      className={cn("h-full", className)}
     >
       {children}
     </MotionComponent>

@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MotionPreferencesProvider } from "@/components/ui/motion-preferences";
 import RegisterClient from "./register-client";
 
 const mocks = vi.hoisted(() => ({
@@ -83,9 +84,31 @@ const addValidNonSrmMember = async (
   await user.click(screen.getByRole("button", { name: /add member/i }));
 };
 
+const renderRegisterClient = () =>
+  render(
+    <MotionPreferencesProvider>
+      <RegisterClient />
+    </MotionPreferencesProvider>,
+  );
+
 describe("Register page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      })),
+      writable: true,
+    });
+
     mocks.getAuthUiState.mockResolvedValue({
       isSignedIn: true,
       teamId: null,
@@ -113,7 +136,7 @@ describe("Register page", () => {
   });
 
   it("renders onboarding with Team Name field", async () => {
-    render(<RegisterClient />);
+    renderRegisterClient();
 
     expect(await screen.findByText(/onboarding wizard/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Team Name/i)).toBeInTheDocument();
@@ -121,7 +144,7 @@ describe("Register page", () => {
 
   it("keeps next button enabled and shows validation guidance before minimum team size is met", async () => {
     const user = userEvent.setup();
-    render(<RegisterClient />);
+    renderRegisterClient();
 
     const nextButton = await screen.findByRole("button", {
       name: /next/i,
@@ -138,7 +161,7 @@ describe("Register page", () => {
 
   it("moves to problem statement step after valid team details", async () => {
     const user = userEvent.setup();
-    render(<RegisterClient />);
+    renderRegisterClient();
 
     await user.type(screen.getByLabelText(/Team Name/i), "Board Breakers");
 
@@ -188,7 +211,7 @@ describe("Register page", () => {
 
   it("shows confirmation before locking a problem statement", async () => {
     const user = userEvent.setup();
-    render(<RegisterClient />);
+    renderRegisterClient();
 
     await user.type(screen.getByLabelText(/Team Name/i), "Board Breakers");
 
@@ -247,7 +270,7 @@ describe("Register page", () => {
 
   it("keeps users on step 1 with inline lead errors when lead data is invalid", async () => {
     const user = userEvent.setup();
-    render(<RegisterClient />);
+    renderRegisterClient();
 
     await user.type(screen.getByLabelText(/Team Name/i), "Board Breakers");
     await addValidSrmMember(user, {
@@ -284,7 +307,7 @@ describe("Register page", () => {
 
   it("allows recovering from invalid lead details and proceeds after correction", async () => {
     const user = userEvent.setup();
-    render(<RegisterClient />);
+    renderRegisterClient();
 
     await user.type(screen.getByLabelText(/Team Name/i), "Board Breakers");
     await addValidSrmMember(user, {
@@ -335,7 +358,7 @@ describe("Register page", () => {
 
   it("focuses the first invalid field when submitting step 1", async () => {
     const user = userEvent.setup();
-    render(<RegisterClient />);
+    renderRegisterClient();
 
     const nextButton = await screen.findByRole("button", { name: /next/i });
     await user.click(nextButton);
@@ -345,7 +368,7 @@ describe("Register page", () => {
 
   it("shows non-SRM validation blockers with the same smooth guidance flow", async () => {
     const user = userEvent.setup();
-    render(<RegisterClient />);
+    renderRegisterClient();
 
     await user.click(screen.getByRole("button", { name: /^non-srm$/i }));
     await user.type(screen.getByLabelText(/Team Name/i), "Pitch Panthers");

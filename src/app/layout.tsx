@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { JetBrains_Mono, Work_Sans } from "next/font/google";
 import { Suspense } from "react";
 import Header from "@/components/sections/Header";
+import { MotionPreferencesProvider } from "@/components/ui/motion-preferences";
 import {
   RouteProgressBar,
   RouteProgressProvider,
 } from "@/components/ui/route-progress";
+import { RouteTransition } from "@/components/ui/route-transition";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 // import { ThemeProvider } from "next-themes";
@@ -104,12 +106,14 @@ export default function RootLayout({
           disableTransitionOnChange
         > */}
         <Suspense fallback={null}>
-          <RouteProgressProvider>
-            <Header />
-            <RouteProgressBar />
-            {children}
-            <Toaster />
-          </RouteProgressProvider>
+          <MotionPreferencesProvider>
+            <RouteProgressProvider>
+              <Header />
+              <RouteProgressBar />
+              <RouteTransition>{children}</RouteTransition>
+              <Toaster />
+            </RouteProgressProvider>
+          </MotionPreferencesProvider>
         </Suspense>
         {/* </ThemeProvider> */}
       </body>

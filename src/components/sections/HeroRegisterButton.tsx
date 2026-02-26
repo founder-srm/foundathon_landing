@@ -45,7 +45,7 @@ const HeroRegisterButton = ({
               >
                 <span className="text-nowrap flex gap-2 items-center">
                   Dashboard
-                  <ArrowRight />
+                  <ArrowRight strokeWidth={3} />
                 </span>
               </Magnetic>
             </Link>
@@ -55,7 +55,7 @@ const HeroRegisterButton = ({
         <FnButton asChild tone="red" size="lg">
           <Link href="/register" prefetch={true}>
             {label}
-            <ArrowRight />
+            <ArrowRight strokeWidth={3} />
           </Link>
         </FnButton>
       ) : (
@@ -81,7 +81,7 @@ const HeroRegisterButton = ({
             >
               {label}
             </Magnetic>
-            <ArrowRight />
+            <ArrowRight strokeWidth={3} />
           </FnButton>
         </Magnetic>
       )}

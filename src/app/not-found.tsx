@@ -2,7 +2,7 @@ import Link from "next/link";
 import { FnButton } from "@/components/ui/fn-button";
 
 const links = [
-  { label: "Back to Home", href: "/#hero", tone: "blue" as const },
+  { label: "Back to Home", href: "/", tone: "blue" as const },
   {
     label: "Problem Statements",
     href: "/problem-statements",
@@ -32,13 +32,13 @@ export default function NotFound() {
           <div className="absolute -bottom-24 -left-16 size-52 rounded-full bg-fngreen/18 blur-3xl pointer-events-none" />
 
           <div className="relative space-y-6">
-            <p className="inline-flex rounded-full border border-fnblue/40 bg-fnblue/10 px-3 text-[11px] font-bold uppercase tracking-[0.22em] text-fnblue">
+            <p className="inline-flex rounded-full border-2 border-fnblue bg-fnblue/30 px-3 text-sm font-extrabold uppercase tracking-wider text-fnblue">
               uh oh! you're off the board
             </p>
-            <h1 className="text-6xl md:text-8xl font-black uppercase tracking-tight leading-none text-balance">
+            <h1 className="text-6xl md:text-8xl font-black uppercase tracking-tighter leading-none text-balance">
               404 <span className="italic text-fnblue">hotwire</span>
             </h1>
-            <p className="text-lg md:text-xl text-foreground/70 max-w-3xl mx-auto">
+            <p className="text-lg md:text-xl text-foreground/80 max-w-3xl mx-auto font-medium">
               This square doesn’t exist. Jump back to a live tile and keep your
               momentum.
             </p>

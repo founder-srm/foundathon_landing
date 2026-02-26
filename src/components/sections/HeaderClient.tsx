@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FnButton } from "@/components/ui/fn-button";
 import { LineShadowText } from "@/components/ui/line-shadow-text";
+import MotionSettingsMenu from "@/components/ui/motion-settings-menu";
 import SignInRequiredModal from "@/components/ui/sign-in-required-modal";
 import {
   isTeamCreatedEventDetail,
@@ -200,6 +201,7 @@ const HeaderClient = ({
             </FnButton>
 
             <div className="hidden items-center gap-3 lg:flex">
+              <MotionSettingsMenu variant="desktop" />
               <FnButton asChild tone="gray">
                 <Link href="/problem-statements" prefetch={true}>
                   Problem Statements
@@ -285,6 +287,10 @@ const HeaderClient = ({
             ))}
           </div>
           <div className="fncontainer space-y-2">
+            <MotionSettingsMenu
+              variant="mobile"
+              onAction={() => setIsMobileMenuOpen(false)}
+            />
             <FnButton asChild tone="gray" className="w-full">
               <Link
                 href="/problem-statements"

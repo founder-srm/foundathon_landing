@@ -8,6 +8,7 @@ import {
 } from "motion/react";
 import type React from "react";
 import { useEffect, useRef, useState } from "react";
+import { useMotionPreferences } from "./motion-preferences";
 
 const SPRING_CONFIG = { stiffness: 26.7, damping: 4.1, mass: 0.2 };
 
@@ -26,6 +27,8 @@ export function Magnetic({
   actionArea = "self",
   springOptions = SPRING_CONFIG,
 }: MagneticProps) {
+  const { resolved } = useMotionPreferences();
+  const isReducedMotion = resolved === "reduced";
   const [isHovered, setIsHovered] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -37,6 +40,12 @@ export function Magnetic({
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: all deps will break logic
   useEffect(() => {
+    if (isReducedMotion) {
+      x.set(0);
+      y.set(0);
+      return;
+    }
+
     const calculateDistance = (e: MouseEvent) => {
       if (ref.current) {
         const rect = ref.current.getBoundingClientRect();
@@ -63,9 +72,14 @@ export function Magnetic({
     return () => {
       document.removeEventListener("mousemove", calculateDistance);
     };
-  }, [ref, isHovered, intensity, range]);
+  }, [isReducedMotion, ref, isHovered, intensity, range]);
 
   useEffect(() => {
+    if (isReducedMotion) {
+      setIsHovered(false);
+      return;
+    }
+
     if (actionArea === "parent" && ref.current?.parentElement) {
       const parent = ref.current.parentElement;
 
@@ -82,25 +96,34 @@ export function Magnetic({
     } else if (actionArea === "global") {
       setIsHovered(true);
     }
-  }, [actionArea]);
+  }, [actionArea, isReducedMotion]);
 
   const handleMouseEnter = () => {
-    if (actionArea === "self") {
+    if (actionArea === "self" && !isReducedMotion) {
       setIsHovered(true);
     }
   };
 
   const handleMouseLeave = () => {
-    if (actionArea === "self") {
+    if (actionArea === "self" && !isReducedMotion) {
       setIsHovered(false);
       x.set(0);
       y.set(0);
     }
   };
 
+  if (isReducedMotion) {
+    return (
+      <div ref={ref} data-magnetic-mode="static">
+        {children}
+      </div>
+    );
+  }
+
   return (
     <motion.div
       ref={ref}
+      data-magnetic-mode="motion"
       onMouseEnter={actionArea === "self" ? handleMouseEnter : undefined}
       onMouseLeave={actionArea === "self" ? handleMouseLeave : undefined}
       style={{

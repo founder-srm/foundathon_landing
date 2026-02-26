@@ -2,6 +2,7 @@ import Link from "next/link";
 import { FnButton } from "@/components/ui/fn-button";
 import { getAuthUiState } from "@/lib/auth-ui-state";
 import { springOptions } from "@/lib/constants";
+import { InView } from "../ui/in-view";
 import { Magnetic } from "../ui/magnetic";
 import HeroRegisterButton from "./HeroRegisterButton";
 
@@ -26,20 +27,38 @@ const Hero = async () => {
         className="absolute inset-0 z-0 opacity-60"
         style={{ backgroundImage: "url(/textures/circle-16px.svg)" }}
       />
-      <div className="bg-fnyellow blur-2xl size-90 rounded-full absolute top-16 -left-16 opacity-20 z-10" />
-      <div className="bg-fnblue blur-[100px] size-120 rounded-full absolute -bottom-24 right-0 opacity-20 z-10" />
+      <div className="bg-fnyellow blur-2xl size-90 rounded-full absolute top-16 -left-16 opacity-20 z-10 motion-safe:animate-[float-soft_9s_ease-in-out_infinite]" />
+      <div className="bg-fnblue blur-[100px] size-120 rounded-full absolute -bottom-24 right-0 opacity-20 z-10 motion-safe:animate-[float-soft_12s_ease-in-out_infinite]" />
       <div className="fncontainer relative flex items-center justify-center min-h-[92vh] z-10 py-20">
         <div className="flex flex-col items-center gap-7 max-w-5xl">
-          <div className="text-xs sm:text-sm md:text-lg rounded-full px-4 uppercase font-bold tracking-wide bg-fngreen/20 text-fngreen border-2 border-fngreen text-center">
-            {content.caption}
-          </div>
+          <InView
+            once
+            transition={{ duration: 0.22, ease: "easeOut" }}
+            variants={{
+              hidden: { opacity: 0, y: 20, filter: "blur(4px)" },
+              visible: { opacity: 1, y: 0, filter: "blur(0px)" },
+            }}
+          >
+            <div className="text-xs sm:text-sm md:text-lg rounded-full px-4 uppercase font-bold tracking-wide bg-fngreen/20 text-fngreen border-2 border-fngreen text-center">
+              {content.caption}
+            </div>
+          </InView>
 
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter uppercase text-center text-balance leading-10 md:leading-14">
-            {content.heading}{" "}
-            <span className="text-fnblue italic">
-              {content.headingHighlight}
-            </span>
-          </h1>
+          <InView
+            once
+            transition={{ duration: 0.28, ease: "easeOut", delay: 0.06 }}
+            variants={{
+              hidden: { opacity: 0, y: 28, filter: "blur(6px)" },
+              visible: { opacity: 1, y: 0, filter: "blur(0px)" },
+            }}
+          >
+            <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter uppercase text-center text-balance leading-10 md:leading-14">
+              {content.heading}{" "}
+              <span className="text-fnblue italic">
+                {content.headingHighlight}
+              </span>
+            </h1>
+          </InView>
 
           {/* 
           <div className="relative h-80 w-full overflow-hidden">
@@ -52,35 +71,58 @@ const Hero = async () => {
             </VideoText>
           </div> */}
 
-          <p className="text-foreground/80 text-center max-w-3xl text-md md:text-lg font-medium leading-5 md:leading-6">
-            {content.description}
-          </p>
-          <div className="flex items-center mt-6 gap-4 flex-wrap justify-center">
-            <HeroRegisterButton
-              initialIsSignedIn={isSignedIn}
-              initialTeamId={teamId}
-              label={content.primaryButtonText}
-            />
-            <Magnetic
-              intensity={0.1}
-              springOptions={springOptions}
-              actionArea="global"
-              range={200}
-            >
-              <FnButton asChild tone="gray" size="lg" className="border-fnblue">
-                <Link href="/problem-statements">
-                  <Magnetic
-                    intensity={0.05}
-                    springOptions={springOptions}
-                    actionArea="global"
-                    range={200}
-                  >
-                    {content.secondaryButtonText}
-                  </Magnetic>
-                </Link>
-              </FnButton>
-            </Magnetic>
-          </div>
+          <InView
+            once
+            transition={{ duration: 0.22, ease: "easeOut", delay: 0.12 }}
+            variants={{
+              hidden: { opacity: 0, y: 20, filter: "blur(4px)" },
+              visible: { opacity: 1, y: 0, filter: "blur(0px)" },
+            }}
+          >
+            <p className="text-foreground/80 text-center max-w-3xl text-md md:text-lg font-medium leading-5 md:leading-6">
+              {content.description}
+            </p>
+          </InView>
+          <InView
+            once
+            transition={{ duration: 0.22, ease: "easeOut", delay: 0.18 }}
+            variants={{
+              hidden: { opacity: 0, y: 18, filter: "blur(4px)" },
+              visible: { opacity: 1, y: 0, filter: "blur(0px)" },
+            }}
+          >
+            <div className="flex items-center mt-6 gap-4 flex-wrap justify-center">
+              <HeroRegisterButton
+                initialIsSignedIn={isSignedIn}
+                initialTeamId={teamId}
+                label={content.primaryButtonText}
+              />
+              <Magnetic
+                intensity={0.1}
+                springOptions={springOptions}
+                actionArea="global"
+                range={200}
+              >
+                <FnButton
+                  asChild
+                  tone="gray"
+                  size="lg"
+                  className="border-fnblue"
+                >
+                  <Link href="/problem-statements">
+                    <Magnetic
+                      intensity={0.05}
+                      springOptions={springOptions}
+                      actionArea="global"
+                      range={200}
+                    >
+                      {content.secondaryButtonText}
+                    </Magnetic>
+                  </Link>
+                </FnButton>
+              </Magnetic>
+            </div>
+          </InView>
         </div>
       </div>
     </section>

@@ -11,12 +11,22 @@ import {
   UserRoundPen,
   X,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
-import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { FnButton } from "@/components/ui/fn-button";
+import { InView } from "@/components/ui/in-view";
+import { useMotionPreferences } from "@/components/ui/motion-preferences";
 import { useRouteProgress } from "@/components/ui/route-progress";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -85,6 +95,17 @@ type ConfirmationStep = "confirm" | "type";
 const MAX_MEMBERS = 5;
 const SRM_EMAIL_DOMAIN = "@srmist.edu.in";
 const SRM_DEPARTMENT_DATALIST_ID = "srm-major-departments-dashboard";
+const TAB_PANEL_TRANSITION = {
+  duration: 0.22,
+  ease: [0.2, 0, 0, 1],
+} as const;
+const SCROLL_FLOW_VARIANTS = {
+  hidden: { opacity: 0, y: 22, filter: "blur(4px)" },
+  visible: { opacity: 1, y: 0, filter: "blur(0px)" },
+} as const;
+const SCROLL_FLOW_VIEW_OPTIONS = {
+  margin: "0px 0px -14% 0px",
+} as const;
 
 const emptySrmMember = (): SrmMember => ({
   name: "",
@@ -495,7 +516,9 @@ export default function TeamDashboardPage() {
   const params = useParams<{ teamId: string }>();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { resolved } = useMotionPreferences();
   const { start: startRouteProgress } = useRouteProgress();
+  const isReducedMotion = resolved === "reduced";
   const teamId = params.teamId;
   const createdToastShownRef = useRef(false);
   const presentationFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -546,8 +569,9 @@ export default function TeamDashboardPage() {
   const [createdAt, setCreatedAt] = useState("");
   const [problemStatement, setProblemStatement] =
     useState<ProblemStatementInfo>(emptyProblemStatement());
-  const [presentation, setPresentation] =
-    useState<PresentationInfo>(emptyPresentation());
+  const [presentation, setPresentation] = useState<PresentationInfo>(
+    emptyPresentation(),
+  );
   const [pendingPresentationFile, setPendingPresentationFile] =
     useState<File | null>(null);
   const [showPresentationConfirm, setShowPresentationConfirm] = useState(false);
@@ -1944,87 +1968,105 @@ export default function TeamDashboardPage() {
           </section>
         </div>
 
-        {activeTab === "overview" ? (
-          <section
-            id="dashboard-panel-overview"
-            role="tabpanel"
-            aria-labelledby="dashboard-tab-overview"
-            className="space-y-6"
-          >
-            <section
-              className={`relative overflow-visible rounded-2xl border border-b-4 p-5 shadow-lg md:p-6 ${teamApprovalStatusMeta.panelClass}`}
+        <AnimatePresence mode="wait" initial={false}>
+          {activeTab === "overview" ? (
+            <motion.section
+              key="dashboard-tab-overview"
+              initial={isReducedMotion ? false : { opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={isReducedMotion ? undefined : { opacity: 0, y: -10 }}
+              transition={TAB_PANEL_TRANSITION}
+              id="dashboard-panel-overview"
+              role="tabpanel"
+              aria-labelledby="dashboard-tab-overview"
+              className="space-y-6"
             >
-              <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                <div>
-                  <p
-                    className={cn(
-                      "text-sm font-extrabold uppercase tracking-wider text-foreground/80",
-                      teamApprovalStatusMeta.dotClass.replace("bg", "text"),
-                    )}
-                  >
-                    Team Status
-                  </p>
-                  <div
-                    className={cn(
-                      `mt-3 inline-flex items-center gap-2 rounded-full border px-1 text-xs font-bold uppercase tracking-wider ${teamApprovalStatusMeta.badgeClass}`,
-                      teamApprovalStatusMeta.dotClass.replace("bg", "border"),
-                    )}
-                  >
-                    <span
-                      className={`inline-flex size-2 rounded-full animate-pulse ${teamApprovalStatusMeta.dotClass}`}
-                    />
-                    {teamApprovalStatusMeta.label}
-                  </div>
-                  <p className="mt-4 max-w-3xl text-sm leading-relaxed text-foreground/80 md:text-base font-medium">
-                    {teamApprovalStatusMeta.description}
-                  </p>
-                </div>
-
-                <div className="flex w-full flex-col gap-3 md:w-auto md:items-end">
-                  <div className="flex self-end gap-2">
-                    <div className="relative group">
-                      <button
-                        type="button"
-                        aria-label="Status meaning"
-                        className="inline-flex size-8 items-center justify-center rounded-full border border-foreground/20 bg-white/80 text-foreground/80 transition-colors hover:bg-white hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/45"
+              <InView
+                once
+                viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                transition={{ duration: 0.24, ease: "easeOut", delay: 0.02 }}
+                variants={SCROLL_FLOW_VARIANTS}
+              >
+                <motion.section
+                  initial={isReducedMotion ? false : { opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ ...TAB_PANEL_TRANSITION, delay: 0.02 }}
+                  className={`relative overflow-visible rounded-2xl border border-b-4 p-5 shadow-lg md:p-6 ${teamApprovalStatusMeta.panelClass}`}
+                >
+                  <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <p
+                        className={cn(
+                          "text-sm font-extrabold uppercase tracking-wider text-foreground/80",
+                          teamApprovalStatusMeta.dotClass.replace("bg", "text"),
+                        )}
                       >
-                        <Info size={16} strokeWidth={2.6} />
-                      </button>
+                        Team Status
+                      </p>
                       <div
-                        role="tooltip"
-                        className="pointer-events-none absolute right-0 z-20 -mt-28 w-72 rounded-lg border border-foreground/15 bg-background px-3 py-2 text-xs leading-relaxed text-foreground/80 font-medium opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                        className={cn(
+                          `mt-3 inline-flex items-center gap-2 rounded-full border px-1 text-xs font-bold uppercase tracking-wider ${teamApprovalStatusMeta.badgeClass}`,
+                          teamApprovalStatusMeta.dotClass.replace(
+                            "bg",
+                            "border",
+                          ),
+                        )}
                       >
-                        {teamApprovalStatusMeta.label}:{" "}
+                        <span
+                          className={`inline-flex size-2 rounded-full animate-pulse ${teamApprovalStatusMeta.dotClass}`}
+                        />
+                        {teamApprovalStatusMeta.label}
+                      </div>
+                      <p className="mt-4 max-w-3xl text-sm leading-relaxed text-foreground/80 md:text-base font-medium">
                         {teamApprovalStatusMeta.description}
-                      </div>
+                      </p>
                     </div>
 
-                    <div className="relative group">
-                      <button
-                        type="button"
-                        aria-label="Open team ticket"
-                        onClick={openTeamTicketModal}
-                        disabled={
-                          !shouldShowAcceptedQr ||
-                          isGeneratingTeamQr ||
-                          teamQrGenerationError
-                        }
-                        className="inline-flex size-8 items-center justify-center rounded-full border border-foreground/20 bg-white/80 text-foreground/80 transition-colors hover:bg-white hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/45 disabled:cursor-not-allowed disabled:opacity-45"
-                      >
-                        <QrCode size={16} strokeWidth={2.6} />
-                      </button>
-                      <div
-                        role="tooltip"
-                        className="pointer-events-none absolute right-0 z-20 -mt-24 w-72 rounded-lg border border-foreground/15 bg-background px-3 py-2 text-xs leading-relaxed text-foreground/80 font-medium opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-                      >
-                        {shouldShowAcceptedQr
-                          ? "Click the QR icon to open and download your team ticket."
-                          : "Team ticket download unlocks once your team is accepted."}
-                      </div>
-                    </div>
-                  </div>
+                    <div className="flex w-full flex-col gap-3 md:w-auto md:items-end">
+                      <div className="flex self-end gap-2">
+                        <div className="relative group">
+                          <button
+                            type="button"
+                            aria-label="Status meaning"
+                            className="inline-flex size-8 items-center justify-center rounded-full border border-foreground/20 bg-white/80 text-foreground/80 transition-colors hover:bg-white hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/45"
+                          >
+                            <Info size={16} strokeWidth={2.6} />
+                          </button>
+                          <div
+                            role="tooltip"
+                            className="pointer-events-none absolute right-0 z-20 -mt-28 w-72 rounded-lg border border-foreground/15 bg-background px-3 py-2 text-xs leading-relaxed text-foreground/80 font-medium opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                          >
+                            {teamApprovalStatusMeta.label}:{" "}
+                            {teamApprovalStatusMeta.description}
+                          </div>
+                        </div>
 
-                  {/* {shouldShowAcceptedQr ? (
+                        <div className="relative group">
+                          <button
+                            type="button"
+                            aria-label="Open team ticket"
+                            onClick={openTeamTicketModal}
+                            disabled={
+                              !shouldShowAcceptedQr ||
+                              isGeneratingTeamQr ||
+                              teamQrGenerationError
+                            }
+                            className="inline-flex size-8 items-center justify-center rounded-full border border-foreground/20 bg-white/80 text-foreground/80 transition-colors hover:bg-white hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/45 disabled:cursor-not-allowed disabled:opacity-45"
+                          >
+                            <QrCode size={16} strokeWidth={2.6} />
+                          </button>
+                          <div
+                            role="tooltip"
+                            className="pointer-events-none absolute right-0 z-20 -mt-24 w-72 rounded-lg border border-foreground/15 bg-background px-3 py-2 text-xs leading-relaxed text-foreground/80 font-medium opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                          >
+                            {shouldShowAcceptedQr
+                              ? "Click the QR icon to open and download your team ticket."
+                              : "Team ticket download unlocks once your team is accepted."}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* {shouldShowAcceptedQr ? (
                     <div className="w-full rounded-xl border border-fngreen/35 bg-white/90 p-3 shadow-sm md:w-[220px]">
                       <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-fngreen">
                         Team Ticket
@@ -2051,47 +2093,60 @@ export default function TeamDashboardPage() {
                       </FnButton>
                     </div>
                   ) : null} */}
-                </div>
-              </div>
-            </section>
+                    </div>
+                  </div>
+                </motion.section>
+              </InView>
 
-            <section
-              className={`relative overflow-hidden rounded-2xl border border-b-4 p-6 md:p-8 shadow-xl ${
-                hasLockedProblemStatement
-                  ? "border-fngreen border-b-fnyellow bg-linear-to-b from-fngreen/30 to-fnyellow/10"
-                  : "border-fnred border-b-fnorange bg-linear-to-b from-fnred/30 to-fnorange/10"
-              }`}
-            >
-              <div className="absolute -top-10 -right-10 size-36 rounded-full bg-fnblue/10 blur-2xl pointer-events-none" />
-              <div className="absolute -bottom-12 -left-12 size-32 rounded-full bg-fnyellow/25 blur-2xl pointer-events-none" />
-              <div className="relative">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className={`text-xs font-extrabold uppercase tracking-wider ${
-                    hasLockedProblemStatement ?
-                      "text-fngreen" : "text-fnred"
-                    }`}>
-                    Your Problem Statement
-                  </p>
-                  <span
-                    className={`rounded-full px-3 border-2 text-xs font-bold uppercase tracking-widest ${
-                      problemStatementStatusTone === "green"
-                      ? "border-fngreen bg-fngreen/20 text-fngreen"
-                      : "border-fnred bg-fnred/20 text-fnred"
-                    }`}
-                  >
-                    {problemStatementStatusLabel}
-                  </span>
-                </div>
-                <h2 className="mt-10 text-2xl font-black uppercase tracking-tight md:text-3xl leading-none">
-                  {problemStatementTitle}
-                </h2>
-                <p className="mt-1 max-w-3xl text-xs text-foreground/80 font-medium">
-                  {hasLockedProblemStatement
-                    ? "This is your official track for Foundathon 3.0. Keep your build and pitch aligned to this statement."
-                    : "No statement lock is attached to this team record yet. Move to Manage Team to complete your lock and continue."}
-                </p>
+              <InView
+                once
+                viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                transition={{ duration: 0.24, ease: "easeOut", delay: 0.05 }}
+                variants={SCROLL_FLOW_VARIANTS}
+              >
+                <motion.section
+                  initial={isReducedMotion ? false : { opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ ...TAB_PANEL_TRANSITION, delay: 0.06 }}
+                  className={`relative overflow-hidden rounded-2xl border border-b-4 p-6 md:p-8 shadow-xl ${
+                    hasLockedProblemStatement
+                      ? "border-fngreen border-b-fnyellow bg-linear-to-b from-fngreen/30 to-fnyellow/10"
+                      : "border-fnred border-b-fnorange bg-linear-to-b from-fnred/30 to-fnorange/10"
+                  }`}
+                >
+                  <div className="absolute -top-10 -right-10 size-36 rounded-full bg-fnblue/10 blur-2xl pointer-events-none" />
+                  <div className="absolute -bottom-12 -left-12 size-32 rounded-full bg-fnyellow/25 blur-2xl pointer-events-none" />
+                  <div className="relative">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p
+                        className={`text-xs font-extrabold uppercase tracking-wider ${
+                          hasLockedProblemStatement
+                            ? "text-fngreen"
+                            : "text-fnred"
+                        }`}
+                      >
+                        Your Problem Statement
+                      </p>
+                      <span
+                        className={`rounded-full px-3 border-2 text-xs font-bold uppercase tracking-widest ${
+                          problemStatementStatusTone === "green"
+                            ? "border-fngreen bg-fngreen/20 text-fngreen"
+                            : "border-fnred bg-fnred/20 text-fnred"
+                        }`}
+                      >
+                        {problemStatementStatusLabel}
+                      </span>
+                    </div>
+                    <h2 className="mt-10 text-2xl font-black uppercase tracking-tight md:text-3xl leading-none">
+                      {problemStatementTitle}
+                    </h2>
+                    <p className="mt-1 max-w-3xl text-xs text-foreground/80 font-medium">
+                      {hasLockedProblemStatement
+                        ? "This is your official track for Foundathon 3.0. Keep your build and pitch aligned to this statement."
+                        : "No statement lock is attached to this team record yet. Move to Manage Team to complete your lock and continue."}
+                    </p>
 
-                {/* <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                    {/* <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <HighlightTile
                     label="Statement ID"
                     value={problemStatement.id || "N/A"}
@@ -2108,37 +2163,49 @@ export default function TeamDashboardPage() {
                     tone="orange"
                   />
                 </div> */}
-              </div>
-            </section>
-
-            <section className="relative overflow-hidden rounded-2xl border border-b-4 border-fnorange bg-background/95 p-6 shadow-lg">
-              <div className="absolute -top-10 right-0 size-36 rounded-full bg-fnorange/10 blur-3xl pointer-events-none" />
-              <div className="absolute -bottom-10 -left-8 size-32 rounded-full bg-fnblue/10 blur-3xl pointer-events-none" />
-
-              <div className="relative grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-                <div className="">
-                  <p className="text-xs font-extrabold uppercase tracking-widest text-fnorange">
-                    Team Snapshot
-                  </p>
-                  <h3 className="mt-6 text-2xl font-black uppercase tracking-tight leading-none">
-                    Continue Team Operations
-                  </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-foreground/80">
-                    Manage roster updates from Manage Team and complete one-time
-                    PPT operations from Actions.
-                  </p>
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="rounded-full border-2 border-fnblue bg-fnblue/20 px-3 text-sm font-extrabold uppercase tracking-wide text-fnblue">
-                      {teamTypeLabel}
-                    </span>
-                    <span className="rounded-full border-2 border-fngreen bg-fngreen/20 px-3 text-sm font-extrabold uppercase tracking-wide text-fngreen">
-                      {memberCount}/5 Members
-                    </span>
-                    <span className="rounded-full border-2 border-fnorange bg-fnorange/20 px-3 text-sm font-extrabold uppercase tracking-wide text-fnorange">
-                      {completedProfiles}/{memberCount} Complete
-                    </span>
                   </div>
-                  {/* <div className="mt-4 flex flex-wrap gap-3">
+                </motion.section>
+              </InView>
+
+              <InView
+                once
+                viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                transition={{ duration: 0.24, ease: "easeOut", delay: 0.08 }}
+                variants={SCROLL_FLOW_VARIANTS}
+              >
+                <motion.section
+                  initial={isReducedMotion ? false : { opacity: 0, y: 12 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ ...TAB_PANEL_TRANSITION, delay: 0.1 }}
+                  className="relative overflow-hidden rounded-2xl border border-b-4 border-fnorange bg-background/95 p-6 shadow-lg"
+                >
+                  <div className="absolute -top-10 right-0 size-36 rounded-full bg-fnorange/10 blur-3xl pointer-events-none" />
+                  <div className="absolute -bottom-10 -left-8 size-32 rounded-full bg-fnblue/10 blur-3xl pointer-events-none" />
+
+                  <div className="relative grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+                    <div className="">
+                      <p className="text-xs font-extrabold uppercase tracking-widest text-fnorange">
+                        Team Snapshot
+                      </p>
+                      <h3 className="mt-6 text-2xl font-black uppercase tracking-tight leading-none">
+                        Continue Team Operations
+                      </h3>
+                      <p className="mt-2 text-sm leading-relaxed text-foreground/80">
+                        Manage roster updates from Manage Team and complete
+                        one-time PPT operations from Actions.
+                      </p>
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        <span className="rounded-full border-2 border-fnblue bg-fnblue/20 px-3 text-sm font-extrabold uppercase tracking-wide text-fnblue">
+                          {teamTypeLabel}
+                        </span>
+                        <span className="rounded-full border-2 border-fngreen bg-fngreen/20 px-3 text-sm font-extrabold uppercase tracking-wide text-fngreen">
+                          {memberCount}/5 Members
+                        </span>
+                        <span className="rounded-full border-2 border-fnorange bg-fnorange/20 px-3 text-sm font-extrabold uppercase tracking-wide text-fnorange">
+                          {completedProfiles}/{memberCount} Complete
+                        </span>
+                      </div>
+                      {/* <div className="mt-4 flex flex-wrap gap-3">
                     <FnButton type="button" onClick={() => goToTab("manage")}>
                       Go to Manage Team
                     </FnButton>
@@ -2150,722 +2217,896 @@ export default function TeamDashboardPage() {
                       Go to Actions
                     </FnButton>
                   </div> */}
-                </div>
-
-                <div className="rounded-xl border border-fnorange/30 bg-white/70 p-4 backdrop-blur-xs">
-                  <div className="grid gap-2 text-sm">
-                    <MetricRow label="Team Name" value={teamName || "N/A"} />
-                    <div className="flex items-center justify-between gap-4 py-1.5 border-b border-foreground/10">
-                      <p className="text-sm font-extrabold uppercase text-foreground/80">
-                        Team ID
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <p className="font-sans font-medium text-right">{teamId}</p>
-                        <button
-                          type="button"
-                          aria-label="Copy Team ID"
-                          title="Copy Team ID"
-                          className={copyTeamIdButtonClass}
-                          onClick={copyTeamId}
-                        >
-                          <Copy size={14} strokeWidth={2.5} />
-                        </button>
-                      </div>
                     </div>
-                    <MetricRow
-                      label="Lead"
-                      value={
-                        (teamType === "srm" ? leadSrm.name : leadNonSrm.name) ||
-                        "N/A"
-                      }
-                    />
-                    <MetricRow
-                      label="Lead ID"
-                      value={currentLeadId || "N/A"}
-                      mono
-                    />
-                    <MetricRow
-                      label="Last Updated"
-                      value={formatDateTime(updatedAt)}
-                    />
-                    {teamType === "non_srm" ? (
-                      <>
+
+                    <div className="rounded-xl border border-fnorange/30 bg-white/70 p-4 backdrop-blur-xs">
+                      <div className="grid gap-2 text-sm">
                         <MetricRow
-                          label="College"
-                          value={metaNonSrm.collegeName || "N/A"}
+                          label="Team Name"
+                          value={teamName || "N/A"}
                         />
-                        <MetricRow
-                          label="Club"
-                          value={
-                            metaNonSrm.isClub
-                              ? metaNonSrm.clubName || "Club team"
-                              : "Independent Team"
-                          }
-                        />
-                      </>
-                    ) : null}
-                    <MetricRow
-                      label="Created"
-                      value={formatDateTime(createdAt)}
-                      noBorder
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="relative mt-6 border-t border-foreground/10 pt-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-extrabold uppercase tracking-widest text-fnorange">
-                    Members Snapshot
-                  </p>
-                  <p className="text-xs font-extrabold uppercase tracking-widest text-foreground/65">
-                    Total Members: <span className="text-fnorange">{memberCount}</span>
-                  </p>
-                </div>
-
-                <div className="mt-3 overflow-x-auto rounded-xl border border-foreground/10 bg-white/80">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-foreground/10 bg-fnblue/5 text-left">
-                        <th className="py-2.5 px-3">Role</th>
-                        <th className="py-2.5 px-3">Name</th>
-                        <th className="py-2.5 px-3">{memberIdLabel}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr className="border-b border-foreground/10 hover:bg-fnblue/5">
-                        <td className="py-2.5 px-3">
-                          <span className="inline-flex rounded-full border-2 border-fnblue bg-fnblue/20 px-2 text-xs font-extrabold uppercase text-fnblue">
-                            Lead
-                          </span>
-                        </td>
-                        <td className="py-2.5 px-3 font-semibold">
-                          {(teamType === "srm"
-                            ? leadSrm.name
-                            : leadNonSrm.name) || "-"}
-                        </td>
-                        <td className="py-2.5 px-3 font-medium">
-                          {currentLeadId || "-"}
-                        </td>
-                      </tr>
-                      {currentMembers.map((member, idx) => (
-                        <tr
-                          key={`${getCurrentMemberId(member)}-${idx}`}
-                          className="border-b border-foreground/10 hover:bg-fnblue/5 last:border-b-0"
-                        >
-                          <td className="py-2.5 px-3">
-                            <span className="inline-flex rounded-full border-2 border-fnorange bg-fnorange/20 px-2 text-xs font-extrabold uppercase text-fnorange">
-                              M{idx + 1}
-                            </span>
-                          </td>
-                          <td className="py-2.5 px-3 font-semibold">
-                            {member.name}
-                          </td>
-                          <td className="py-2.5 px-3 font-medium">
-                            {getCurrentMemberId(member)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </section>
-          </section>
-        ) : null}
-
-        {activeTab === "rules" ? (
-          <section
-            id="dashboard-panel-rules"
-            role="tabpanel"
-            aria-labelledby="dashboard-tab-rules"
-            className="space-y-6"
-          >
-            <section className="rounded-2xl border border-b-4 border-fnblue bg-background/95 p-6 shadow-lg md:p-8">
-              <p className="text-xs font-extrabold uppercase tracking-widest text-fnblue">
-                Rules
-              </p>
-              <h2 className="mt-3 text-3xl uppercase font-black tracking-tight">
-                Operating Rules for Team Dashboard
-              </h2>
-              <p className="mt-3 max-w-3xl text-base leading-relaxed text-foreground/80 font-medium">
-                These rules define how your team progresses through statement
-                lock, roster management, and one-time presentation submission.
-              </p>
-            </section>
-
-            <div className="grid gap-5 lg:grid-cols-2">
-              {DASHBOARD_RULE_GROUPS.map((group) => (
-                <section
-                  key={group.id}
-                  className="rounded-2xl border border-b-4 border-fngreen/45 bg-white p-6 shadow-lg"
-                >
-                  <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
-                    {group.label}
-                  </p>
-                  <p className="mt-3 text-sm leading-relaxed text-foreground/80 font-medium">
-                    {group.description}
-                  </p>
-                  <ul className="mt-4 space-y-2 text-sm leading-relaxed text-foreground/90 font-medium">
-                    {group.items.map((item) => (
-                      <li key={item} className="flex items-center gap-2">
-                        <span className="inline-flex size-1 shrink-0 rounded-full bg-fnblue" />
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ))}
-            </div>
-
-            <section className="rounded-2xl border border-b-4 border-fnred bg-fnred/5 p-6 shadow-lg">
-              <p className="text-xs font-extrabold uppercase tracking-widest text-fnred">
-                Irreversible Actions
-              </p>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className="rounded-full border border-fnred/40 bg-fnred/10 px-3 text-xs font-bold uppercase tracking-widest text-fnred">
-                  Problem Lock
-                </span>
-                <span className="rounded-full border border-fnred/40 bg-fnred/10 px-3 text-xs font-bold uppercase tracking-widest text-fnred">
-                  PPT Submission
-                </span>
-                <span className="rounded-full border border-fnred/40 bg-fnred/10 px-3 text-xs font-bold uppercase tracking-widest text-fnred">
-                  Team Recovery on Deletion
-                </span>
-              </div>
-            </section>
-          </section>
-        ) : null}
-
-        {activeTab === "manage" ? (
-          <section
-            id="dashboard-panel-manage"
-            role="tabpanel"
-            aria-labelledby="dashboard-tab-manage"
-            className="space-y-6"
-          >
-            {!hasLockedProblemStatement ? (
-              <section className="rounded-2xl border border-b-4 border-fnred bg-background/95 p-6 shadow-lg">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-fnred">
-                  Legacy Team Action Required
-                </p>
-                <h3 className="mt-2 text-2xl font-black uppercase tracking-tight">
-                  lock a problem statement now
-                </h3>
-                <p className="mt-2 text-sm text-foreground/75 md:text-base">
-                  This team was registered before statement locking was
-                  introduced. Choose one statement below to complete your team
-                  profile.
-                </p>
-                <p className="mt-2 text-sm font-semibold text-fnred">
-                  This is a one-time action. Once locked, the problem statement
-                  cannot be changed.
-                </p>
-
-                <div className="mt-5 grid gap-4 md:grid-cols-2">
-                  {isLoadingStatements
-                    ? ["one", "two", "three", "four"].map((item) => (
-                        <div
-                          key={`legacy-statement-skeleton-${item}`}
-                          className="h-40 animate-pulse rounded-xl border border-b-4 border-fnblue/40 bg-foreground/5"
-                        />
-                      ))
-                    : problemStatements.map((statement, index) => (
-                        <div
-                          key={statement.id}
-                          className="group relative overflow-hidden rounded-xl border border-b-4 border-fnblue/45 bg-gradient-to-br from-white via-white to-fnblue/5 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-                        >
-                          <div className="absolute -right-8 -top-8 size-24 rounded-full bg-fnyellow/15 blur-2xl pointer-events-none" />
-                          <p className="relative text-[11px] font-semibold uppercase tracking-[0.16em] text-fnblue/75">
-                            Track {index + 1}
+                        <div className="flex items-center justify-between gap-4 py-1.5 border-b border-foreground/10">
+                          <p className="text-sm font-extrabold uppercase text-foreground/80">
+                            Team ID
                           </p>
-                          <h4 className="relative mt-1 text-sm font-black uppercase tracking-[0.04em] leading-snug">
-                            {statement.title}
-                          </h4>
-                          <p className="relative mt-2 text-xs text-foreground/75 leading-relaxed">
-                            {statement.summary}
-                          </p>
-                          <div className="relative mt-4">
-                            {statement.isFull ? (
-                              <FnButton type="button" tone="gray" disabled>
-                                Full
-                              </FnButton>
-                            ) : (
-                              <FnButton
-                                type="button"
-                                onClick={() =>
-                                  requestLegacyProblemStatementLock(
-                                    statement.id,
-                                    statement.title,
-                                  )
-                                }
-                                disabled={
-                                  isAssigningStatement ||
-                                  isSaving ||
-                                  isDeleting ||
-                                  isLoading
-                                }
-                                loading={
-                                  isLockingProblemStatementId === statement.id
-                                }
-                                loadingText="Locking..."
-                              >
-                                Lock and Assign
-                              </FnButton>
-                            )}
+                          <div className="flex items-center gap-2">
+                            <p className="font-sans font-medium text-right">
+                              {teamId}
+                            </p>
+                            <button
+                              type="button"
+                              aria-label="Copy Team ID"
+                              title="Copy Team ID"
+                              className={copyTeamIdButtonClass}
+                              onClick={copyTeamId}
+                            >
+                              <Copy size={14} strokeWidth={2.5} />
+                            </button>
                           </div>
                         </div>
-                      ))}
-                </div>
-              </section>
-            ) : null}
-
-            <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
-              <section className="rounded-2xl border border-b-4 border-fnblue bg-background/95 p-6 shadow-lg md:p-8">
-                <p className="text-xs font-extrabold uppercase tracking-widest text-fnblue">
-                  Manage Team
-                </p>
-                <h2 className="mt-2 text-2xl font-black tracking-tight uppercase">
-                  Manage Team Roster
-                </h2>
-                <p className="mt-2 text-sm leading-relaxed text-foreground/80 font-medium">
-                  Add, edit, and remove member profiles. Team identity fields
-                  are locked after registration.
-                </p>
-
-                <div className="mt-6 rounded-xl border border-b-4 border-fnblue/40 bg-white p-4">
-                  <p className="text-xs font-extrabold uppercase tracking-widest text-fnblue">
-                    Locked Team Profile
-                  </p>
-                  <p className="mt-2 text-sm leading-relaxed text-foreground/80 font-medium">
-                    These fields are locked after team creation: Team Name, Lead
-                    Details
-                    {teamType === "non_srm" ? ", College + Club Profile." : "."}
-                  </p>
-                  <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
-                    <LockedProfileField
-                      label="Team Name"
-                      value={teamName || "N/A"}
-                    />
-                    <LockedProfileField
-                      label="Lead Name"
-                      value={
-                        (teamType === "srm" ? leadSrm.name : leadNonSrm.name) ||
-                        "N/A"
-                      }
-                    />
-                    <LockedProfileField
-                      label="Lead ID"
-                      value={currentLeadId || "N/A"}
-                    />
-                    {teamType === "non_srm" ? (
-                      <>
-                        <LockedProfileField
-                          label="College Name"
-                          value={metaNonSrm.collegeName || "N/A"}
-                        />
-                        <LockedProfileField
-                          label="Club Profile"
+                        <MetricRow
+                          label="Lead"
                           value={
-                            metaNonSrm.isClub
-                              ? metaNonSrm.clubName || "Club team"
-                              : "Independent Team"
+                            (teamType === "srm"
+                              ? leadSrm.name
+                              : leadNonSrm.name) || "N/A"
                           }
                         />
-                      </>
-                    ) : null}
+                        <MetricRow
+                          label="Lead ID"
+                          value={currentLeadId || "N/A"}
+                          mono
+                        />
+                        <MetricRow
+                          label="Last Updated"
+                          value={formatDateTime(updatedAt)}
+                        />
+                        {teamType === "non_srm" ? (
+                          <>
+                            <MetricRow
+                              label="College"
+                              value={metaNonSrm.collegeName || "N/A"}
+                            />
+                            <MetricRow
+                              label="Club"
+                              value={
+                                metaNonSrm.isClub
+                                  ? metaNonSrm.clubName || "Club team"
+                                  : "Independent Team"
+                              }
+                            />
+                          </>
+                        ) : null}
+                        <MetricRow
+                          label="Created"
+                          value={formatDateTime(createdAt)}
+                          noBorder
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
 
-                {teamType === "srm" ? (
-                  <SrmEditor
-                    title="Member Draft"
-                    member={draftSrm}
-                    onChange={(field, value) =>
-                      setDraftSrm(
-                        (prev) => ({ ...prev, [field]: value }) as SrmMember,
-                      )
-                    }
-                    className="mt-6 border-b-4 border-fngreen/45"
-                  />
-                ) : (
-                  <NonSrmEditor
-                    title="Member Draft"
-                    member={draftNonSrm}
-                    onChange={(field, value) =>
-                      setDraftNonSrm(
-                        (prev) => ({ ...prev, [field]: value }) as NonSrmMember,
-                      )
-                    }
-                    className="mt-6 border-b-4 border-fngreen/45"
-                  />
-                )}
+                  <div className="relative mt-6 border-t border-foreground/10 pt-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-xs font-extrabold uppercase tracking-widest text-fnorange">
+                        Members Snapshot
+                      </p>
+                      <p className="text-xs font-extrabold uppercase tracking-widest text-foreground/65">
+                        Total Members:{" "}
+                        <span className="text-fnorange">{memberCount}</span>
+                      </p>
+                    </div>
 
-                {editingIndex !== null ? (
-                  <div className="mt-4 rounded-xl border border-b-4 border-fnorange/50 bg-fnorange/10 p-4">
-                    <p className="mb-2 text-xs font-extrabold uppercase tracking-widest text-fnorange">
-                      Editing Member {editingIndex + 1}
+                    <div className="mt-3 overflow-x-auto rounded-xl border border-foreground/10 bg-white/80">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-foreground/10 bg-fnblue/5 text-left">
+                            <th className="py-2.5 px-3">Role</th>
+                            <th className="py-2.5 px-3">Name</th>
+                            <th className="py-2.5 px-3">{memberIdLabel}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b border-foreground/10 hover:bg-fnblue/5">
+                            <td className="py-2.5 px-3">
+                              <span className="inline-flex rounded-full border-2 border-fnblue bg-fnblue/20 px-2 text-xs font-extrabold uppercase text-fnblue">
+                                Lead
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 font-semibold">
+                              {(teamType === "srm"
+                                ? leadSrm.name
+                                : leadNonSrm.name) || "-"}
+                            </td>
+                            <td className="py-2.5 px-3 font-medium">
+                              {currentLeadId || "-"}
+                            </td>
+                          </tr>
+                          <AnimatePresence initial={false}>
+                            {currentMembers.map((member, idx) => (
+                              <motion.tr
+                                key={`${getCurrentMemberId(member)}-${idx}`}
+                                layout={!isReducedMotion}
+                                initial={
+                                  isReducedMotion
+                                    ? false
+                                    : { opacity: 0, y: 10, filter: "blur(2px)" }
+                                }
+                                animate={{
+                                  opacity: 1,
+                                  y: 0,
+                                  filter: "blur(0px)",
+                                }}
+                                exit={
+                                  isReducedMotion
+                                    ? undefined
+                                    : { opacity: 0, y: -8, filter: "blur(2px)" }
+                                }
+                                transition={TAB_PANEL_TRANSITION}
+                                className="border-b border-foreground/10 hover:bg-fnblue/5 last:border-b-0"
+                              >
+                                <td className="py-2.5 px-3">
+                                  <span className="inline-flex rounded-full border-2 border-fnorange bg-fnorange/20 px-2 text-xs font-extrabold uppercase text-fnorange">
+                                    M{idx + 1}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-3 font-semibold">
+                                  {member.name}
+                                </td>
+                                <td className="py-2.5 px-3 font-medium">
+                                  {getCurrentMemberId(member)}
+                                </td>
+                              </motion.tr>
+                            ))}
+                          </AnimatePresence>
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </motion.section>
+              </InView>
+            </motion.section>
+          ) : null}
+
+          {activeTab === "rules" ? (
+            <motion.section
+              key="dashboard-tab-rules"
+              initial={isReducedMotion ? false : { opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={isReducedMotion ? undefined : { opacity: 0, y: -10 }}
+              transition={TAB_PANEL_TRANSITION}
+              id="dashboard-panel-rules"
+              role="tabpanel"
+              aria-labelledby="dashboard-tab-rules"
+              className="space-y-6"
+            >
+              <InView
+                once
+                viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                transition={{ duration: 0.24, ease: "easeOut" }}
+                variants={SCROLL_FLOW_VARIANTS}
+              >
+                <section className="rounded-2xl border border-b-4 border-fnblue bg-background/95 p-6 shadow-lg md:p-8">
+                  <p className="text-xs font-extrabold uppercase tracking-widest text-fnblue">
+                    Rules
+                  </p>
+                  <h2 className="mt-3 text-3xl uppercase font-black tracking-tight">
+                    Operating Rules for Team Dashboard
+                  </h2>
+                  <p className="mt-3 max-w-3xl text-base leading-relaxed text-foreground/80 font-medium">
+                    These rules define how your team progresses through
+                    statement lock, roster management, and one-time presentation
+                    submission.
+                  </p>
+                </section>
+              </InView>
+
+              <div className="grid gap-5 lg:grid-cols-2">
+                {DASHBOARD_RULE_GROUPS.map((group, index) => (
+                  <InView
+                    key={group.id}
+                    once
+                    className="h-full"
+                    viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                    transition={{
+                      duration: 0.22,
+                      ease: "easeOut",
+                      delay: Math.min(index * 0.03, 0.15),
+                    }}
+                    variants={SCROLL_FLOW_VARIANTS}
+                  >
+                    <section className="rounded-2xl border border-b-4 border-fngreen/45 bg-white p-6 shadow-lg">
+                      <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
+                        {group.label}
+                      </p>
+                      <p className="mt-3 text-sm leading-relaxed text-foreground/80 font-medium">
+                        {group.description}
+                      </p>
+                      <ul className="mt-4 space-y-2 text-sm leading-relaxed text-foreground/90 font-medium">
+                        {group.items.map((item) => (
+                          <li key={item} className="flex items-center gap-2">
+                            <span className="inline-flex size-1 shrink-0 rounded-full bg-fnblue" />
+                            <span>{item}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  </InView>
+                ))}
+              </div>
+
+              <InView
+                once
+                viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                transition={{ duration: 0.22, ease: "easeOut", delay: 0.08 }}
+                variants={SCROLL_FLOW_VARIANTS}
+              >
+                <section className="rounded-2xl border border-b-4 border-fnred bg-fnred/5 p-6 shadow-lg">
+                  <p className="text-xs font-extrabold uppercase tracking-widest text-fnred">
+                    Irreversible Actions
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className="rounded-full border border-fnred/40 bg-fnred/10 px-3 text-xs font-bold uppercase tracking-widest text-fnred">
+                      Problem Lock
+                    </span>
+                    <span className="rounded-full border border-fnred/40 bg-fnred/10 px-3 text-xs font-bold uppercase tracking-widest text-fnred">
+                      PPT Submission
+                    </span>
+                    <span className="rounded-full border border-fnred/40 bg-fnred/10 px-3 text-xs font-bold uppercase tracking-widest text-fnred">
+                      Team Recovery on Deletion
+                    </span>
+                  </div>
+                </section>
+              </InView>
+            </motion.section>
+          ) : null}
+
+          {activeTab === "manage" ? (
+            <motion.section
+              key="dashboard-tab-manage"
+              initial={isReducedMotion ? false : { opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={isReducedMotion ? undefined : { opacity: 0, y: -10 }}
+              transition={TAB_PANEL_TRANSITION}
+              id="dashboard-panel-manage"
+              role="tabpanel"
+              aria-labelledby="dashboard-tab-manage"
+              className="space-y-6"
+            >
+              {!hasLockedProblemStatement ? (
+                <InView
+                  once
+                  viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                  transition={{ duration: 0.24, ease: "easeOut", delay: 0.02 }}
+                  variants={SCROLL_FLOW_VARIANTS}
+                >
+                  <section className="rounded-2xl border border-b-4 border-fnred bg-background/95 p-6 shadow-lg">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-fnred">
+                      Legacy Team Action Required
                     </p>
+                    <h3 className="mt-2 text-2xl font-black uppercase tracking-tight">
+                      lock a problem statement now
+                    </h3>
+                    <p className="mt-2 text-sm text-foreground/75 md:text-base">
+                      This team was registered before statement locking was
+                      introduced. Choose one statement below to complete your
+                      team profile.
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-fnred">
+                      This is a one-time action. Once locked, the problem
+                      statement cannot be changed.
+                    </p>
+
+                    <div className="mt-5 grid gap-4 md:grid-cols-2">
+                      {isLoadingStatements
+                        ? ["one", "two", "three", "four"].map((item) => (
+                            <div
+                              key={`legacy-statement-skeleton-${item}`}
+                              className="h-40 animate-pulse rounded-xl border border-b-4 border-fnblue/40 bg-foreground/5"
+                            />
+                          ))
+                        : problemStatements.map((statement, index) => (
+                            <div
+                              key={statement.id}
+                              className="group relative overflow-hidden rounded-xl border border-b-4 border-fnblue/45 bg-gradient-to-br from-white via-white to-fnblue/5 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                            >
+                              <div className="absolute -right-8 -top-8 size-24 rounded-full bg-fnyellow/15 blur-2xl pointer-events-none" />
+                              <p className="relative text-[11px] font-semibold uppercase tracking-[0.16em] text-fnblue/75">
+                                Track {index + 1}
+                              </p>
+                              <h4 className="relative mt-1 text-sm font-black uppercase tracking-[0.04em] leading-snug">
+                                {statement.title}
+                              </h4>
+                              <p className="relative mt-2 text-xs text-foreground/75 leading-relaxed">
+                                {statement.summary}
+                              </p>
+                              <div className="relative mt-4">
+                                {statement.isFull ? (
+                                  <FnButton type="button" tone="gray" disabled>
+                                    Full
+                                  </FnButton>
+                                ) : (
+                                  <FnButton
+                                    type="button"
+                                    onClick={() =>
+                                      requestLegacyProblemStatementLock(
+                                        statement.id,
+                                        statement.title,
+                                      )
+                                    }
+                                    disabled={
+                                      isAssigningStatement ||
+                                      isSaving ||
+                                      isDeleting ||
+                                      isLoading
+                                    }
+                                    loading={
+                                      isLockingProblemStatementId ===
+                                      statement.id
+                                    }
+                                    loadingText="Locking..."
+                                  >
+                                    Lock and Assign
+                                  </FnButton>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                    </div>
+                  </section>
+                </InView>
+              ) : null}
+
+              <div className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+                <InView
+                  once
+                  viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                  transition={{ duration: 0.24, ease: "easeOut", delay: 0.04 }}
+                  variants={SCROLL_FLOW_VARIANTS}
+                >
+                  <section className="rounded-2xl border border-b-4 border-fnblue bg-background/95 p-6 shadow-lg md:p-8">
+                    <p className="text-xs font-extrabold uppercase tracking-widest text-fnblue">
+                      Manage Team
+                    </p>
+                    <h2 className="mt-2 text-2xl font-black tracking-tight uppercase">
+                      Manage Team Roster
+                    </h2>
+                    <p className="mt-2 text-sm leading-relaxed text-foreground/80 font-medium">
+                      Add, edit, and remove member profiles. Team identity
+                      fields are locked after registration.
+                    </p>
+
+                    <div className="mt-6 rounded-xl border border-b-4 border-fnblue/40 bg-white p-4">
+                      <p className="text-xs font-extrabold uppercase tracking-widest text-fnblue">
+                        Locked Team Profile
+                      </p>
+                      <p className="mt-2 text-sm leading-relaxed text-foreground/80 font-medium">
+                        These fields are locked after team creation: Team Name,
+                        Lead Details
+                        {teamType === "non_srm"
+                          ? ", College + Club Profile."
+                          : "."}
+                      </p>
+                      <div className="mt-4 grid gap-3 text-sm md:grid-cols-3">
+                        <LockedProfileField
+                          label="Team Name"
+                          value={teamName || "N/A"}
+                        />
+                        <LockedProfileField
+                          label="Lead Name"
+                          value={
+                            (teamType === "srm"
+                              ? leadSrm.name
+                              : leadNonSrm.name) || "N/A"
+                          }
+                        />
+                        <LockedProfileField
+                          label="Lead ID"
+                          value={currentLeadId || "N/A"}
+                        />
+                        {teamType === "non_srm" ? (
+                          <>
+                            <LockedProfileField
+                              label="College Name"
+                              value={metaNonSrm.collegeName || "N/A"}
+                            />
+                            <LockedProfileField
+                              label="Club Profile"
+                              value={
+                                metaNonSrm.isClub
+                                  ? metaNonSrm.clubName || "Club team"
+                                  : "Independent Team"
+                              }
+                            />
+                          </>
+                        ) : null}
+                      </div>
+                    </div>
+
                     {teamType === "srm" ? (
                       <SrmEditor
-                        title="Edit Member"
-                        member={editingSrm}
+                        title="Member Draft"
+                        member={draftSrm}
                         onChange={(field, value) =>
-                          setEditingSrm(
+                          setDraftSrm(
                             (prev) =>
                               ({ ...prev, [field]: value }) as SrmMember,
                           )
                         }
-                        className="border-b-4 border-fnorange/45"
+                        className="mt-6 border-b-4 border-fngreen/45"
                       />
                     ) : (
                       <NonSrmEditor
-                        title="Edit Member"
-                        member={editingNonSrm}
+                        title="Member Draft"
+                        member={draftNonSrm}
                         onChange={(field, value) =>
-                          setEditingNonSrm(
+                          setDraftNonSrm(
                             (prev) =>
                               ({ ...prev, [field]: value }) as NonSrmMember,
                           )
                         }
-                        className="border-b-4 border-fnorange/45"
+                        className="mt-6 border-b-4 border-fngreen/45"
                       />
                     )}
-                    <div className="mt-3 flex gap-2">
-                      <FnButton
-                        type="button"
-                        onClick={saveEditMember}
-                        size="sm"
-                      >
-                        Save Member Update
-                      </FnButton>
-                      <FnButton
-                        type="button"
-                        onClick={cancelEditMember}
-                        tone="gray"
-                        size="sm"
-                      >
-                        Cancel
-                      </FnButton>
-                    </div>
-                  </div>
-                ) : null}
 
-                <div className="mt-4 flex flex-wrap gap-3">
-                  {formError ? (
-                    <p className="w-full rounded-md border border-fnred/35 bg-fnred/10 px-3 py-2 text-sm font-semibold text-fnred">
-                      {formError}
-                    </p>
-                  ) : null}
-                  <p
-                    className={`w-full text-xs font-semibold uppercase tracking-[0.16em] ${
-                      hasUnsavedMemberChanges ? "text-fnorange" : "text-fngreen"
-                    }`}
-                  >
-                    {hasUnsavedMemberChanges
-                      ? "Unsaved roster changes"
-                      : "Roster synced"}
-                  </p>
-                  <FnButton
-                    type="button"
-                    onClick={addMember}
-                    disabled={!canAddMember || isAssigningStatement}
-                    tone="green"
-                  >
-                    <PlusIcon size={16} strokeWidth={3} />
-                    Add Member
-                  </FnButton>
-                  <FnButton
-                    type="button"
-                    onClick={saveChanges}
-                    loading={isSaving}
-                    loadingText="Saving..."
-                    disabled={
-                      isSaving ||
-                      isDeleting ||
-                      isAssigningStatement ||
-                      !hasUnsavedMemberChanges
-                    }
-                    tone={hasUnsavedMemberChanges ? "blue" : "gray"}
-                  >
-                    {hasUnsavedMemberChanges
-                      ? "Save Member Changes"
-                      : "All Changes Saved"}
-                  </FnButton>
-                  <FnButton
-                    type="button"
-                    onClick={openDeleteConfirm}
-                    tone="red"
-                    disabled={isDeleting || isAssigningStatement}
-                  >
-                    <Trash2 size={16} strokeWidth={3} />
-                    Delete Team
-                  </FnButton>
-                </div>
-              </section>
-
-              <aside className="space-y-4 self-start">
-                <div className="rounded-2xl border border-b-4 border-fngreen bg-background/95 p-6 shadow-lg">
-                  <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
-                    Team Identity
-                  </p>
-                  <TeamIdentityItem
-                    label="Team"
-                    value={teamName || "N/A"}
-                    className="mt-3"
-                  />
-                  <TeamIdentityItem
-                    label="Team ID"
-                    value={teamId}
-                    className="mt-1"
-                    action={
-                      <button
-                        type="button"
-                        aria-label="Copy Team ID"
-                        title="Copy Team ID"
-                        className={copyTeamIdButtonClass}
-                        onClick={copyTeamId}
-                      >
-                        <Copy size={14} strokeWidth={2.5} />
-                      </button>
-                    }
-                  />
-                  <TeamIdentityItem
-                    label="Lead"
-                    value={
-                      (teamType === "srm" ? leadSrm.name : leadNonSrm.name) ||
-                      "N/A"
-                    }
-                  />
-                  <TeamIdentityItem label="Lead ID" value={currentLeadId || "N/A"} />
-                  {teamType === "non_srm" ? (
-                    <>
-                      <TeamIdentityItem
-                        label="College"
-                        value={metaNonSrm.collegeName || "N/A"}
-                      />
-                      <TeamIdentityItem
-                        label="Club"
-                        value={
-                          metaNonSrm.isClub
-                            ? metaNonSrm.clubName || "Club team"
-                            : "Independent Team"
-                        }
-                      />
-                    </>
-                  ) : null}
-                  {/* <p className="mt-3 text-xs text-foreground/70">
-                    Created: {formatDateTime(createdAt)}
-                  </p> */}
-                </div>
-
-                <div className="rounded-2xl border border-b-4 border-fnyellow bg-background/95 p-6 shadow-lg">
-                  <p className="text-xs font-extrabold uppercase tracking-widest text-fnyellow">
-                    Members
-                  </p>
-                  <div className="mt-3 overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="border-b border-foreground/10 text-left">
-                          <th className="py-2 pr-3">Role</th>
-                          <th className="py-2 pr-3">Name</th>
-                          <th className="py-2 pr-3">{memberIdLabel}</th>
-                          <th className="py-2 text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        <tr className="border-b border-foreground/10">
-                          <td className="py-2 pr-3 font-bold text-fnblue">
-                            Lead
-                          </td>
-                          <td className="py-2 pr-3">
-                            {(teamType === "srm"
-                              ? leadSrm.name
-                              : leadNonSrm.name) || "-"}
-                          </td>
-                          <td className="py-2 pr-3">{currentLeadId || "-"}</td>
-                          <td className="py-2 text-right text-foreground/40">
-                            -
-                          </td>
-                        </tr>
-                        {currentMembers.map((member, idx) => (
-                          <tr
-                            key={`${getCurrentMemberId(member)}-${idx}`}
-                            className="border-b border-foreground/10"
+                    {editingIndex !== null ? (
+                      <div className="mt-4 rounded-xl border border-b-4 border-fnorange/50 bg-fnorange/10 p-4">
+                        <p className="mb-2 text-xs font-extrabold uppercase tracking-widest text-fnorange">
+                          Editing Member {editingIndex + 1}
+                        </p>
+                        {teamType === "srm" ? (
+                          <SrmEditor
+                            title="Edit Member"
+                            member={editingSrm}
+                            onChange={(field, value) =>
+                              setEditingSrm(
+                                (prev) =>
+                                  ({ ...prev, [field]: value }) as SrmMember,
+                              )
+                            }
+                            className="border-b-4 border-fnorange/45"
+                          />
+                        ) : (
+                          <NonSrmEditor
+                            title="Edit Member"
+                            member={editingNonSrm}
+                            onChange={(field, value) =>
+                              setEditingNonSrm(
+                                (prev) =>
+                                  ({ ...prev, [field]: value }) as NonSrmMember,
+                              )
+                            }
+                            className="border-b-4 border-fnorange/45"
+                          />
+                        )}
+                        <div className="mt-3 flex gap-2">
+                          <FnButton
+                            type="button"
+                            onClick={saveEditMember}
+                            size="sm"
                           >
-                            <td className="py-2 pr-3">M{idx + 1}</td>
-                            <td className="py-2 pr-3">{member.name}</td>
-                            <td className="py-2 pr-3">
-                              {getCurrentMemberId(member)}
-                            </td>
-                            <td className="space-x-1 py-2 text-right">
-                              <FnButton
-                                type="button"
-                                onClick={() => beginEditMember(idx)}
-                                size="xs"
-                              >
-                                <UserRoundPen size={16} strokeWidth={3} />
-                              </FnButton>
-                              <FnButton
-                                type="button"
-                                onClick={() => removeMember(idx)}
-                                tone="red"
-                                size="xs"
-                              >
-                                <Trash2 size={16} strokeWidth={3} />
-                              </FnButton>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </aside>
-            </div>
-          </section>
-        ) : null}
+                            Save Member Update
+                          </FnButton>
+                          <FnButton
+                            type="button"
+                            onClick={cancelEditMember}
+                            tone="gray"
+                            size="sm"
+                          >
+                            Cancel
+                          </FnButton>
+                        </div>
+                      </div>
+                    ) : null}
 
-        {activeTab === "actions" ? (
-          <section
-            id="dashboard-panel-actions"
-            role="tabpanel"
-            aria-labelledby="dashboard-tab-actions"
-            className="space-y-6"
-          >
-            <section className="rounded-2xl border border-b-4 border-fnorange bg-background/95 p-6 shadow-lg">
-              <p className="text-xs font-extrabold uppercase tracking-widest text-fnorange">
-                Actions
-              </p>
-              <h2 className="mt-2 text-2xl font-black tracking-tight uppercase">
-                PPT Submission Controls
-              </h2>
-              <p className="mt-2 text-sm text-foreground/80 font-medium md:text-base">
-                Download the official template and manage one-time PPT
-                submission for your team.
-              </p>
-              <div className="mt-4">
-                <FnButton asChild tone="yellow">
-                  <a href={PRESENTATION_TEMPLATE_PATH} download>
-                    <Download size={16} strokeWidth={3} />
-                    Download PPT Template
-                  </a>
-                </FnButton>
-              </div>
-            </section>
-
-            {!hasLockedProblemStatement ? (
-              <section className="rounded-2xl border border-b-4 border-fnred bg-background/95 p-6 shadow-lg">
-                <p className="text-xs font-extrabold uppercase tracking-widest text-fnred">
-                  Submission Blocked
-                </p>
-                <h3 className="mt-2 text-2xl font-black uppercase tracking-tight">
-                  lock a problem statement first
-                </h3>
-                <p className="mt-2 text-sm text-foreground/80 font-medium md:text-base">
-                  PPT submission is enabled only after your team has an official
-                  locked problem statement.
-                </p>
-                <div className="mt-4">
-                  <FnButton type="button" onClick={() => goToTab("manage")}>
-                    Go to Manage Team
-                  </FnButton>
-                </div>
-              </section>
-            ) : (
-              <section className="rounded-2xl border border-b-4 border-fngreen bg-background/95 p-6 shadow-lg">
-                <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
-                  Presentation Submission
-                </p>
-                <h3 className="mt-2 text-2xl font-black uppercase tracking-tight">
-                  submit your PPT for review
-                </h3>
-                <p className="mt-2 text-sm text-foreground/80 font-medium md:text-base">
-                  Submit your PPT for review. An admin will approve your
-                  participation soon. You may receive approval mail on{" "}
-                  <span className="font-semibold text-foreground">
-                    {presentationLeadEmailLabel}
-                  </span>
-                  .
-                </p>
-                <p className="mt-2 text-sm font-semibold text-fnred">
-                  This can only be done once. After submission, you cannot
-                  change your PPT.
-                </p>
-
-                <input
-                  ref={presentationFileInputRef}
-                  type="file"
-                  accept=".ppt,.pptx"
-                  className="hidden"
-                  onChange={(event) =>
-                    handlePresentationFileChange(event.target.files)
-                  }
-                />
-
-                {isPresentationSubmitted ? (
-                  <div className="mt-5 rounded-xl border border-b-4 border-fngreen/45 bg-fngreen/5 p-4">
-                    <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
-                      Submitted
-                    </p>
-                    <p className="mt-2 text-sm font-semibold">
-                      File: {presentation.fileName || "N/A"}
-                    </p>
-                    <p className="text-sm">
-                      Uploaded: {formatDateTime(presentation.uploadedAt)}
-                    </p>
-                    <p className="text-sm">
-                      Size: {formatBytes(presentation.fileSizeBytes)}
-                    </p>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      <FnButton
-                        type="button"
-                        tone="blue"
-                        onClick={() => setShowPresentationPreview(true)}
-                        disabled={!presentationPreviewUrl}
-                      >
-                        Preview Uploaded PPT
-                      </FnButton>
-                      <FnButton asChild tone="gray">
-                        <a
-                          href={presentation.publicUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <ExternalLink size={16} strokeWidth={3} />
-                          Open in New Tab
-                        </a>
-                      </FnButton>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="mt-5 rounded-xl border border-b-4 border-fnorange/45 bg-fnorange/5 p-4">
-                    <p className="text-sm text-foreground/75">
-                      Accepted format: `.ppt` or `.pptx` up to 5 MB.
-                    </p>
-                    <div className="mt-4 flex flex-wrap items-center gap-3">
-                      <FnButton
-                        type="button"
-                        onClick={() =>
-                          presentationFileInputRef.current?.click()
-                        }
-                        tone="blue"
-                        disabled={!canSubmitPresentation}
-                      >
-                        Select PPT File
-                      </FnButton>
-                      {pendingPresentationFile ? (
-                        <p className="text-sm font-semibold text-foreground/80">
-                          Selected: {pendingPresentationFile.name}
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      {formError ? (
+                        <p className="w-full rounded-md border border-fnred/35 bg-fnred/10 px-3 py-2 text-sm font-semibold text-fnred">
+                          {formError}
                         </p>
                       ) : null}
+                      <p
+                        className={`w-full text-xs font-semibold uppercase tracking-[0.16em] ${
+                          hasUnsavedMemberChanges
+                            ? "text-fnorange"
+                            : "text-fngreen"
+                        }`}
+                      >
+                        {hasUnsavedMemberChanges
+                          ? "Unsaved roster changes"
+                          : "Roster synced"}
+                      </p>
+                      <FnButton
+                        type="button"
+                        onClick={addMember}
+                        disabled={!canAddMember || isAssigningStatement}
+                        tone="green"
+                      >
+                        <PlusIcon size={16} strokeWidth={3} />
+                        Add Member
+                      </FnButton>
+                      <FnButton
+                        type="button"
+                        onClick={saveChanges}
+                        loading={isSaving}
+                        loadingText="Saving..."
+                        disabled={
+                          isSaving ||
+                          isDeleting ||
+                          isAssigningStatement ||
+                          !hasUnsavedMemberChanges
+                        }
+                        tone={hasUnsavedMemberChanges ? "blue" : "gray"}
+                      >
+                        {hasUnsavedMemberChanges
+                          ? "Save Member Changes"
+                          : "All Changes Saved"}
+                      </FnButton>
+                      <FnButton
+                        type="button"
+                        onClick={openDeleteConfirm}
+                        tone="red"
+                        disabled={isDeleting || isAssigningStatement}
+                      >
+                        <Trash2 size={16} strokeWidth={3} />
+                        Delete Team
+                      </FnButton>
                     </div>
+                  </section>
+                </InView>
+
+                <aside className="space-y-4 self-start">
+                  <InView
+                    once
+                    viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                    transition={{
+                      duration: 0.22,
+                      ease: "easeOut",
+                      delay: 0.06,
+                    }}
+                    variants={SCROLL_FLOW_VARIANTS}
+                  >
+                    <div className="rounded-2xl border border-b-4 border-fngreen bg-background/95 p-6 shadow-lg">
+                      <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
+                        Team Identity
+                      </p>
+                      <TeamIdentityItem
+                        label="Team"
+                        value={teamName || "N/A"}
+                        className="mt-3"
+                      />
+                      <TeamIdentityItem
+                        label="Team ID"
+                        value={teamId}
+                        className="mt-1"
+                        action={
+                          <button
+                            type="button"
+                            aria-label="Copy Team ID"
+                            title="Copy Team ID"
+                            className={copyTeamIdButtonClass}
+                            onClick={copyTeamId}
+                          >
+                            <Copy size={14} strokeWidth={2.5} />
+                          </button>
+                        }
+                      />
+                      <TeamIdentityItem
+                        label="Lead"
+                        value={
+                          (teamType === "srm"
+                            ? leadSrm.name
+                            : leadNonSrm.name) || "N/A"
+                        }
+                      />
+                      <TeamIdentityItem
+                        label="Lead ID"
+                        value={currentLeadId || "N/A"}
+                      />
+                      {teamType === "non_srm" ? (
+                        <>
+                          <TeamIdentityItem
+                            label="College"
+                            value={metaNonSrm.collegeName || "N/A"}
+                          />
+                          <TeamIdentityItem
+                            label="Club"
+                            value={
+                              metaNonSrm.isClub
+                                ? metaNonSrm.clubName || "Club team"
+                                : "Independent Team"
+                            }
+                          />
+                        </>
+                      ) : null}
+                      {/* <p className="mt-3 text-xs text-foreground/70">
+                    Created: {formatDateTime(createdAt)}
+                  </p> */}
+                    </div>
+                  </InView>
+
+                  <InView
+                    once
+                    viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                    transition={{
+                      duration: 0.22,
+                      ease: "easeOut",
+                      delay: 0.1,
+                    }}
+                    variants={SCROLL_FLOW_VARIANTS}
+                  >
+                    <div className="rounded-2xl border border-b-4 border-fnyellow bg-background/95 p-6 shadow-lg">
+                      <p className="text-xs font-extrabold uppercase tracking-widest text-fnyellow">
+                        Members
+                      </p>
+                      <div className="mt-3 overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-foreground/10 text-left">
+                              <th className="py-2 pr-3">Role</th>
+                              <th className="py-2 pr-3">Name</th>
+                              <th className="py-2 pr-3">{memberIdLabel}</th>
+                              <th className="py-2 text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr className="border-b border-foreground/10">
+                              <td className="py-2 pr-3 font-bold text-fnblue">
+                                Lead
+                              </td>
+                              <td className="py-2 pr-3">
+                                {(teamType === "srm"
+                                  ? leadSrm.name
+                                  : leadNonSrm.name) || "-"}
+                              </td>
+                              <td className="py-2 pr-3">
+                                {currentLeadId || "-"}
+                              </td>
+                              <td className="py-2 text-right text-foreground/40">
+                                -
+                              </td>
+                            </tr>
+                            <AnimatePresence initial={false}>
+                              {currentMembers.map((member, idx) => (
+                                <motion.tr
+                                  key={`${getCurrentMemberId(member)}-${idx}`}
+                                  layout={!isReducedMotion}
+                                  initial={
+                                    isReducedMotion
+                                      ? false
+                                      : {
+                                          opacity: 0,
+                                          y: 10,
+                                          filter: "blur(2px)",
+                                        }
+                                  }
+                                  animate={{
+                                    opacity: 1,
+                                    y: 0,
+                                    filter: "blur(0px)",
+                                  }}
+                                  exit={
+                                    isReducedMotion
+                                      ? undefined
+                                      : {
+                                          opacity: 0,
+                                          y: -8,
+                                          filter: "blur(2px)",
+                                        }
+                                  }
+                                  transition={TAB_PANEL_TRANSITION}
+                                  className="border-b border-foreground/10"
+                                >
+                                  <td className="py-2 pr-3">M{idx + 1}</td>
+                                  <td className="py-2 pr-3">{member.name}</td>
+                                  <td className="py-2 pr-3">
+                                    {getCurrentMemberId(member)}
+                                  </td>
+                                  <td className="space-x-1 py-2 text-right">
+                                    <FnButton
+                                      type="button"
+                                      onClick={() => beginEditMember(idx)}
+                                      size="xs"
+                                    >
+                                      <UserRoundPen size={16} strokeWidth={3} />
+                                    </FnButton>
+                                    <FnButton
+                                      type="button"
+                                      onClick={() => removeMember(idx)}
+                                      tone="red"
+                                      size="xs"
+                                    >
+                                      <Trash2 size={16} strokeWidth={3} />
+                                    </FnButton>
+                                  </td>
+                                </motion.tr>
+                              ))}
+                            </AnimatePresence>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </InView>
+                </aside>
+              </div>
+            </motion.section>
+          ) : null}
+
+          {activeTab === "actions" ? (
+            <motion.section
+              key="dashboard-tab-actions"
+              initial={isReducedMotion ? false : { opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={isReducedMotion ? undefined : { opacity: 0, y: -10 }}
+              transition={TAB_PANEL_TRANSITION}
+              id="dashboard-panel-actions"
+              role="tabpanel"
+              aria-labelledby="dashboard-tab-actions"
+              className="space-y-6"
+            >
+              <InView
+                once
+                viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                transition={{ duration: 0.24, ease: "easeOut" }}
+                variants={SCROLL_FLOW_VARIANTS}
+              >
+                <section className="rounded-2xl border border-b-4 border-fnorange bg-background/95 p-6 shadow-lg">
+                  <p className="text-xs font-extrabold uppercase tracking-widest text-fnorange">
+                    Actions
+                  </p>
+                  <h2 className="mt-2 text-2xl font-black tracking-tight uppercase">
+                    PPT Submission Controls
+                  </h2>
+                  <p className="mt-2 text-sm text-foreground/80 font-medium md:text-base">
+                    Download the official template and manage one-time PPT
+                    submission for your team.
+                  </p>
+                  <div className="mt-4">
+                    <FnButton asChild tone="yellow">
+                      <a href={PRESENTATION_TEMPLATE_PATH} download>
+                        <Download size={16} strokeWidth={3} />
+                        Download PPT Template
+                      </a>
+                    </FnButton>
                   </div>
-                )}
-              </section>
-            )}
-          </section>
-        ) : null}
+                </section>
+              </InView>
+
+              {!hasLockedProblemStatement ? (
+                <InView
+                  once
+                  viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                  transition={{
+                    duration: 0.22,
+                    ease: "easeOut",
+                    delay: 0.06,
+                  }}
+                  variants={SCROLL_FLOW_VARIANTS}
+                >
+                  <section className="rounded-2xl border border-b-4 border-fnred bg-background/95 p-6 shadow-lg">
+                    <p className="text-xs font-extrabold uppercase tracking-widest text-fnred">
+                      Submission Blocked
+                    </p>
+                    <h3 className="mt-2 text-2xl font-black uppercase tracking-tight">
+                      lock a problem statement first
+                    </h3>
+                    <p className="mt-2 text-sm text-foreground/80 font-medium md:text-base">
+                      PPT submission is enabled only after your team has an
+                      official locked problem statement.
+                    </p>
+                    <div className="mt-4">
+                      <FnButton type="button" onClick={() => goToTab("manage")}>
+                        Go to Manage Team
+                      </FnButton>
+                    </div>
+                  </section>
+                </InView>
+              ) : (
+                <InView
+                  once
+                  viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                  transition={{
+                    duration: 0.22,
+                    ease: "easeOut",
+                    delay: 0.06,
+                  }}
+                  variants={SCROLL_FLOW_VARIANTS}
+                >
+                  <section className="rounded-2xl border border-b-4 border-fngreen bg-background/95 p-6 shadow-lg">
+                    <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
+                      Presentation Submission
+                    </p>
+                    <h3 className="mt-2 text-2xl font-black uppercase tracking-tight">
+                      submit your PPT for review
+                    </h3>
+                    <p className="mt-2 text-sm text-foreground/80 font-medium md:text-base">
+                      Submit your PPT for review. An admin will approve your
+                      participation soon. You may receive approval mail on{" "}
+                      <span className="font-semibold text-foreground">
+                        {presentationLeadEmailLabel}
+                      </span>
+                      .
+                    </p>
+                    <p className="mt-2 text-sm font-semibold text-fnred">
+                      This can only be done once. After submission, you cannot
+                      change your PPT.
+                    </p>
+
+                    <input
+                      ref={presentationFileInputRef}
+                      type="file"
+                      accept=".ppt,.pptx"
+                      className="hidden"
+                      onChange={(event) =>
+                        handlePresentationFileChange(event.target.files)
+                      }
+                    />
+
+                    {isPresentationSubmitted ? (
+                      <div className="mt-5 rounded-xl border border-b-4 border-fngreen/45 bg-fngreen/5 p-4">
+                        <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
+                          Submitted
+                        </p>
+                        <p className="mt-2 text-sm font-semibold">
+                          File: {presentation.fileName || "N/A"}
+                        </p>
+                        <p className="text-sm">
+                          Uploaded: {formatDateTime(presentation.uploadedAt)}
+                        </p>
+                        <p className="text-sm">
+                          Size: {formatBytes(presentation.fileSizeBytes)}
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <FnButton
+                            type="button"
+                            tone="blue"
+                            onClick={() => setShowPresentationPreview(true)}
+                            disabled={!presentationPreviewUrl}
+                          >
+                            Preview Uploaded PPT
+                          </FnButton>
+                          <FnButton asChild tone="gray">
+                            <a
+                              href={presentation.publicUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                            >
+                              <ExternalLink size={16} strokeWidth={3} />
+                              Open in New Tab
+                            </a>
+                          </FnButton>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-5 rounded-xl border border-b-4 border-fnorange/45 bg-fnorange/5 p-4">
+                        <p className="text-sm text-foreground/75">
+                          Accepted format: `.ppt` or `.pptx` up to 5 MB.
+                        </p>
+                        <div className="mt-4 flex flex-wrap items-center gap-3">
+                          <FnButton
+                            type="button"
+                            onClick={() =>
+                              presentationFileInputRef.current?.click()
+                            }
+                            tone="blue"
+                            disabled={!canSubmitPresentation}
+                          >
+                            Select PPT File
+                          </FnButton>
+                          {pendingPresentationFile ? (
+                            <p className="text-sm font-semibold text-foreground/80">
+                              Selected: {pendingPresentationFile.name}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                    )}
+                  </section>
+                </InView>
+              )}
+            </motion.section>
+          ) : null}
+        </AnimatePresence>
       </div>
 
       {showTeamTicketModal && shouldShowAcceptedQr ? (
@@ -3306,37 +3547,6 @@ type InputProps = {
   pattern?: string;
 };
 
-type AccentTone = "blue" | "green" | "yellow" | "orange" | "red";
-
-const ACCENT_TONE_CLASS: Record<AccentTone, string> = {
-  blue: "border-fnblue bg-fnblue/10 text-fnblue",
-  green: "border-fngreen bg-fngreen/10 text-fngreen",
-  orange: "border-fnorange bg-fnorange/10 text-fnorange",
-  red: "border-fnred bg-fnred/10 text-fnred",
-  yellow: "border-fnyellow bg-fnyellow/20 text-fnyellow",
-};
-
-const HighlightTile = ({
-  label,
-  value,
-  tone,
-}: {
-  label: string;
-  value: string;
-  tone: AccentTone;
-}) => (
-  <div className="rounded-lg border border-foreground/12 bg-background/85 p-3 shadow-sm">
-    <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-foreground/70">
-      {label}
-    </p>
-    <p
-      className={`mt-2 inline-flex rounded-full border px-2 py-1 text-xs font-black uppercase tracking-[0.12em] ${ACCENT_TONE_CLASS[tone]}`}
-    >
-      {value}
-    </p>
-  </div>
-);
-
 const LockedProfileField = ({
   label,
   value,
@@ -3345,9 +3555,7 @@ const LockedProfileField = ({
   value: string;
 }) => (
   <div className="rounded-md border border-foreground/12 bg-foreground/2 px-3 py-2">
-    <p className="text-xs font-extrabold text-fnblue">
-      {label}
-    </p>
+    <p className="text-xs font-extrabold text-fnblue">{label}</p>
     <p className="mt-1 font-semibold">{value}</p>
   </div>
 );
@@ -3395,13 +3603,7 @@ const MetricRow = ({
     <p className="text-sm font-extrabold uppercase text-foreground/80">
       {label}
     </p>
-    <p
-      className={`text-right ${
-        mono
-          ? "font-mono"
-          : "text-sm font-medium"
-      }`}
-    >
+    <p className={`text-right ${mono ? "font-mono" : "text-sm font-medium"}`}>
       {value}
     </p>
   </div>

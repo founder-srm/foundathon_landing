@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowLeft, PlusIcon, Trash2 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useRouter } from "next/navigation";
 import {
   type ReactNode,
@@ -11,6 +12,8 @@ import {
   useState,
 } from "react";
 import { FnButton } from "@/components/ui/fn-button";
+import { InView } from "@/components/ui/in-view";
+import { useMotionPreferences } from "@/components/ui/motion-preferences";
 import { useRouteProgress } from "@/components/ui/route-progress";
 import { toast } from "@/hooks/use-toast";
 import {
@@ -86,6 +89,22 @@ const STEP1_ERROR_FOCUS_ORDER = [
   "clubName",
 ] as const;
 const STEP1_LEAD_PATH_PREFIX = "lead.";
+const PANEL_TRANSITION = {
+  duration: 0.22,
+  ease: [0.2, 0, 0, 1],
+} as const;
+const STEP_PANEL_VARIANTS = {
+  hidden: { opacity: 0, y: 18, filter: "blur(3px)" },
+  visible: { opacity: 1, y: 0, filter: "blur(0px)" },
+  exit: { opacity: 0, y: -10, filter: "blur(2px)" },
+} as const;
+const SCROLL_FLOW_VARIANTS = {
+  hidden: { opacity: 0, y: 22, filter: "blur(4px)" },
+  visible: { opacity: 1, y: 0, filter: "blur(0px)" },
+} as const;
+const SCROLL_FLOW_VIEW_OPTIONS = {
+  margin: "0px 0px -14% 0px",
+} as const;
 
 const emptySrmMember = (): SrmMember => ({
   name: "",
@@ -266,7 +285,9 @@ const getStep1TargetIdByPath = (path: string | null, teamType: TeamType) => {
 
 const RegisterClient = () => {
   const router = useRouter();
+  const { resolved } = useMotionPreferences();
   const { start: startRouteProgress } = useRouteProgress();
+  const isReducedMotion = resolved === "reduced";
 
   const [step, setStep] = useState<1 | 2>(1);
   const [teamType, setTeamType] = useState<TeamType>("srm");
@@ -1031,528 +1052,659 @@ const RegisterClient = () => {
       />
       <div className="fncontainer relative py-10 md:py-14">
         <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
-          <section className="rounded-2xl border bg-background/95 p-6 md:p-8 shadow-lg border-b-4 border-fnblue backdrop-blur-sm">
-            <div className="space-y-4">
-              <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight">
-                onboarding wizard
-              </h1>
-              <p className="text-foreground/70">
-                Enter team details, lock one problem statement, and create your
-                team.
-              </p>
-              <div className="grid gap-2 md:grid-cols-3">
-                {[
-                  {
-                    label: "1. Team Details",
-                    tone:
-                      step === 1
-                        ? "border-fnblue bg-fnblue text-white"
-                        : "border-fnblue/40 bg-fnblue/10",
-                  },
-                  {
-                    label: "2. Lock Statement",
-                    tone:
-                      step === 2
-                        ? "border-fngreen bg-fngreen text-white"
-                        : "border-fngreen/40 bg-fngreen/10",
-                  },
-                  {
-                    label: "3. Create Team",
-                    tone: lockedProblemStatement
-                      ? "border-fnyellow bg-fnyellow/30"
-                      : "border-fnyellow/45 bg-fnyellow/20",
-                  },
-                ].map((progressStep) => (
-                  <p
-                    key={progressStep.label}
-                    className={`rounded-md border px-2 py-2 text-[10px] uppercase tracking-[0.16em] font-bold ${progressStep.tone}`}
-                  >
-                    {progressStep.label}
-                  </p>
-                ))}
-              </div>
-            </div>
-
-            {step === 1 ? (
-              <>
-                <div className="mt-6 rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 shadow-sm">
-                  <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] mb-3 text-fnblue">
-                    Team Type
-                  </p>
-                  <label className="block">
-                    <p className="text-[11px] uppercase tracking-[0.2em] text-foreground/70 font-semibold mb-2">
-                      Select Team Category
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setTeamType("srm")}
-                        className={`flex-1 rounded-lg border-2 px-4 py-2.5 text-sm font-bold uppercase tracking-[0.08em] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-fnblue/50 ${
-                          teamType === "srm"
-                            ? "border-fnblue bg-fnblue text-white"
-                            : "border-fnblue/35 bg-white text-foreground hover:bg-fnblue/10"
-                        }`}
-                      >
-                        SRM
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setTeamType("non_srm")}
-                        className={`flex-1 rounded-lg border-2 px-4 py-2.5 text-sm font-bold uppercase tracking-[0.08em] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-fnblue/50 ${
-                          teamType === "non_srm"
-                            ? "border-fnblue bg-fnblue text-white"
-                            : "border-fnblue/35 bg-white text-foreground hover:bg-fnblue/10"
-                        }`}
-                      >
-                        Non-SRM
-                      </button>
-                    </div>
-                  </label>
-                </div>
-
-                <div className="mt-6 rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 md:p-5 shadow-sm">
-                  <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] mb-3 text-fnblue">
-                    Team Identity
-                  </p>
-                  <Input
-                    label="Team Name"
-                    id={STEP1_INPUT_IDS.teamName}
-                    value={teamName}
-                    onChange={setTeamName}
-                    error={
-                      hasAttemptedStep1Submit
-                        ? step1ErrorsByPath.teamName
-                        : undefined
-                    }
-                  />
-                </div>
-
-                {teamType === "non_srm" && (
-                  <div className="mt-6 rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 md:p-5 shadow-sm">
-                    <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] mb-3 text-fnblue">
-                      Non-SRM Team Info
-                    </p>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <Input
-                        label="College Name"
-                        id={STEP1_INPUT_IDS.collegeName}
-                        value={nonSrmMeta.collegeName}
-                        onChange={(value) =>
-                          setNonSrmMeta((prev) => ({
-                            ...prev,
-                            collegeName: value,
-                          }))
-                        }
-                        error={
-                          hasAttemptedStep1Submit
-                            ? step1ErrorsByPath.collegeName
-                            : undefined
-                        }
-                      />
-                    </div>
-                    <label className="mt-3 inline-flex items-center gap-2 text-sm font-semibold">
-                      <input
-                        type="checkbox"
-                        checked={nonSrmMeta.isClub}
-                        onChange={(event) =>
-                          setNonSrmMeta((prev) => ({
-                            ...prev,
-                            isClub: event.target.checked,
-                            clubName: event.target.checked ? prev.clubName : "",
-                          }))
-                        }
-                      />
-                      Team represents a club
-                    </label>
-                    <div className="mt-3">
-                      <Input
-                        label="Club Name (or empty)"
-                        id={STEP1_INPUT_IDS.clubName}
-                        value={nonSrmMeta.clubName}
-                        onChange={(value) =>
-                          setNonSrmMeta((prev) => ({
-                            ...prev,
-                            clubName: value,
-                          }))
-                        }
-                        error={
-                          hasAttemptedStep1Submit
-                            ? step1ErrorsByPath.clubName
-                            : undefined
-                        }
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {teamType === "srm" ? (
-                  <>
-                    <SrmMemberEditor
-                      title="Team Lead"
-                      member={leadSrm}
-                      onChange={updateSrmLead}
-                      className="mt-6"
-                      errors={
-                        hasAttemptedStep1Submit ? step1LeadSrmErrors : undefined
-                      }
-                      inputIds={{
-                        contact: STEP1_INPUT_IDS.leadSrmContact,
-                        dept: STEP1_INPUT_IDS.leadSrmDept,
-                        name: STEP1_INPUT_IDS.leadSrmName,
-                        netId: STEP1_INPUT_IDS.leadSrmNetId,
-                        raNumber: STEP1_INPUT_IDS.leadSrmRaNumber,
-                      }}
-                    />
-                    <MemberDraftCard
-                      addButtonId={STEP1_ADD_MEMBER_BUTTON_ID}
-                      canAddMember={canAddMember}
-                      onAdd={addMember}
-                      count={membersSrm.length + 2}
-                    >
-                      <SrmMemberEditor
-                        title={`Member Draft (${membersSrm.length + 2})`}
-                        member={memberDraftSrm}
-                        onChange={updateSrmDraft}
-                      />
-                    </MemberDraftCard>
-                  </>
-                ) : (
-                  <>
-                    <NonSrmMemberEditor
-                      title="Team Lead"
-                      member={leadNonSrm}
-                      onChange={updateNonSrmLead}
-                      className="mt-6"
-                      errors={
-                        hasAttemptedStep1Submit
-                          ? step1LeadNonSrmErrors
-                          : undefined
-                      }
-                      inputIds={{
-                        collegeEmail: STEP1_INPUT_IDS.leadNonSrmCollegeEmail,
-                        collegeId: STEP1_INPUT_IDS.leadNonSrmCollegeId,
-                        contact: STEP1_INPUT_IDS.leadNonSrmContact,
-                        name: STEP1_INPUT_IDS.leadNonSrmName,
-                      }}
-                    />
-                    <MemberDraftCard
-                      addButtonId={STEP1_ADD_MEMBER_BUTTON_ID}
-                      canAddMember={canAddMember}
-                      onAdd={addMember}
-                      count={membersNonSrm.length + 2}
-                    >
-                      <NonSrmMemberEditor
-                        title={`Member Draft (${membersNonSrm.length + 2})`}
-                        member={memberDraftNonSrm}
-                        onChange={updateNonSrmDraft}
-                      />
-                    </MemberDraftCard>
-                  </>
-                )}
-
-                <p className="mt-4 text-xs uppercase tracking-[0.18em] font-semibold text-foreground/70">
-                  Team size required: 3 to 5 (including lead)
+          <InView
+            once
+            viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+            transition={{ duration: 0.26, ease: "easeOut" }}
+            variants={SCROLL_FLOW_VARIANTS}
+          >
+            <section className="rounded-2xl border bg-background/95 p-6 md:p-8 shadow-lg border-b-4 border-fnblue backdrop-blur-sm">
+              <div className="space-y-4">
+                <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight">
+                  onboarding wizard
+                </h1>
+                <p className="text-foreground/70">
+                  Enter team details, lock one problem statement, and create
+                  your team.
                 </p>
-                {hasAttemptedStep1Submit && step1MembersError ? (
-                  <p className="mt-2 rounded-md border border-fnred/35 bg-fnred/10 px-3 py-2 text-sm font-semibold text-fnred">
-                    {step1MembersError}
-                  </p>
-                ) : null}
-                {hasAttemptedStep1Submit && step1SummaryErrors.length > 0 ? (
-                  <div
-                    id={STEP1_ERROR_SUMMARY_ID}
-                    className="mt-3 rounded-lg border border-fnorange/35 bg-fnorange/10 px-4 py-3"
-                    tabIndex={-1}
-                  >
-                    <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-fnorange">
-                      Fix These To Continue
+                <div className="grid gap-2 md:grid-cols-3">
+                  {[
+                    {
+                      label: "1. Team Details",
+                      tone:
+                        step === 1
+                          ? "border-fnblue bg-fnblue text-white"
+                          : "border-fnblue/40 bg-fnblue/10",
+                    },
+                    {
+                      label: "2. Lock Statement",
+                      tone:
+                        step === 2
+                          ? "border-fngreen bg-fngreen text-white"
+                          : "border-fngreen/40 bg-fngreen/10",
+                    },
+                    {
+                      label: "3. Create Team",
+                      tone: lockedProblemStatement
+                        ? "border-fnyellow bg-fnyellow/30"
+                        : "border-fnyellow/45 bg-fnyellow/20",
+                    },
+                  ].map((progressStep) => (
+                    <p
+                      key={progressStep.label}
+                      className={`rounded-md border px-2 py-2 text-[10px] uppercase tracking-[0.16em] font-bold ${progressStep.tone}`}
+                    >
+                      {progressStep.label}
                     </p>
-                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-foreground/85">
-                      {step1SummaryErrors.map((error) => (
-                        <li key={error}>{error}</li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-                {formValidationError && !hasAttemptedStep1Submit ? (
-                  <p className="mt-2 rounded-md border border-fnred/35 bg-fnred/10 px-3 py-2 text-sm font-semibold text-fnred">
-                    {formValidationError}
-                  </p>
-                ) : null}
-
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <FnButton
-                    type="button"
-                    onClick={() => setShowClearConfirm(true)}
-                    tone="gray"
-                    disabled={isCreatingTeam || isRedirecting}
-                  >
-                    Clear
-                  </FnButton>
-                  <FnButton
-                    type="button"
-                    onClick={goToProblemStatementsStep}
-                    disabled={isCreatingTeam || isRedirecting}
-                  >
-                    Next
-                  </FnButton>
+                  ))}
                 </div>
-              </>
-            ) : (
-              <>
-                <div className="mt-6 rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 md:p-5 shadow-sm">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] text-fnblue">
-                      Lock Problem Statement
-                    </p>
-                    <p className="text-xs uppercase tracking-[0.16em] text-foreground/70 font-semibold">
-                      Single lock per onboarding draft
-                    </p>
-                  </div>
-                  <p className="mt-2 text-sm text-foreground/70">
-                    Lock one statement to continue. This can only be done once,
-                    and the statement cannot be changed after lock.
-                  </p>
-                </div>
+              </div>
 
-                {lockedProblemStatement && (
-                  <div className="mt-4 rounded-xl border border-fngreen/35 bg-fngreen/12 p-4">
-                    <p className="text-xs uppercase tracking-[0.18em] text-fngreen font-semibold">
-                      Locked Statement
-                    </p>
-                    <p className="mt-1 font-bold">
-                      {lockedProblemStatement.title}
-                    </p>
-                    <p className="text-xs text-foreground/70 mt-1">
-                      Lock expires in {lockCountdownLabel}
-                    </p>
-                    <p className="text-xs text-foreground/60 mt-1">
-                      Expires at{" "}
-                      {new Date(
-                        lockedProblemStatement.lockExpiresAt,
-                      ).toLocaleString()}
-                    </p>
-                  </div>
-                )}
-
-                <div className="mt-6 grid gap-4 md:grid-cols-2">
-                  {isLoadingStatements &&
-                    ["one", "two", "three", "four"].map((skeletonKey) => (
-                      <div
-                        key={`statement-skeleton-${skeletonKey}`}
-                        className="h-40 animate-pulse rounded-xl border border-foreground/15 bg-foreground/5"
-                      />
-                    ))}
-
-                  {!isLoadingStatements &&
-                    problemStatements.map((statement, index) => {
-                      const isLockedCard =
-                        lockedProblemStatement?.id === statement.id;
-                      const lockDisabled =
-                        Boolean(lockedProblemStatement) ||
-                        statement.isFull ||
-                        Boolean(isLockingProblemStatementId) ||
-                        isCreatingTeam ||
-                        isRedirecting;
-
-                      return (
-                        <div
-                          key={statement.id}
-                          className="group relative overflow-hidden rounded-xl border border-foreground/12 bg-linear-to-br from-white via-white to-fnblue/5 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
-                        >
-                          <div className="absolute -right-8 -top-8 size-24 rounded-full bg-fnyellow/15 blur-2xl pointer-events-none" />
-                          <p className="relative text-[11px] font-semibold uppercase tracking-[0.16em] text-fnblue/75">
-                            Track {index + 1}
-                          </p>
-                          <h3 className="relative mt-1 text-[15px] font-black uppercase tracking-[0.04em] leading-snug">
-                            {statement.title}
-                          </h3>
-                          <p className="relative mt-2 text-sm text-foreground/75 leading-relaxed">
-                            {statement.summary}
-                          </p>
-
-                          <div className="relative mt-4">
-                            {isLockedCard ? (
-                              <FnButton type="button" tone="green" disabled>
-                                Locked
-                              </FnButton>
-                            ) : statement.isFull ? (
-                              <FnButton type="button" tone="gray" disabled>
-                                Full
-                              </FnButton>
-                            ) : (
-                              <FnButton
-                                type="button"
-                                onClick={() =>
-                                  requestProblemStatementLock(
-                                    statement.id,
-                                    statement.title,
-                                  )
-                                }
-                                disabled={lockDisabled}
-                                loading={
-                                  isLockingProblemStatementId === statement.id
-                                }
-                                loadingText="Locking..."
-                              >
-                                Lock Problem Statement
-                              </FnButton>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-
-                {!isLoadingStatements && problemStatements.length === 0 && (
-                  <p className="mt-6 text-sm text-foreground/70">
-                    Problem statements are unavailable right now. Please retry.
-                  </p>
-                )}
-
-                <div className="mt-6 flex flex-wrap gap-3">
-                  <FnButton
-                    type="button"
-                    onClick={() => setStep(1)}
-                    tone="gray"
-                    disabled={isCreatingTeam || isRedirecting}
-                  >
-                    <ArrowLeft size={16} strokeWidth={3} />
-                    Back
-                  </FnButton>
-                  <FnButton
-                    type="button"
-                    onClick={createTeam}
-                    disabled={!canCreateTeam || isCreatingTeam || isRedirecting}
-                    loading={isCreatingTeam || isRedirecting}
-                    loadingText={
-                      isRedirecting ? "Redirecting..." : "Creating Team..."
+              <AnimatePresence mode="wait" initial={false}>
+                {step === 1 ? (
+                  <motion.div
+                    key="register-step-1"
+                    initial={
+                      isReducedMotion ? false : STEP_PANEL_VARIANTS.hidden
                     }
+                    animate={STEP_PANEL_VARIANTS.visible}
+                    exit={
+                      isReducedMotion ? undefined : STEP_PANEL_VARIANTS.exit
+                    }
+                    transition={PANEL_TRANSITION}
                   >
-                    Create Team
-                  </FnButton>
-                </div>
-              </>
-            )}
-          </section>
+                    <div className="mt-6 rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 shadow-sm">
+                      <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] mb-3 text-fnblue">
+                        Team Type
+                      </p>
+                      <label className="block">
+                        <p className="text-[11px] uppercase tracking-[0.2em] text-foreground/70 font-semibold mb-2">
+                          Select Team Category
+                        </p>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setTeamType("srm")}
+                            className={`flex-1 rounded-lg border-2 px-4 py-2.5 text-sm font-bold uppercase tracking-[0.08em] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-fnblue/50 ${
+                              teamType === "srm"
+                                ? "border-fnblue bg-fnblue text-white"
+                                : "border-fnblue/35 bg-white text-foreground hover:bg-fnblue/10"
+                            }`}
+                          >
+                            SRM
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTeamType("non_srm")}
+                            className={`flex-1 rounded-lg border-2 px-4 py-2.5 text-sm font-bold uppercase tracking-[0.08em] transition-all shadow-sm focus:outline-none focus:ring-2 focus:ring-fnblue/50 ${
+                              teamType === "non_srm"
+                                ? "border-fnblue bg-fnblue text-white"
+                                : "border-fnblue/35 bg-white text-foreground hover:bg-fnblue/10"
+                            }`}
+                          >
+                            Non-SRM
+                          </button>
+                        </div>
+                      </label>
+                    </div>
+
+                    <div className="mt-6 rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 md:p-5 shadow-sm">
+                      <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] mb-3 text-fnblue">
+                        Team Identity
+                      </p>
+                      <Input
+                        label="Team Name"
+                        id={STEP1_INPUT_IDS.teamName}
+                        value={teamName}
+                        onChange={setTeamName}
+                        error={
+                          hasAttemptedStep1Submit
+                            ? step1ErrorsByPath.teamName
+                            : undefined
+                        }
+                      />
+                    </div>
+
+                    {teamType === "non_srm" && (
+                      <div className="mt-6 rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 md:p-5 shadow-sm">
+                        <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] mb-3 text-fnblue">
+                          Non-SRM Team Info
+                        </p>
+                        <div className="grid gap-3 md:grid-cols-2">
+                          <Input
+                            label="College Name"
+                            id={STEP1_INPUT_IDS.collegeName}
+                            value={nonSrmMeta.collegeName}
+                            onChange={(value) =>
+                              setNonSrmMeta((prev) => ({
+                                ...prev,
+                                collegeName: value,
+                              }))
+                            }
+                            error={
+                              hasAttemptedStep1Submit
+                                ? step1ErrorsByPath.collegeName
+                                : undefined
+                            }
+                          />
+                        </div>
+                        <label className="mt-3 inline-flex items-center gap-2 text-sm font-semibold">
+                          <input
+                            type="checkbox"
+                            checked={nonSrmMeta.isClub}
+                            onChange={(event) =>
+                              setNonSrmMeta((prev) => ({
+                                ...prev,
+                                isClub: event.target.checked,
+                                clubName: event.target.checked
+                                  ? prev.clubName
+                                  : "",
+                              }))
+                            }
+                          />
+                          Team represents a club
+                        </label>
+                        <div className="mt-3">
+                          <Input
+                            label="Club Name (or empty)"
+                            id={STEP1_INPUT_IDS.clubName}
+                            value={nonSrmMeta.clubName}
+                            onChange={(value) =>
+                              setNonSrmMeta((prev) => ({
+                                ...prev,
+                                clubName: value,
+                              }))
+                            }
+                            error={
+                              hasAttemptedStep1Submit
+                                ? step1ErrorsByPath.clubName
+                                : undefined
+                            }
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {teamType === "srm" ? (
+                      <>
+                        <SrmMemberEditor
+                          title="Team Lead"
+                          member={leadSrm}
+                          onChange={updateSrmLead}
+                          className="mt-6"
+                          errors={
+                            hasAttemptedStep1Submit
+                              ? step1LeadSrmErrors
+                              : undefined
+                          }
+                          inputIds={{
+                            contact: STEP1_INPUT_IDS.leadSrmContact,
+                            dept: STEP1_INPUT_IDS.leadSrmDept,
+                            name: STEP1_INPUT_IDS.leadSrmName,
+                            netId: STEP1_INPUT_IDS.leadSrmNetId,
+                            raNumber: STEP1_INPUT_IDS.leadSrmRaNumber,
+                          }}
+                        />
+                        <MemberDraftCard
+                          addButtonId={STEP1_ADD_MEMBER_BUTTON_ID}
+                          canAddMember={canAddMember}
+                          onAdd={addMember}
+                          count={membersSrm.length + 2}
+                        >
+                          <SrmMemberEditor
+                            title={`Member Draft (${membersSrm.length + 2})`}
+                            member={memberDraftSrm}
+                            onChange={updateSrmDraft}
+                          />
+                        </MemberDraftCard>
+                      </>
+                    ) : (
+                      <>
+                        <NonSrmMemberEditor
+                          title="Team Lead"
+                          member={leadNonSrm}
+                          onChange={updateNonSrmLead}
+                          className="mt-6"
+                          errors={
+                            hasAttemptedStep1Submit
+                              ? step1LeadNonSrmErrors
+                              : undefined
+                          }
+                          inputIds={{
+                            collegeEmail:
+                              STEP1_INPUT_IDS.leadNonSrmCollegeEmail,
+                            collegeId: STEP1_INPUT_IDS.leadNonSrmCollegeId,
+                            contact: STEP1_INPUT_IDS.leadNonSrmContact,
+                            name: STEP1_INPUT_IDS.leadNonSrmName,
+                          }}
+                        />
+                        <MemberDraftCard
+                          addButtonId={STEP1_ADD_MEMBER_BUTTON_ID}
+                          canAddMember={canAddMember}
+                          onAdd={addMember}
+                          count={membersNonSrm.length + 2}
+                        >
+                          <NonSrmMemberEditor
+                            title={`Member Draft (${membersNonSrm.length + 2})`}
+                            member={memberDraftNonSrm}
+                            onChange={updateNonSrmDraft}
+                          />
+                        </MemberDraftCard>
+                      </>
+                    )}
+
+                    <p className="mt-4 text-xs uppercase tracking-[0.18em] font-semibold text-foreground/70">
+                      Team size required: 3 to 5 (including lead)
+                    </p>
+                    <AnimatePresence initial={false}>
+                      {hasAttemptedStep1Submit && step1MembersError ? (
+                        <motion.p
+                          initial={
+                            isReducedMotion ? false : { opacity: 0, y: 8 }
+                          }
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={
+                            isReducedMotion ? undefined : { opacity: 0, y: -6 }
+                          }
+                          transition={PANEL_TRANSITION}
+                          className="mt-2 rounded-md border border-fnred/35 bg-fnred/10 px-3 py-2 text-sm font-semibold text-fnred"
+                        >
+                          {step1MembersError}
+                        </motion.p>
+                      ) : null}
+                    </AnimatePresence>
+                    <AnimatePresence initial={false}>
+                      {hasAttemptedStep1Submit &&
+                      step1SummaryErrors.length > 0 ? (
+                        <motion.div
+                          id={STEP1_ERROR_SUMMARY_ID}
+                          className="mt-3 rounded-lg border border-fnorange/35 bg-fnorange/10 px-4 py-3"
+                          tabIndex={-1}
+                          initial={
+                            isReducedMotion ? false : { opacity: 0, y: 8 }
+                          }
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={
+                            isReducedMotion ? undefined : { opacity: 0, y: -6 }
+                          }
+                          transition={PANEL_TRANSITION}
+                        >
+                          <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-fnorange">
+                            Fix These To Continue
+                          </p>
+                          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-foreground/85">
+                            {step1SummaryErrors.map((error) => (
+                              <li key={error}>{error}</li>
+                            ))}
+                          </ul>
+                        </motion.div>
+                      ) : null}
+                    </AnimatePresence>
+                    <AnimatePresence initial={false}>
+                      {formValidationError && !hasAttemptedStep1Submit ? (
+                        <motion.p
+                          initial={
+                            isReducedMotion ? false : { opacity: 0, y: 8 }
+                          }
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={
+                            isReducedMotion ? undefined : { opacity: 0, y: -6 }
+                          }
+                          transition={PANEL_TRANSITION}
+                          className="mt-2 rounded-md border border-fnred/35 bg-fnred/10 px-3 py-2 text-sm font-semibold text-fnred"
+                        >
+                          {formValidationError}
+                        </motion.p>
+                      ) : null}
+                    </AnimatePresence>
+
+                    <div className="mt-6 flex flex-wrap gap-3">
+                      <FnButton
+                        type="button"
+                        onClick={() => setShowClearConfirm(true)}
+                        tone="gray"
+                        disabled={isCreatingTeam || isRedirecting}
+                      >
+                        Clear
+                      </FnButton>
+                      <FnButton
+                        type="button"
+                        onClick={goToProblemStatementsStep}
+                        disabled={isCreatingTeam || isRedirecting}
+                      >
+                        Next
+                      </FnButton>
+                    </div>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="register-step-2"
+                    initial={
+                      isReducedMotion ? false : STEP_PANEL_VARIANTS.hidden
+                    }
+                    animate={STEP_PANEL_VARIANTS.visible}
+                    exit={
+                      isReducedMotion ? undefined : STEP_PANEL_VARIANTS.exit
+                    }
+                    transition={PANEL_TRANSITION}
+                  >
+                    <div className="mt-6 rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 md:p-5 shadow-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] text-fnblue">
+                          Lock Problem Statement
+                        </p>
+                        <p className="text-xs uppercase tracking-[0.16em] text-foreground/70 font-semibold">
+                          Single lock per onboarding draft
+                        </p>
+                      </div>
+                      <p className="mt-2 text-sm text-foreground/70">
+                        Lock one statement to continue. This can only be done
+                        once, and the statement cannot be changed after lock.
+                      </p>
+                    </div>
+
+                    {lockedProblemStatement && (
+                      <div className="mt-4 rounded-xl border border-fngreen/35 bg-fngreen/12 p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-fngreen font-semibold">
+                          Locked Statement
+                        </p>
+                        <p className="mt-1 font-bold">
+                          {lockedProblemStatement.title}
+                        </p>
+                        <p className="text-xs text-foreground/70 mt-1">
+                          Lock expires in {lockCountdownLabel}
+                        </p>
+                        <p className="text-xs text-foreground/60 mt-1">
+                          Expires at{" "}
+                          {new Date(
+                            lockedProblemStatement.lockExpiresAt,
+                          ).toLocaleString()}
+                        </p>
+                      </div>
+                    )}
+
+                    <motion.div
+                      className="mt-6 grid gap-4 md:grid-cols-2"
+                      initial={isReducedMotion ? false : "hidden"}
+                      animate="visible"
+                      variants={{
+                        hidden: {},
+                        visible: {
+                          transition: {
+                            staggerChildren: 0.06,
+                            delayChildren: 0.02,
+                          },
+                        },
+                      }}
+                    >
+                      {isLoadingStatements &&
+                        ["one", "two", "three", "four"].map((skeletonKey) => (
+                          <div
+                            key={`statement-skeleton-${skeletonKey}`}
+                            className="h-40 animate-pulse rounded-xl border border-foreground/15 bg-foreground/5"
+                          />
+                        ))}
+
+                      {!isLoadingStatements &&
+                        problemStatements.map((statement, index) => {
+                          const isLockedCard =
+                            lockedProblemStatement?.id === statement.id;
+                          const lockDisabled =
+                            Boolean(lockedProblemStatement) ||
+                            statement.isFull ||
+                            Boolean(isLockingProblemStatementId) ||
+                            isCreatingTeam ||
+                            isRedirecting;
+
+                          return (
+                            <motion.div
+                              key={statement.id}
+                              variants={{
+                                hidden: {
+                                  opacity: 0,
+                                  y: 14,
+                                  filter: "blur(2px)",
+                                },
+                                visible: {
+                                  opacity: 1,
+                                  y: 0,
+                                  filter: "blur(0px)",
+                                },
+                              }}
+                              transition={PANEL_TRANSITION}
+                              layout={!isReducedMotion}
+                              className="group relative overflow-hidden rounded-xl border border-foreground/12 bg-linear-to-br from-white via-white to-fnblue/5 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                            >
+                              <div className="absolute -right-8 -top-8 size-24 rounded-full bg-fnyellow/15 blur-2xl pointer-events-none" />
+                              <p className="relative text-[11px] font-semibold uppercase tracking-[0.16em] text-fnblue/75">
+                                Track {index + 1}
+                              </p>
+                              <h3 className="relative mt-1 text-[15px] font-black uppercase tracking-[0.04em] leading-snug">
+                                {statement.title}
+                              </h3>
+                              <p className="relative mt-2 text-sm text-foreground/75 leading-relaxed">
+                                {statement.summary}
+                              </p>
+
+                              <div className="relative mt-4">
+                                {isLockedCard ? (
+                                  <FnButton type="button" tone="green" disabled>
+                                    Locked
+                                  </FnButton>
+                                ) : statement.isFull ? (
+                                  <FnButton type="button" tone="gray" disabled>
+                                    Full
+                                  </FnButton>
+                                ) : (
+                                  <FnButton
+                                    type="button"
+                                    onClick={() =>
+                                      requestProblemStatementLock(
+                                        statement.id,
+                                        statement.title,
+                                      )
+                                    }
+                                    disabled={lockDisabled}
+                                    loading={
+                                      isLockingProblemStatementId ===
+                                      statement.id
+                                    }
+                                    loadingText="Locking..."
+                                  >
+                                    Lock Problem Statement
+                                  </FnButton>
+                                )}
+                              </div>
+                            </motion.div>
+                          );
+                        })}
+                    </motion.div>
+
+                    {!isLoadingStatements && problemStatements.length === 0 && (
+                      <p className="mt-6 text-sm text-foreground/70">
+                        Problem statements are unavailable right now. Please
+                        retry.
+                      </p>
+                    )}
+
+                    <div className="mt-6 flex flex-wrap gap-3">
+                      <FnButton
+                        type="button"
+                        onClick={() => setStep(1)}
+                        tone="gray"
+                        disabled={isCreatingTeam || isRedirecting}
+                      >
+                        <ArrowLeft size={16} strokeWidth={3} />
+                        Back
+                      </FnButton>
+                      <FnButton
+                        type="button"
+                        onClick={createTeam}
+                        disabled={
+                          !canCreateTeam || isCreatingTeam || isRedirecting
+                        }
+                        loading={isCreatingTeam || isRedirecting}
+                        loadingText={
+                          isRedirecting ? "Redirecting..." : "Creating Team..."
+                        }
+                      >
+                        Create Team
+                      </FnButton>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </section>
+          </InView>
 
           <aside className="space-y-4 lg:sticky lg:top-10 self-start pr-1">
-            <div className="rounded-2xl border bg-background/95 p-6 shadow-md border-b-4 border-fnyellow backdrop-blur-sm">
-              <p className="text-xs uppercase tracking-[0.22em] text-foreground/70 font-semibold">
-                Team Status
-              </p>
-              <h3 className="text-2xl font-black uppercase tracking-tight mt-2">
-                live progress
-              </h3>
-              <div className="mt-4 space-y-3">
-                <StatusLine
-                  label="Onboarding Step"
-                  value={step === 1 ? "Team Details" : "Problem Lock"}
-                  tone="blue"
-                />
-                <StatusLine
-                  label="Team Name"
-                  value={teamName || "N/A"}
-                  tone="blue"
-                />
-                <StatusLine
-                  label="Members"
-                  value={`${memberCount}/${MAX_MEMBERS}`}
-                  tone="orange"
-                />
-                <StatusLine
-                  label="Completed Profiles"
-                  value={`${completedProfiles}/${memberCount}`}
-                  tone="green"
-                />
-                <StatusLine
-                  label="Statement Lock"
-                  value={lockedProblemStatement ? "Locked" : "Pending"}
-                  tone={lockedProblemStatement ? "green" : "red"}
-                />
+            <InView
+              once
+              viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+              transition={{ duration: 0.24, ease: "easeOut", delay: 0.04 }}
+              variants={SCROLL_FLOW_VARIANTS}
+            >
+              <div className="rounded-2xl border bg-background/95 p-6 shadow-md border-b-4 border-fnyellow backdrop-blur-sm">
+                <p className="text-xs uppercase tracking-[0.22em] text-foreground/70 font-semibold">
+                  Team Status
+                </p>
+                <h3 className="text-2xl font-black uppercase tracking-tight mt-2">
+                  live progress
+                </h3>
+                <div className="mt-4 space-y-3">
+                  <StatusLine
+                    label="Onboarding Step"
+                    value={step === 1 ? "Team Details" : "Problem Lock"}
+                    tone="blue"
+                  />
+                  <StatusLine
+                    label="Team Name"
+                    value={teamName || "N/A"}
+                    tone="blue"
+                  />
+                  <StatusLine
+                    label="Members"
+                    value={`${memberCount}/${MAX_MEMBERS}`}
+                    tone="orange"
+                  />
+                  <StatusLine
+                    label="Completed Profiles"
+                    value={`${completedProfiles}/${memberCount}`}
+                    tone="green"
+                  />
+                  <StatusLine
+                    label="Statement Lock"
+                    value={lockedProblemStatement ? "Locked" : "Pending"}
+                    tone={lockedProblemStatement ? "green" : "red"}
+                  />
+                </div>
               </div>
-            </div>
+            </InView>
 
-            <div className="rounded-2xl border bg-background/95 p-6 shadow-md border-b-4 border-fnblue backdrop-blur-sm">
-              <p className="text-xs uppercase tracking-[0.22em] text-foreground/70 font-semibold">
-                Live Team Members
-              </p>
-              <p className="text-sm text-foreground/70 mt-1">
-                Manage members directly from this table.
-              </p>
+            <InView
+              once
+              viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+              transition={{ duration: 0.24, ease: "easeOut", delay: 0.08 }}
+              variants={SCROLL_FLOW_VARIANTS}
+            >
+              <div className="rounded-2xl border bg-background/95 p-6 shadow-md border-b-4 border-fnblue backdrop-blur-sm">
+                <p className="text-xs uppercase tracking-[0.22em] text-foreground/70 font-semibold">
+                  Live Team Members
+                </p>
+                <p className="text-sm text-foreground/70 mt-1">
+                  Manage members directly from this table.
+                </p>
 
-              <div className="mt-4 overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left border-b border-foreground/10">
-                      <th className="py-2 pr-3 font-semibold uppercase tracking-[0.12em] text-xs">
-                        Role
-                      </th>
-                      <th className="py-2 pr-3 font-semibold uppercase tracking-[0.12em] text-xs">
-                        Name
-                      </th>
-                      <th className="py-2 pr-3 font-semibold uppercase tracking-[0.12em] text-xs">
-                        {teamType === "srm" ? "NetID" : "College ID"}
-                      </th>
-                      <th className="py-2 font-semibold uppercase tracking-[0.12em] text-xs">
-                        Contact
-                      </th>
-                      <th className="py-2 pl-2 text-right font-semibold uppercase tracking-[0.12em] text-xs">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr className="border-b border-foreground/10">
-                      <td className="py-2 pr-3 font-bold text-fnblue">Lead</td>
-                      <td className="py-2 pr-3">{currentLead.name || "-"}</td>
-                      <td className="py-2 pr-3">{currentLeadId || "-"}</td>
-                      <td className="py-2">{currentLead.contact || "-"}</td>
-                      <td className="py-2 pl-2 text-right text-foreground/40">
-                        -
-                      </td>
-                    </tr>
-                    {currentMembers.map((member, index) => (
-                      <tr
-                        key={`${getCurrentMemberId(member)}-${index}`}
-                        className="border-b border-foreground/10"
-                      >
-                        <td className="py-2 pr-3 font-semibold">
-                          M{index + 1}
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left border-b border-foreground/10">
+                        <th className="py-2 pr-3 font-semibold uppercase tracking-[0.12em] text-xs">
+                          Role
+                        </th>
+                        <th className="py-2 pr-3 font-semibold uppercase tracking-[0.12em] text-xs">
+                          Name
+                        </th>
+                        <th className="py-2 pr-3 font-semibold uppercase tracking-[0.12em] text-xs">
+                          {teamType === "srm" ? "NetID" : "College ID"}
+                        </th>
+                        <th className="py-2 font-semibold uppercase tracking-[0.12em] text-xs">
+                          Contact
+                        </th>
+                        <th className="py-2 pl-2 text-right font-semibold uppercase tracking-[0.12em] text-xs">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr className="border-b border-foreground/10">
+                        <td className="py-2 pr-3 font-bold text-fnblue">
+                          Lead
                         </td>
-                        <td className="py-2 pr-3">{member.name}</td>
-                        <td className="py-2 pr-3">
-                          {getCurrentMemberId(member)}
+                        <td className="py-2 pr-3">{currentLead.name || "-"}</td>
+                        <td className="py-2 pr-3">{currentLeadId || "-"}</td>
+                        <td className="py-2">{currentLead.contact || "-"}</td>
+                        <td className="py-2 pl-2 text-right text-foreground/40">
+                          -
                         </td>
-                        <td className="py-2">{member.contact}</td>
-                        <td className="py-2 pl-2 text-right">
-                          <FnButton
-                            type="button"
-                            onClick={() => removeMember(index)}
-                            tone="red"
-                            size="xs"
-                            title="Remove Member"
-                            className="cursor-pointer"
+                      </tr>
+                      <AnimatePresence initial={false}>
+                        {currentMembers.map((member, index) => (
+                          <motion.tr
+                            key={`${getCurrentMemberId(member)}-${index}`}
+                            layout={!isReducedMotion}
+                            initial={
+                              isReducedMotion
+                                ? false
+                                : { opacity: 0, y: 10, filter: "blur(2px)" }
+                            }
+                            animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                            exit={
+                              isReducedMotion
+                                ? undefined
+                                : { opacity: 0, y: -8, filter: "blur(2px)" }
+                            }
+                            transition={PANEL_TRANSITION}
+                            className="border-b border-foreground/10"
                           >
-                            <Trash2 size={16} strokeWidth={3} />
-                          </FnButton>
-                        </td>
-                      </tr>
-                    ))}
-                    {currentMembers.length === 0 && (
-                      <tr>
-                        <td
-                          colSpan={5}
-                          className="py-3 text-foreground/60 text-center"
-                        >
-                          No members added yet.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                            <td className="py-2 pr-3 font-semibold">
+                              M{index + 1}
+                            </td>
+                            <td className="py-2 pr-3">{member.name}</td>
+                            <td className="py-2 pr-3">
+                              {getCurrentMemberId(member)}
+                            </td>
+                            <td className="py-2">{member.contact}</td>
+                            <td className="py-2 pl-2 text-right">
+                              <FnButton
+                                type="button"
+                                onClick={() => removeMember(index)}
+                                tone="red"
+                                size="xs"
+                                title="Remove Member"
+                                className="cursor-pointer"
+                              >
+                                <Trash2 size={16} strokeWidth={3} />
+                              </FnButton>
+                            </td>
+                          </motion.tr>
+                        ))}
+                      </AnimatePresence>
+                      {currentMembers.length === 0 && (
+                        <tr>
+                          <td
+                            colSpan={5}
+                            className="py-3 text-foreground/60 text-center"
+                          >
+                            No members added yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
+            </InView>
           </aside>
         </div>
       </div>

@@ -53,7 +53,13 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  --motion-duration-fast: 140ms;
+  --motion-duration-base: 220ms;
+  --motion-duration-slow: 320ms;
+  --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --motion-ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
   --animate-line-shadow: line-shadow 15s linear infinite;
+  --animate-float-soft: float-soft 8s ease-in-out infinite;
   @keyframes line-shadow {
     0% {
       background-position: 0 0;
@@ -68,6 +74,27 @@
     }
     100% {
       transform: translateX(420%);
+    }
+  }
+  @keyframes route-fade-in {
+    0% {
+      opacity: 0;
+      transform: translateY(10px);
+      filter: blur(2px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+      filter: blur(0);
+    }
+  }
+  @keyframes float-soft {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0);
+    }
+    50% {
+      transform: translate3d(0, -8px, 0);
     }
   }
 }
@@ -167,14 +194,27 @@
   }
 }
 
+html[data-motion="reduced"] {
+  scroll-behavior: auto;
+}
+
+html[data-motion="reduced"] *,
+html[data-motion="reduced"] *::before,
+html[data-motion="reduced"] *::after {
+  animation-duration: 0.01ms;
+  animation-iteration-count: 1;
+  transition-duration: 0.01ms;
+  scroll-behavior: auto;
+}
+
 @media (prefers-reduced-motion: reduce) {
-  html {
+  html:not([data-motion="normal"]) {
     scroll-behavior: auto;
   }
 
-  *,
-  *::before,
-  *::after {
+  html:not([data-motion="normal"]) *,
+  html:not([data-motion="normal"]) *::before,
+  html:not([data-motion="normal"]) *::after {
     animation-duration: 0.01ms;
     animation-iteration-count: 1;
     transition-duration: 0.01ms;

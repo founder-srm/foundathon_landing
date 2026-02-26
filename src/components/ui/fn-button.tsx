@@ -5,7 +5,7 @@ import type * as React from "react";
 import { cn } from "@/lib/utils";
 
 const fnButtonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md border border-transparent border-b-4 font-bold transition-discrete duration-200 ease-out hover:shadow-sm active:translate-y-[1px] active:border-b-1 active:py-[calc(var(--fn-btn-py)+1.5px)] active:shadow-none disabled:pointer-events-none disabled:opacity-60",
+  "inline-flex items-center justify-center gap-2 rounded-md border border-transparent border-b-4 font-bold transition-[transform,box-shadow,background-color,border-color,color,opacity] duration-[var(--motion-duration-fast)] ease-[var(--motion-ease-standard)] hover:shadow-sm active:translate-y-[1px] active:border-b-1 active:py-[calc(var(--fn-btn-py)+1.5px)] active:shadow-none disabled:pointer-events-none disabled:opacity-60",
   {
     variants: {
       tone: {

@@ -13,6 +13,7 @@ import {
 } from "react";
 import { FnButton } from "@/components/ui/fn-button";
 import { InView } from "@/components/ui/in-view";
+import ModalPortal from "@/components/ui/modal-portal";
 import { useMotionPreferences } from "@/components/ui/motion-preferences";
 import { useRouteProgress } from "@/components/ui/route-progress";
 import { toast } from "@/hooks/use-toast";
@@ -308,6 +309,10 @@ const RegisterClient = () => {
     ProblemStatementAvailability[]
   >([]);
   const [isLoadingStatements, setIsLoadingStatements] = useState(false);
+  const [statementsLoadError, setStatementsLoadError] = useState<string | null>(
+    null,
+  );
+  const [isStatementsAuthError, setIsStatementsAuthError] = useState(false);
   const [isCreatingTeam, setIsCreatingTeam] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
   const [isLockingProblemStatementId, setIsLockingProblemStatementId] =
@@ -349,10 +354,19 @@ const RegisterClient = () => {
   const lockConfirmationPhrase = pendingLockProblemStatement
     ? `lock ${pendingLockProblemStatement.title}`
     : "";
+  const normalizedLockConfirmationInput = normalizeConfirmationText(
+    lockConfirmationInput,
+  );
+  const normalizedLockConfirmationPhrase = normalizeConfirmationText(
+    lockConfirmationPhrase,
+  );
+  const normalizedQuotedLockConfirmationPhrase = normalizeConfirmationText(
+    `"${lockConfirmationPhrase}"`,
+  );
   const canConfirmProblemStatementLock =
     Boolean(pendingLockProblemStatement) &&
-    normalizeConfirmationText(lockConfirmationInput) ===
-      normalizeConfirmationText(lockConfirmationPhrase);
+    (normalizedLockConfirmationInput === normalizedLockConfirmationPhrase ||
+      normalizedLockConfirmationInput === normalizedQuotedLockConfirmationPhrase);
   const teamPayload = useMemo(
     () =>
       teamType === "srm"
@@ -397,6 +411,10 @@ const RegisterClient = () => {
     teamPayloadValidation.success &&
     Boolean(lockedProblemStatement) &&
     !isLockExpired;
+  const signInToRegisterHref = useMemo(
+    () => `/api/auth/login?next=${encodeURIComponent("/register")}`,
+    [],
+  );
 
   const completedProfiles = useMemo(() => {
     if (teamType === "srm") {
@@ -488,28 +506,56 @@ const RegisterClient = () => {
 
   const loadProblemStatements = useCallback(async () => {
     setIsLoadingStatements(true);
+    setStatementsLoadError(null);
+    setIsStatementsAuthError(false);
+
     try {
       const response = await fetch("/api/problem-statements", {
         method: "GET",
       });
-      const data = (await response.json()) as {
-        error?: string;
-        statements?: ProblemStatementAvailability[];
-      };
+      const payload = (await response.json().catch(() => null)) as
+        | {
+            error?: string;
+            statements?: ProblemStatementAvailability[];
+          }
+        | null;
 
-      if (!response.ok || !data.statements) {
+      if (!response.ok) {
+        const errorMessage =
+          payload?.error ??
+          "We couldn't fetch problem statement availability right now.";
+        setStatementsLoadError(errorMessage);
+        setIsStatementsAuthError(response.status === 401);
+        setProblemStatements([]);
         toast({
           title: "Unable to Load Problem Statements",
-          description:
-            data.error ??
-            "We couldn't fetch problem statement availability right now.",
+          description: errorMessage,
           variant: "destructive",
         });
         return;
       }
 
-      setProblemStatements(data.statements);
+      if (!Array.isArray(payload?.statements)) {
+        setProblemStatements([]);
+        setStatementsLoadError(
+          "Problem statements are unavailable right now. Please try again.",
+        );
+        toast({
+          title: "Unable to Load Problem Statements",
+          description:
+            "Received an invalid response while loading problem statements.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setProblemStatements(payload.statements);
+      setStatementsLoadError(null);
     } catch {
+      setProblemStatements([]);
+      setStatementsLoadError(
+        "Network issue while loading problem statements. Please try again.",
+      );
       toast({
         title: "Problem Statement Request Failed",
         description:
@@ -520,6 +566,10 @@ const RegisterClient = () => {
       setIsLoadingStatements(false);
     }
   }, []);
+
+  const signInAgainForStatements = useCallback(() => {
+    window.location.assign(signInToRegisterHref);
+  }, [signInToRegisterHref]);
 
   useEffect(() => {
     if (step === 2) {
@@ -1063,7 +1113,7 @@ const RegisterClient = () => {
                 <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight">
                   onboarding wizard
                 </h1>
-                <p className="text-foreground/70">
+                <p className="text-foreground/80 font-medium">
                   Enter team details, lock one problem statement, and create
                   your team.
                 </p>
@@ -1074,25 +1124,25 @@ const RegisterClient = () => {
                       tone:
                         step === 1
                           ? "border-fnblue bg-fnblue text-white"
-                          : "border-fnblue/40 bg-fnblue/10",
+                          : "border-fnblue bg-fnblue/20",
                     },
                     {
                       label: "2. Lock Statement",
                       tone:
                         step === 2
                           ? "border-fngreen bg-fngreen text-white"
-                          : "border-fngreen/40 bg-fngreen/10",
+                          : "border-fngreen bg-fngreen/20",
                     },
                     {
                       label: "3. Create Team",
                       tone: lockedProblemStatement
                         ? "border-fnyellow bg-fnyellow/30"
-                        : "border-fnyellow/45 bg-fnyellow/20",
+                        : "border-fnyellow bg-fnyellow/20",
                     },
                   ].map((progressStep) => (
                     <p
                       key={progressStep.label}
-                      className={`rounded-md border px-2 py-2 text-[10px] uppercase tracking-[0.16em] font-bold ${progressStep.tone}`}
+                      className={`rounded-md border px-2 py-2 text-xs uppercase tracking-wide font-bold ${progressStep.tone}`}
                     >
                       {progressStep.label}
                     </p>
@@ -1114,11 +1164,11 @@ const RegisterClient = () => {
                     transition={PANEL_TRANSITION}
                   >
                     <div className="mt-6 rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 shadow-sm">
-                      <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] mb-3 text-fnblue">
+                      <p className="text-sm md:text-base font-bold uppercase tracking-widest mb-3 text-fnblue">
                         Team Type
                       </p>
                       <label className="block">
-                        <p className="text-[11px] uppercase tracking-[0.2em] text-foreground/70 font-semibold mb-2">
+                        <p className="text-xs text-foreground/80 font-medium mb-2">
                           Select Team Category
                         </p>
                         <div className="flex gap-2">
@@ -1149,7 +1199,7 @@ const RegisterClient = () => {
                     </div>
 
                     <div className="mt-6 rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 md:p-5 shadow-sm">
-                      <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] mb-3 text-fnblue">
+                      <p className="text-sm md:text-base font-bold uppercase tracking-widest mb-3 text-fnblue">
                         Team Identity
                       </p>
                       <Input
@@ -1167,7 +1217,7 @@ const RegisterClient = () => {
 
                     {teamType === "non_srm" && (
                       <div className="mt-6 rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 md:p-5 shadow-sm">
-                        <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] mb-3 text-fnblue">
+                        <p className="text-sm md:text-base font-bold uppercase tracking-widest mb-3 text-fnblue">
                           Non-SRM Team Info
                         </p>
                         <div className="grid gap-3 md:grid-cols-2">
@@ -1423,25 +1473,12 @@ const RegisterClient = () => {
                       </div>
                     )}
 
-                    <motion.div
-                      className="mt-6 grid gap-4 md:grid-cols-2"
-                      initial={isReducedMotion ? false : "hidden"}
-                      animate="visible"
-                      variants={{
-                        hidden: {},
-                        visible: {
-                          transition: {
-                            staggerChildren: 0.06,
-                            delayChildren: 0.02,
-                          },
-                        },
-                      }}
-                    >
+                    <div className="mt-6 grid gap-4 md:grid-cols-2">
                       {isLoadingStatements &&
                         ["one", "two", "three", "four"].map((skeletonKey) => (
                           <div
                             key={`statement-skeleton-${skeletonKey}`}
-                            className="h-40 animate-pulse rounded-xl border border-foreground/15 bg-foreground/5"
+                            className="h-40 animate-pulse rounded-xl border border-foreground/20 bg-foreground/10"
                           />
                         ))}
 
@@ -1459,27 +1496,22 @@ const RegisterClient = () => {
                           return (
                             <motion.div
                               key={statement.id}
-                              variants={{
-                                hidden: {
-                                  opacity: 0,
-                                  y: 14,
-                                  filter: "blur(2px)",
-                                },
-                                visible: {
-                                  opacity: 1,
-                                  y: 0,
-                                  filter: "blur(0px)",
-                                },
+                              initial={
+                                isReducedMotion ? false : { opacity: 0, y: 8 }
+                              }
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{
+                                ...PANEL_TRANSITION,
+                                delay: isReducedMotion ? 0 : index * 0.04,
                               }}
-                              transition={PANEL_TRANSITION}
                               layout={!isReducedMotion}
-                              className="group relative overflow-hidden rounded-xl border border-foreground/12 bg-linear-to-br from-white via-white to-fnblue/5 p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                              className="group relative overflow-hidden rounded-xl border border-foreground/15 bg-linear-to-br from-card via-card to-fnblue/8 p-4 text-foreground shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
                             >
                               <div className="absolute -right-8 -top-8 size-24 rounded-full bg-fnyellow/15 blur-2xl pointer-events-none" />
                               <p className="relative text-[11px] font-semibold uppercase tracking-[0.16em] text-fnblue/75">
                                 Track {index + 1}
                               </p>
-                              <h3 className="relative mt-1 text-[15px] font-black uppercase tracking-[0.04em] leading-snug">
+                              <h3 className="relative mt-1 text-[15px] font-black uppercase tracking-[0.04em] leading-snug text-foreground">
                                 {statement.title}
                               </h3>
                               <p className="relative mt-2 text-sm text-foreground/75 leading-relaxed">
@@ -1518,9 +1550,44 @@ const RegisterClient = () => {
                             </motion.div>
                           );
                         })}
-                    </motion.div>
+                    </div>
 
-                    {!isLoadingStatements && problemStatements.length === 0 && (
+                    {!isLoadingStatements && statementsLoadError && (
+                      <div className="mt-6 rounded-xl border border-b-4 border-fnred/55 bg-fnred/7 p-4 shadow-sm">
+                        <p className="text-xs font-extrabold uppercase tracking-[0.16em] text-fnred">
+                          Unable to load statements
+                        </p>
+                        <p className="mt-2 text-sm text-foreground/80">
+                          {statementsLoadError}
+                        </p>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                          <FnButton
+                            type="button"
+                            tone="gray"
+                            size="sm"
+                            onClick={() => {
+                              void loadProblemStatements();
+                            }}
+                          >
+                            Retry
+                          </FnButton>
+                          {isStatementsAuthError ? (
+                            <FnButton
+                              type="button"
+                              tone="red"
+                              size="sm"
+                              onClick={signInAgainForStatements}
+                            >
+                              Sign In Again
+                            </FnButton>
+                          ) : null}
+                        </div>
+                      </div>
+                    )}
+
+                    {!isLoadingStatements &&
+                      !statementsLoadError &&
+                      problemStatements.length === 0 && (
                       <p className="mt-6 text-sm text-foreground/70">
                         Problem statements are unavailable right now. Please
                         retry.
@@ -1710,31 +1777,123 @@ const RegisterClient = () => {
       </div>
 
       {pendingLockProblemStatement ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="lock-problem-statement-title"
-        >
-          <div className="w-full max-w-md rounded-2xl border border-b-4 border-fnred bg-background p-6 shadow-2xl">
-            <p
-              id="lock-problem-statement-title"
-              className="text-sm font-bold uppercase tracking-[0.18em] text-fnred"
-            >
-              Confirm Problem Statement Lock
-            </p>
-            <p className="mt-3 text-sm text-foreground/80">
-              This action cannot be reverted. Are you sure you want to lock this
-              problem statement?
-            </p>
-            <p className="mt-3 rounded-md border border-foreground/15 bg-foreground/5 px-3 py-2 text-sm font-semibold">
-              {pendingLockProblemStatement.title}
-            </p>
-            {lockConfirmationStep === "confirm" ? (
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm px-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lock-problem-statement-title"
+          >
+            <div className="w-full max-w-md rounded-2xl border border-b-4 border-fnred bg-background p-6 shadow-2xl">
+              <p
+                id="lock-problem-statement-title"
+                className="text-sm font-bold uppercase tracking-[0.18em] text-fnred"
+              >
+                Confirm Problem Statement Lock
+              </p>
+              <p className="mt-3 text-sm text-foreground/80">
+                This action cannot be reverted. Are you sure you want to lock
+                this problem statement?
+              </p>
+              <p className="mt-3 rounded-md border border-foreground/15 bg-foreground/5 px-3 py-2 text-sm font-semibold">
+                {pendingLockProblemStatement.title}
+              </p>
+              {lockConfirmationStep === "confirm" ? (
+                <div className="mt-6 flex justify-end gap-2">
+                  <FnButton
+                    type="button"
+                    onClick={closeProblemStatementLockConfirm}
+                    tone="gray"
+                    size="sm"
+                  >
+                    Cancel
+                  </FnButton>
+                  <FnButton
+                    type="button"
+                    onClick={proceedToProblemStatementLockTypeStep}
+                    tone="red"
+                    size="sm"
+                  >
+                    Continue
+                  </FnButton>
+                </div>
+              ) : (
+                <>
+                  <div className="mt-3 rounded-lg border border-fnred/25 bg-fnred/5 p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-fnred">
+                      Final Confirmation
+                    </p>
+                    <p className="mt-1 text-xs text-foreground/75">
+                      Type this exact phrase to continue:
+                    </p>
+                    <p className="mt-2 rounded-md border border-foreground/15 bg-white px-3 py-2 font-mono text-sm font-semibold text-foreground">
+                      "{lockConfirmationPhrase}"
+                    </p>
+                  </div>
+                  <p className="mt-3 text-xs text-foreground/70">
+                    Include spaces exactly as shown above.
+                  </p>
+                  <input
+                    type="text"
+                    value={lockConfirmationInput}
+                    onChange={(event) =>
+                      setLockConfirmationInput(event.target.value)
+                    }
+                    placeholder={`Type "${lockConfirmationPhrase}"`}
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    className="mt-2 w-full rounded-md border border-foreground/20 bg-white px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-fnblue/50"
+                  />
+                  <div className="mt-6 flex justify-end gap-2">
+                    <FnButton
+                      type="button"
+                      onClick={backToProblemStatementLockConfirmStep}
+                      tone="gray"
+                      size="sm"
+                    >
+                      Back
+                    </FnButton>
+                    <FnButton
+                      type="button"
+                      onClick={confirmProblemStatementLock}
+                      tone="red"
+                      size="sm"
+                      disabled={!canConfirmProblemStatementLock}
+                    >
+                      Yes, Lock Statement
+                    </FnButton>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </ModalPortal>
+      ) : null}
+
+      {showClearConfirm ? (
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm px-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="clear-team-title"
+          >
+            <div className="w-full max-w-md rounded-2xl border border-b-4 border-fnred bg-background p-6 shadow-2xl">
+              <p
+                id="clear-team-title"
+                className="text-sm font-bold uppercase tracking-[0.18em] text-fnred"
+              >
+                Clear Onboarding Draft
+              </p>
+              <p className="mt-3 text-sm text-foreground/80">
+                This will remove all current team details from the form. You can
+                start again immediately.
+              </p>
               <div className="mt-6 flex justify-end gap-2">
                 <FnButton
                   type="button"
-                  onClick={closeProblemStatementLockConfirm}
+                  onClick={() => setShowClearConfirm(false)}
                   tone="gray"
                   size="sm"
                 >
@@ -1742,92 +1901,16 @@ const RegisterClient = () => {
                 </FnButton>
                 <FnButton
                   type="button"
-                  onClick={proceedToProblemStatementLockTypeStep}
+                  onClick={clearCurrentTeam}
                   tone="red"
                   size="sm"
                 >
-                  Continue
+                  Clear Draft
                 </FnButton>
               </div>
-            ) : (
-              <>
-                <p className="mt-3 text-xs text-foreground/70">
-                  Type{" "}
-                  <span className="font-mono">{lockConfirmationPhrase}</span> to
-                  continue.
-                </p>
-                <input
-                  type="text"
-                  value={lockConfirmationInput}
-                  onChange={(event) =>
-                    setLockConfirmationInput(event.target.value)
-                  }
-                  placeholder={lockConfirmationPhrase}
-                  className="mt-2 w-full rounded-md border border-foreground/20 bg-white px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-fnblue/50"
-                />
-                <div className="mt-6 flex justify-end gap-2">
-                  <FnButton
-                    type="button"
-                    onClick={backToProblemStatementLockConfirmStep}
-                    tone="gray"
-                    size="sm"
-                  >
-                    Back
-                  </FnButton>
-                  <FnButton
-                    type="button"
-                    onClick={confirmProblemStatementLock}
-                    tone="red"
-                    size="sm"
-                    disabled={!canConfirmProblemStatementLock}
-                  >
-                    Yes, Lock Statement
-                  </FnButton>
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      ) : null}
-
-      {showClearConfirm ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="clear-team-title"
-        >
-          <div className="w-full max-w-md rounded-2xl border border-b-4 border-fnred bg-background p-6 shadow-2xl">
-            <p
-              id="clear-team-title"
-              className="text-sm font-bold uppercase tracking-[0.18em] text-fnred"
-            >
-              Clear Onboarding Draft
-            </p>
-            <p className="mt-3 text-sm text-foreground/80">
-              This will remove all current team details from the form. You can
-              start again immediately.
-            </p>
-            <div className="mt-6 flex justify-end gap-2">
-              <FnButton
-                type="button"
-                onClick={() => setShowClearConfirm(false)}
-                tone="gray"
-                size="sm"
-              >
-                Cancel
-              </FnButton>
-              <FnButton
-                type="button"
-                onClick={clearCurrentTeam}
-                tone="red"
-                size="sm"
-              >
-                Clear Draft
-              </FnButton>
             </div>
           </div>
-        </div>
+        </ModalPortal>
       ) : null}
 
       <datalist id={SRM_DEPARTMENT_DATALIST_ID}>
@@ -1905,7 +1988,7 @@ const Input = ({
   pattern,
 }: InputProps) => (
   <label className="block">
-    <p className="text-xs uppercase tracking-[0.2em] text-foreground/70 font-semibold mb-1">
+    <p className="text-xs text-foreground/80 font-medium mb-1">
       {label}
     </p>
     <input
@@ -1952,7 +2035,7 @@ const SrmMemberEditor = ({
   <div
     className={`rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 md:p-5 shadow-sm ${className}`}
   >
-    <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] mb-3">
+    <p className="text-sm md:text-base font-bold uppercase tracking-widest mb-3 text-fnblue">
       {title}
     </p>
     <div className="grid gap-3 md:grid-cols-2">
@@ -2018,7 +2101,7 @@ const NonSrmMemberEditor = ({
   <div
     className={`rounded-xl border border-foreground/10 bg-linear-to-b from-gray-100 to-gray-50 p-4 md:p-5 shadow-sm ${className}`}
   >
-    <p className="text-sm md:text-base font-bold uppercase tracking-[0.08em] mb-3">
+    <p className="text-sm md:text-base font-bold uppercase tracking-widest mb-3 text-fnblue">
       {title}
     </p>
     <div className="grid gap-3 md:grid-cols-2">
@@ -2078,7 +2161,7 @@ const NumberInput = ({
   error,
 }: NumberInputProps) => (
   <label className="block">
-    <p className="text-xs uppercase tracking-[0.2em] text-foreground/70 font-semibold mb-1">
+    <p className="text-xs text-foreground/80 font-medium mb-1">
       {label}
     </p>
     <input

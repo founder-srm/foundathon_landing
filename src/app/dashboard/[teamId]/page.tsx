@@ -26,6 +26,7 @@ import {
 } from "react";
 import { FnButton } from "@/components/ui/fn-button";
 import { InView } from "@/components/ui/in-view";
+import ModalPortal from "@/components/ui/modal-portal";
 import { useMotionPreferences } from "@/components/ui/motion-preferences";
 import { useRouteProgress } from "@/components/ui/route-progress";
 import { toast } from "@/hooks/use-toast";
@@ -483,7 +484,7 @@ const getTeamApprovalStatusMeta = (status: TeamApprovalStatus) => {
       return {
         badgeClass: "border-fnred/40 bg-fnred/10 text-fnred",
         description:
-          "Your submission was reviewed and rejected by admins. Wait for organizer guidance on next steps.",
+          "We appreciate the time and effort you put into your submission. After careful consideration, it was not selected.",
         dotClass: "bg-fnred",
         label: "Rejected",
         panelClass:
@@ -629,13 +630,33 @@ export default function TeamDashboardPage() {
   const legacyLockConfirmationPhrase = pendingLockProblemStatement
     ? `lock ${pendingLockProblemStatement.title}`
     : "";
+  const normalizedDeleteConfirmationInput = normalizeConfirmationText(
+    deleteConfirmationInput,
+  );
+  const normalizedDeleteConfirmationPhrase = normalizeConfirmationText(
+    deleteConfirmationPhrase,
+  );
+  const normalizedQuotedDeleteConfirmationPhrase = normalizeConfirmationText(
+    `"${deleteConfirmationPhrase}"`,
+  );
+  const normalizedLegacyLockConfirmationInput = normalizeConfirmationText(
+    legacyLockConfirmationInput,
+  );
+  const normalizedLegacyLockConfirmationPhrase = normalizeConfirmationText(
+    legacyLockConfirmationPhrase,
+  );
+  const normalizedQuotedLegacyLockConfirmationPhrase = normalizeConfirmationText(
+    `"${legacyLockConfirmationPhrase}"`,
+  );
   const canConfirmDelete =
-    normalizeConfirmationText(deleteConfirmationInput) ===
-    normalizeConfirmationText(deleteConfirmationPhrase);
+    normalizedDeleteConfirmationInput === normalizedDeleteConfirmationPhrase ||
+    normalizedDeleteConfirmationInput === normalizedQuotedDeleteConfirmationPhrase;
   const canConfirmLegacyLock =
     Boolean(pendingLockProblemStatement) &&
-    normalizeConfirmationText(legacyLockConfirmationInput) ===
-      normalizeConfirmationText(legacyLockConfirmationPhrase);
+    (normalizedLegacyLockConfirmationInput ===
+      normalizedLegacyLockConfirmationPhrase ||
+      normalizedLegacyLockConfirmationInput ===
+        normalizedQuotedLegacyLockConfirmationPhrase);
   const getCurrentMemberId = (member: SrmMember | NonSrmMember) =>
     teamType === "srm"
       ? (member as SrmMember).netId
@@ -3110,13 +3131,14 @@ export default function TeamDashboardPage() {
       </div>
 
       {showTeamTicketModal && shouldShowAcceptedQr ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="team-ticket-title"
-        >
-          <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-b-4 border-fngreen bg-background shadow-2xl">
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-6"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="team-ticket-title"
+          >
+            <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-b-4 border-fngreen bg-background shadow-2xl">
             <div className="flex items-start justify-between gap-3 border-b border-foreground/10 px-4 py-3 md:px-5">
               <div>
                 <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
@@ -3229,18 +3251,20 @@ export default function TeamDashboardPage() {
                 </div>
               </div>
             </div>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       ) : null}
 
       {showPresentationPreview && isPresentationSubmitted ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="presentation-preview-title"
-        >
-          <div className="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-b-4 border-fnblue bg-background shadow-2xl">
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-6"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="presentation-preview-title"
+          >
+            <div className="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-b-4 border-fnblue bg-background shadow-2xl">
             <div className="flex items-start justify-between gap-3 border-b border-foreground/10 px-4 py-3 md:px-5">
               <div>
                 <p className="text-xs font-extrabold uppercase tracking-widest text-fnblue">
@@ -3302,18 +3326,20 @@ export default function TeamDashboardPage() {
                 </FnButton>
               </div>
             </div>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       ) : null}
 
       {showPresentationConfirm && pendingPresentationFile ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="presentation-submit-title"
-        >
-          <div className="w-full max-w-md rounded-xl border border-b-4 border-fnred bg-background p-6 shadow-xl">
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm px-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="presentation-submit-title"
+          >
+            <div className="w-full max-w-md rounded-xl border border-b-4 border-fnred bg-background p-6 shadow-xl">
             <p
               id="presentation-submit-title"
               className="text-sm uppercase tracking-[0.18em] font-bold text-fnred"
@@ -3356,18 +3382,20 @@ export default function TeamDashboardPage() {
                 Submit PPT
               </FnButton>
             </div>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       ) : null}
 
       {pendingLockProblemStatement && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="legacy-lock-title"
-        >
-          <div className="w-full max-w-md rounded-xl border border-b-4 border-fnred bg-background p-6 shadow-xl">
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm px-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="legacy-lock-title"
+          >
+            <div className="w-full max-w-md rounded-xl border border-b-4 border-fnred bg-background p-6 shadow-xl">
             <p
               id="legacy-lock-title"
               className="text-sm uppercase tracking-[0.18em] font-bold text-fnred"
@@ -3402,12 +3430,19 @@ export default function TeamDashboardPage() {
               </div>
             ) : (
               <>
+                <div className="mt-3 rounded-lg border border-fnred/25 bg-fnred/5 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-fnred">
+                    Final Confirmation
+                  </p>
+                  <p className="mt-1 text-xs text-foreground/75">
+                    Type this exact phrase to continue:
+                  </p>
+                  <p className="mt-2 rounded-md border border-foreground/15 bg-white px-3 py-2 font-mono text-sm font-semibold text-foreground">
+                    "{legacyLockConfirmationPhrase}"
+                  </p>
+                </div>
                 <p className="mt-3 text-xs text-foreground/70">
-                  Type{" "}
-                  <span className="font-mono">
-                    {legacyLockConfirmationPhrase}
-                  </span>{" "}
-                  to continue.
+                  Include spaces exactly as shown above.
                 </p>
                 <input
                   type="text"
@@ -3415,7 +3450,10 @@ export default function TeamDashboardPage() {
                   onChange={(event) =>
                     setLegacyLockConfirmationInput(event.target.value)
                   }
-                  placeholder={legacyLockConfirmationPhrase}
+                  placeholder={`Type "${legacyLockConfirmationPhrase}"`}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="mt-2 w-full rounded-md border border-foreground/20 bg-white px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-fnblue/50"
                 />
                 <div className="mt-6 flex justify-end gap-2">
@@ -3439,18 +3477,20 @@ export default function TeamDashboardPage() {
                 </div>
               </>
             )}
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {showDeleteConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-team-title"
-        >
-          <div className="w-full max-w-md rounded-xl border border-b-4 border-fnred bg-background p-6 shadow-xl">
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm px-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-team-title"
+          >
+            <div className="w-full max-w-md rounded-xl border border-b-4 border-fnred bg-background p-6 shadow-xl">
             <p
               id="delete-team-title"
               className="text-sm uppercase tracking-[0.18em] font-bold text-fnred"
@@ -3484,10 +3524,19 @@ export default function TeamDashboardPage() {
               </div>
             ) : (
               <>
+                <div className="mt-3 rounded-lg border border-fnred/25 bg-fnred/5 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-fnred">
+                    Final Confirmation
+                  </p>
+                  <p className="mt-1 text-xs text-foreground/75">
+                    Type this exact phrase to continue:
+                  </p>
+                  <p className="mt-2 rounded-md border border-foreground/15 bg-white px-3 py-2 font-mono text-sm font-semibold text-foreground">
+                    "{deleteConfirmationPhrase}"
+                  </p>
+                </div>
                 <p className="mt-3 text-xs text-foreground/70">
-                  Type{" "}
-                  <span className="font-mono">{deleteConfirmationPhrase}</span>{" "}
-                  to continue.
+                  Include spaces exactly as shown above.
                 </p>
                 <input
                   type="text"
@@ -3495,7 +3544,10 @@ export default function TeamDashboardPage() {
                   onChange={(event) =>
                     setDeleteConfirmationInput(event.target.value)
                   }
-                  placeholder={deleteConfirmationPhrase}
+                  placeholder={`Type "${deleteConfirmationPhrase}"`}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="mt-2 w-full rounded-md border border-foreground/20 bg-white px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-fnblue/50"
                 />
                 <div className="mt-6 flex justify-end gap-2">
@@ -3523,8 +3575,9 @@ export default function TeamDashboardPage() {
                 </div>
               </>
             )}
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       <datalist id={SRM_DEPARTMENT_DATALIST_ID}>

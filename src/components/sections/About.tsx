@@ -111,7 +111,7 @@ const About = () => {
             </h3>
             <p className="mt-3 text-sm md:text-base text-foreground/75 font-semibold">
               {/* TODO: do this lol */}
-              write some text here lol
+              {/* write some text here lol */}
             </p>
             <div className="mt-6 grid gap-4 md:grid-cols-3">
               {onboardingSequence.map((item, index) => (

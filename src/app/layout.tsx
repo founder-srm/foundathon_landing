@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { JetBrains_Mono, Work_Sans } from "next/font/google";
 import { Suspense } from "react";
 import Header from "@/components/sections/Header";
+import CustomCursor from "@/components/ui/custom-cursor";
 import { MotionPreferencesProvider } from "@/components/ui/motion-preferences";
 import {
   RouteProgressBar,
@@ -110,6 +111,7 @@ export default function RootLayout({
             <RouteProgressProvider>
               <Header />
               <RouteProgressBar />
+              <CustomCursor />
               <RouteTransition>{children}</RouteTransition>
               <Toaster />
             </RouteProgressProvider>

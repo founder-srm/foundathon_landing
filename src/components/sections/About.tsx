@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  MOTION_TRANSITIONS,
+  MOTION_VARIANTS,
+} from "@/lib/motion-system";
 import { InView } from "../ui/in-view";
 
 const problemHighlights = [
@@ -35,6 +39,9 @@ const onboardingSequence = [
   },
 ];
 
+const ABOUT_SCROLL_VARIANTS = MOTION_VARIANTS.fadeBlurIn;
+const ABOUT_CARD_VARIANTS = MOTION_VARIANTS.fadeUpSoft;
+
 const About = () => {
   return (
     <section
@@ -44,11 +51,8 @@ const About = () => {
       <div className="fncontainer relative py-20 md:py-24 space-y-16">
         <InView
           once
-          transition={{ duration: 0.28, ease: "easeOut" }}
-          variants={{
-            hidden: { opacity: 0, y: 24, filter: "blur(5px)" },
-            visible: { opacity: 1, y: 0, filter: "blur(0px)" },
-          }}
+          transition={MOTION_TRANSITIONS.slow}
+          variants={ABOUT_SCROLL_VARIANTS}
         >
           <div className="space-y-5 text-center max-w-4xl mx-auto">
             <p className="text-xs sm:text-sm rounded-full inline-flex px-3 uppercase font-bold tracking-wide bg-fngreen/20 text-fngreen border-2 border-fngreen">
@@ -70,15 +74,15 @@ const About = () => {
           {problemHighlights.map((item, key) => (
             <InView
               key={item.title}
-              variants={{
-                hidden: { opacity: 0, y: 100, filter: "blur(4px)" },
-                visible: { opacity: 1, y: 0, filter: "blur(0px)" },
-              }}
+              variants={ABOUT_CARD_VARIANTS}
               viewOptions={{ margin: "0px 0px -200px 0px" }}
-              transition={{ duration: 0.3 + key / 10, ease: "easeInOut" }}
+              transition={{
+                ...MOTION_TRANSITIONS.base,
+                delay: Math.min(0.03 * key, 0.14),
+              }}
               once
             >
-              <div className="rounded-xl h-full bg-gray-100 border-b-4 border-fnblue border px-6 py-7 shadow-sm">
+              <div className="rounded-xl h-full bg-gray-100 border-b-4 border-fnblue border px-6 py-7 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                 <p className="text-sm uppercase tracking-[0.2em] text-fnblue font-extrabold">
                   Board Rule
                 </p>
@@ -95,11 +99,8 @@ const About = () => {
 
         <InView
           once
-          transition={{ duration: 0.28, ease: "easeOut", delay: 0.06 }}
-          variants={{
-            hidden: { opacity: 0, y: 24, filter: "blur(5px)" },
-            visible: { opacity: 1, y: 0, filter: "blur(0px)" },
-          }}
+          transition={{ ...MOTION_TRANSITIONS.slow, delay: 0.06 }}
+          variants={ABOUT_SCROLL_VARIANTS}
         >
           <div className="rounded-2xl border border-b-4 border-fngreen bg-background/90 p-8 shadow-sm">
             <p className="text-sm uppercase tracking-[0.2em] text-fngreen font-extrabold">
@@ -119,16 +120,12 @@ const About = () => {
                   key={item.step}
                   once
                   transition={{
-                    duration: 0.22 + index * 0.04,
-                    ease: "easeOut",
-                    delay: 0.04,
+                    ...MOTION_TRANSITIONS.base,
+                    delay: Math.min(0.04 + index * 0.03, 0.14),
                   }}
-                  variants={{
-                    hidden: { opacity: 0, y: 18, filter: "blur(3px)" },
-                    visible: { opacity: 1, y: 0, filter: "blur(0px)" },
-                  }}
+                  variants={ABOUT_CARD_VARIANTS}
                 >
-                  <div className="rounded-xl border border-b-4 border-fnblue bg-gray-100 px-5 py-5 shadow-sm">
+                  <div className="rounded-xl border border-b-4 border-fnblue bg-gray-100 px-5 py-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
                     <p className="text-sm uppercase text-fnblue font-extrabold">
                       {item.step}
                     </p>
@@ -144,11 +141,8 @@ const About = () => {
 
         <InView
           once
-          transition={{ duration: 0.3, ease: "easeOut", delay: 0.1 }}
-          variants={{
-            hidden: { opacity: 0, y: 28, filter: "blur(6px)" },
-            visible: { opacity: 1, y: 0, filter: "blur(0px)" },
-          }}
+          transition={{ ...MOTION_TRANSITIONS.slow, delay: 0.1 }}
+          variants={ABOUT_SCROLL_VARIANTS}
         >
           <div className="relative">
             <div

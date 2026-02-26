@@ -18,6 +18,10 @@ import { useMotionPreferences } from "@/components/ui/motion-preferences";
 import { useRouteProgress } from "@/components/ui/route-progress";
 import { toast } from "@/hooks/use-toast";
 import {
+  MOTION_TRANSITIONS,
+  MOTION_VARIANTS,
+} from "@/lib/motion-system";
+import {
   type NonSrmMember,
   nonSrmMemberSchema,
   SRM_MAJOR_DEPARTMENTS,
@@ -91,17 +95,13 @@ const STEP1_ERROR_FOCUS_ORDER = [
 ] as const;
 const STEP1_LEAD_PATH_PREFIX = "lead.";
 const PANEL_TRANSITION = {
-  duration: 0.22,
-  ease: [0.2, 0, 0, 1],
+  ...MOTION_TRANSITIONS.base,
 } as const;
 const STEP_PANEL_VARIANTS = {
-  hidden: { opacity: 0, y: 18, filter: "blur(3px)" },
-  visible: { opacity: 1, y: 0, filter: "blur(0px)" },
-  exit: { opacity: 0, y: -10, filter: "blur(2px)" },
+  ...MOTION_VARIANTS.modalInOut,
 } as const;
 const SCROLL_FLOW_VARIANTS = {
-  hidden: { opacity: 0, y: 22, filter: "blur(4px)" },
-  visible: { opacity: 1, y: 0, filter: "blur(0px)" },
+  ...MOTION_VARIANTS.fadeBlurIn,
 } as const;
 const SCROLL_FLOW_VIEW_OPTIONS = {
   margin: "0px 0px -14% 0px",

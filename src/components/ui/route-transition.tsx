@@ -3,6 +3,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import { MOTION_TRANSITIONS, MOTION_VARIANTS } from "@/lib/motion-system";
 import { useMotionPreferences } from "./motion-preferences";
 
 export const RouteTransition = ({ children }: { children: ReactNode }) => {
@@ -19,13 +20,10 @@ export const RouteTransition = ({ children }: { children: ReactNode }) => {
       <motion.div
         key={pathname}
         data-route-transition="on"
-        initial={{ opacity: 0, y: 8, filter: "blur(2px)" }}
-        animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-        exit={{ opacity: 0, y: -6, filter: "blur(2px)" }}
-        transition={{
-          duration: 0.22,
-          ease: [0.2, 0, 0, 1],
-        }}
+        initial={MOTION_VARIANTS.modalInOut.hidden}
+        animate={MOTION_VARIANTS.modalInOut.visible}
+        exit={MOTION_VARIANTS.modalInOut.exit}
+        transition={MOTION_TRANSITIONS.base}
       >
         {children}
       </motion.div>

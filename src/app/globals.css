@@ -55,9 +55,10 @@
   --radius-4xl: calc(var(--radius) + 16px);
   --motion-duration-fast: 140ms;
   --motion-duration-base: 220ms;
-  --motion-duration-slow: 320ms;
+  --motion-duration-slow: 360ms;
+  --motion-duration-xl: 520ms;
   --motion-ease-standard: cubic-bezier(0.2, 0, 0, 1);
-  --motion-ease-emphasized: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --motion-ease-emphasized: cubic-bezier(0.22, 1, 0.36, 1);
   --animate-line-shadow: line-shadow 15s linear infinite;
   --animate-float-soft: float-soft 8s ease-in-out infinite;
   @keyframes line-shadow {
@@ -95,6 +96,24 @@
     }
     50% {
       transform: translate3d(0, -8px, 0);
+    }
+  }
+  @keyframes hero-drift-yellow {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(8px, -10px, 0) scale(1.04);
+    }
+  }
+  @keyframes hero-drift-blue {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(-10px, 10px, 0) scale(1.03);
     }
   }
 }
@@ -196,6 +215,11 @@
 
 html[data-motion="reduced"] {
   scroll-behavior: auto;
+}
+
+html[data-cursor="custom"],
+html[data-cursor="custom"] * {
+  cursor: none !important;
 }
 
 html[data-motion="reduced"] *,

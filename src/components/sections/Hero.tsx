@@ -2,7 +2,7 @@ import Link from "next/link";
 import { FnButton } from "@/components/ui/fn-button";
 import { getAuthUiState } from "@/lib/auth-ui-state";
 import { springOptions } from "@/lib/constants";
-import { BLOCKED_LOGIN_EMAIL_DOMAIN } from "@/server/auth/email-policy";
+import { MOTION_TRANSITIONS, MOTION_VARIANTS } from "@/lib/motion-system";
 import { InView } from "../ui/in-view";
 import { Magnetic } from "../ui/magnetic";
 import HeroRegisterButton from "./HeroRegisterButton";
@@ -17,6 +17,10 @@ const content = {
   secondaryButtonText: "Problem Statements",
 };
 
+const HERO_REVEAL_VARIANTS = MOTION_VARIANTS.fadeUpSoft;
+const HERO_TRANSITION_BASE = MOTION_TRANSITIONS.base;
+const HERO_TRANSITION_SLOW = MOTION_TRANSITIONS.slow;
+
 const Hero = async () => {
   const { isSignedIn, teamId } = await getAuthUiState();
   return (
@@ -28,18 +32,15 @@ const Hero = async () => {
         className="absolute inset-0 z-0 opacity-60"
         style={{ backgroundImage: "url(/textures/circle-16px.svg)" }}
       />
-      <div className="bg-fnyellow blur-2xl size-90 rounded-full absolute top-16 -left-16 opacity-20 z-10 motion-safe:animate-[float-soft_9s_ease-in-out_infinite]" />
-      <div className="bg-fnblue blur-[100px] size-120 rounded-full absolute -bottom-24 right-0 opacity-20 z-10 motion-safe:animate-[float-soft_12s_ease-in-out_infinite]" />
+      <div className="bg-fnyellow blur-2xl size-90 rounded-full absolute top-16 -left-16 opacity-20 z-10 motion-safe:animate-[hero-drift-yellow_14s_ease-in-out_infinite]" />
+      <div className="bg-fnblue blur-[100px] size-120 rounded-full absolute -bottom-24 right-0 opacity-20 z-10 motion-safe:animate-[hero-drift-blue_18s_ease-in-out_infinite]" />
       <div className="fncontainer relative flex items-center justify-center min-h-[92vh] z-10 py-20">
         <div className="flex flex-col items-center gap-7 max-w-5xl">
 
           <InView
             once
-            transition={{ duration: 0.22, ease: "easeOut", delay: 0.04 }}
-            variants={{
-              hidden: { opacity: 0, y: 20, filter: "blur(4px)" },
-              visible: { opacity: 1, y: 0, filter: "blur(0px)" },
-            }}
+            transition={{ ...HERO_TRANSITION_BASE, delay: 0.04 }}
+            variants={MOTION_VARIANTS.fadeBlurIn}
           >
             <div className="relative w-full max-w-3xl">
               <div className="relative mx-auto flex w-fit max-w-full items-center gap-2 overflow-hidden rounded-full border border-fnred/85 bg-linear-to-r from-fnred/16 via-fnorange/22 to-fnred/16 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.07em] text-fnred shadow-[0_0_0_1px_rgba(188,44,26,0.25),0_0_26px_rgba(188,44,26,0.5)] backdrop-blur-sm sm:pl-2 sm:pr-4">
@@ -66,11 +67,8 @@ const Hero = async () => {
 
           <InView
             once
-            transition={{ duration: 0.22, ease: "easeOut" }}
-            variants={{
-              hidden: { opacity: 0, y: 20, filter: "blur(4px)" },
-              visible: { opacity: 1, y: 0, filter: "blur(0px)" },
-            }}
+            transition={HERO_TRANSITION_BASE}
+            variants={MOTION_VARIANTS.fadeBlurIn}
           >
             <div className="text-xs sm:text-sm md:text-lg rounded-full px-4 uppercase font-bold tracking-wide bg-fngreen/20 text-fngreen border-2 border-fngreen text-center">
               {content.caption}
@@ -79,11 +77,8 @@ const Hero = async () => {
 
           <InView
             once
-            transition={{ duration: 0.28, ease: "easeOut", delay: 0.08 }}
-            variants={{
-              hidden: { opacity: 0, y: 28, filter: "blur(6px)" },
-              visible: { opacity: 1, y: 0, filter: "blur(0px)" },
-            }}
+            transition={{ ...HERO_TRANSITION_SLOW, delay: 0.08 }}
+            variants={HERO_REVEAL_VARIANTS}
           >
             <h1 className="text-5xl md:text-7xl font-extrabold tracking-tighter uppercase text-center text-balance leading-10 md:leading-14">
               {content.heading}{" "}
@@ -106,11 +101,8 @@ const Hero = async () => {
 
           <InView
             once
-            transition={{ duration: 0.22, ease: "easeOut", delay: 0.14 }}
-            variants={{
-              hidden: { opacity: 0, y: 20, filter: "blur(4px)" },
-              visible: { opacity: 1, y: 0, filter: "blur(0px)" },
-            }}
+            transition={{ ...HERO_TRANSITION_BASE, delay: 0.14 }}
+            variants={MOTION_VARIANTS.fadeBlurIn}
           >
             <p className="text-foreground/80 text-center max-w-3xl text-md md:text-lg font-medium leading-5 md:leading-6">
               {content.description}
@@ -118,11 +110,8 @@ const Hero = async () => {
           </InView>
           <InView
             once
-            transition={{ duration: 0.22, ease: "easeOut", delay: 0.2 }}
-            variants={{
-              hidden: { opacity: 0, y: 18, filter: "blur(4px)" },
-              visible: { opacity: 1, y: 0, filter: "blur(0px)" },
-            }}
+            transition={{ ...HERO_TRANSITION_BASE, delay: 0.2 }}
+            variants={HERO_REVEAL_VARIANTS}
           >
             <div className="flex items-center mt-6 gap-4 flex-wrap justify-center">
               <HeroRegisterButton

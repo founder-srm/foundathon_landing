@@ -30,6 +30,7 @@ import ModalPortal from "@/components/ui/modal-portal";
 import { useMotionPreferences } from "@/components/ui/motion-preferences";
 import { useRouteProgress } from "@/components/ui/route-progress";
 import { toast } from "@/hooks/use-toast";
+import { MOTION_TRANSITIONS, MOTION_VARIANTS } from "@/lib/motion-system";
 import {
   isPresentationExtensionAllowed,
   isPresentationMimeTypeAllowed,
@@ -102,12 +103,10 @@ const MAX_MEMBERS = 5;
 const SRM_EMAIL_DOMAIN = "@srmist.edu.in";
 const SRM_DEPARTMENT_DATALIST_ID = "srm-major-departments-dashboard";
 const TAB_PANEL_TRANSITION = {
-  duration: 0.22,
-  ease: [0.2, 0, 0, 1],
+  ...MOTION_TRANSITIONS.base,
 } as const;
 const SCROLL_FLOW_VARIANTS = {
-  hidden: { opacity: 0, y: 22, filter: "blur(4px)" },
-  visible: { opacity: 1, y: 0, filter: "blur(0px)" },
+  ...MOTION_VARIANTS.fadeBlurIn,
 } as const;
 const SCROLL_FLOW_VIEW_OPTIONS = {
   margin: "0px 0px -14% 0px",

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Work_Sans } from "next/font/google";
+import { JetBrains_Mono, Work_Sans } from "next/font/google";
 import { Suspense } from "react";
 import Header from "@/components/sections/Header";
 import {
@@ -10,7 +10,7 @@ import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 // import { ThemeProvider } from "next-themes";
 
-const geistSans = Geist({
+const geistSans = JetBrains_Mono({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });

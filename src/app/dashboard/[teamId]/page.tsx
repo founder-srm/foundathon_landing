@@ -6,6 +6,7 @@ import {
   ExternalLink,
   Info,
   PlusIcon,
+  QrCode,
   Trash2,
   UserRoundPen,
   X,
@@ -33,6 +34,7 @@ import {
   type TeamRecord,
   teamSubmissionSchema,
 } from "@/lib/register-schema";
+import { cn } from "@/lib/utils";
 import { DASHBOARD_RULE_GROUPS } from "./dashboard-rules";
 import {
   buildDashboardTabUrl,
@@ -450,7 +452,7 @@ const getTeamApprovalStatusMeta = (status: TeamApprovalStatus) => {
       return {
         badgeClass: "border-fngreen/40 bg-fngreen/10 text-fngreen",
         description:
-          "Your team has been approved by admins. You are cleared to participate in the event flow.",
+          "Your team has been approved by admins. You may download your ticket from the QR icon.",
         dotClass: "bg-fngreen",
         label: "Accepted",
         panelClass:
@@ -544,9 +546,8 @@ export default function TeamDashboardPage() {
   const [createdAt, setCreatedAt] = useState("");
   const [problemStatement, setProblemStatement] =
     useState<ProblemStatementInfo>(emptyProblemStatement());
-  const [presentation, setPresentation] = useState<PresentationInfo>(
-    emptyPresentation(),
-  );
+  const [presentation, setPresentation] =
+    useState<PresentationInfo>(emptyPresentation());
   const [pendingPresentationFile, setPendingPresentationFile] =
     useState<File | null>(null);
   const [showPresentationConfirm, setShowPresentationConfirm] = useState(false);
@@ -1890,54 +1891,58 @@ export default function TeamDashboardPage() {
       <div className="absolute -bottom-28 -left-16 size-96 rounded-full bg-fnyellow/25 blur-3xl pointer-events-none" />
 
       <div className="fncontainer relative py-10 md:py-14">
-        <header className="mb-6 rounded-2xl border border-b-4 border-fnblue bg-background/95 p-6 shadow-lg">
-          <p className="inline-flex rounded-full border border-fnblue/35 bg-fnblue/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-fnblue">
-            Dashboard
-          </p>
-          <h1 className="mt-3 text-3xl font-black tracking-tight md:text-4xl uppercase">
-            Team Management Board
-          </h1>
-          <p className="mt-2 text-sm text-foreground/70 md:text-base">
-            {activeTabMeta.description}
-          </p>
-        </header>
+        <div className="lg:flex items-end justify-between">
+          <header className="mb-10">
+            <p className="inline-flex rounded-full border-2 border-fnblue bg-fnblue/20 px-3 text-sm font-extrabold tracking-wider uppercase text-fnblue">
+              Dashboard
+            </p>
+            <h1 className="mt-2 text-3xl font-black tracking-tight md:text-4xl uppercase">
+              Team Management Board
+            </h1>
+            <p className="mt-4 text-sm text-foreground/80 md:text-base font-medium">
+              {activeTabMeta.description}
+            </p>
+          </header>
 
-        {/* <section className="mb-6 rounded-2xl border border-b-4 border-fnblue bg-background/95 p-4 shadow-lg md:p-5 flex flex-col items-center"> */}
-        <section className="mb-6 flex flex-col items-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnblue">
-            Dashboard Sections
-          </p>
-          <div
-            className="mt-3 rounded-xl border border-fnblue/20 bg-linear-to-r from-fnblue/5 v to-fnyellow/10 p-2 inline-flex"
-            role="tablist"
-            aria-label="Team dashboard sections"
-          >
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {DASHBOARD_TABS.map((tab) => {
-                const isSelected = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    id={`dashboard-tab-${tab.id}`}
-                    type="button"
-                    role="tab"
-                    aria-controls={`dashboard-panel-${tab.id}`}
-                    aria-selected={isSelected}
-                    tabIndex={isSelected ? 0 : -1}
-                    onClick={() => goToTab(tab.id)}
-                    className={`shrink-0 rounded-full px-4 py-2 text-sm font-black uppercase tracking-[0.08em] transition-colors ${
-                      isSelected
-                        ? "bg-fnblue text-white shadow-sm"
-                        : "bg-white/80 text-foreground/75 hover:bg-white hover:text-foreground"
-                    }`}
-                  >
-                    {tab.label}
-                  </button>
-                );
-              })}
+          {/* <section className="mb-6 rounded-2xl border border-b-4 border-fnblue bg-background/95 p-4 shadow-lg md:p-5 flex flex-col items-center"> */}
+          <section className="mb-6 lg:text-right">
+            <p className="text-xs font-extrabold uppercase tracking-widest text-fnblue">
+              Dashboard Navigation
+            </p>
+            <div
+              className="mt-2 backdrop-blur-md p-1 rounded-2xl border border-fnblue inline-flex"
+              role="tablist"
+              aria-label="Team dashboard sections"
+            >
+              <div className="rounded-xl overflow-hidden">
+                <div className="flex gap-2 overflow-x-auto">
+                  {DASHBOARD_TABS.map((tab) => {
+                    const isSelected = activeTab === tab.id;
+                    return (
+                      <button
+                        key={tab.id}
+                        id={`dashboard-tab-${tab.id}`}
+                        type="button"
+                        role="tab"
+                        aria-controls={`dashboard-panel-${tab.id}`}
+                        aria-selected={isSelected}
+                        tabIndex={isSelected ? 0 : -1}
+                        onClick={() => goToTab(tab.id)}
+                        className={`shrink-0 rounded-xl px-4 py-2 text-sm font-extrabold uppercase tracking-wide duration-300 transition-colors ${
+                          isSelected
+                            ? "bg-fnblue text-white shadow-sm"
+                            : "bg-white/80 text-foreground/75 hover:bg-white hover:text-foreground"
+                        }`}
+                      >
+                        {tab.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
-          </div>
-        </section>
+          </section>
+        </div>
 
         {activeTab === "overview" ? (
           <section
@@ -1951,41 +1956,75 @@ export default function TeamDashboardPage() {
             >
               <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/70">
-                    Team Review Status
+                  <p
+                    className={cn(
+                      "text-sm font-extrabold uppercase tracking-wider text-foreground/80",
+                      teamApprovalStatusMeta.dotClass.replace("bg", "text"),
+                    )}
+                  >
+                    Team Status
                   </p>
                   <div
-                    className={`mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] ${teamApprovalStatusMeta.badgeClass}`}
+                    className={cn(
+                      `mt-3 inline-flex items-center gap-2 rounded-full border px-1 text-xs font-bold uppercase tracking-wider ${teamApprovalStatusMeta.badgeClass}`,
+                      teamApprovalStatusMeta.dotClass.replace("bg", "border"),
+                    )}
                   >
                     <span
-                      className={`inline-flex size-2 rounded-full ${teamApprovalStatusMeta.dotClass}`}
+                      className={`inline-flex size-2 rounded-full animate-pulse ${teamApprovalStatusMeta.dotClass}`}
                     />
                     {teamApprovalStatusMeta.label}
                   </div>
-                  <p className="mt-3 max-w-3xl text-sm leading-relaxed text-foreground/80 md:text-base">
+                  <p className="mt-4 max-w-3xl text-sm leading-relaxed text-foreground/80 md:text-base font-medium">
                     {teamApprovalStatusMeta.description}
                   </p>
                 </div>
 
                 <div className="flex w-full flex-col gap-3 md:w-auto md:items-end">
-                  <div className="relative group self-end">
-                    <button
-                      type="button"
-                      aria-label="Status meaning"
-                      className="inline-flex size-8 items-center justify-center rounded-full border border-foreground/20 bg-white/85 text-foreground/75 transition-colors hover:bg-white hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/45"
-                    >
-                      <Info size={16} strokeWidth={2.6} />
-                    </button>
-                    <div
-                      role="tooltip"
-                      className="pointer-events-none absolute right-0 z-20 mt-2 w-72 rounded-lg border border-foreground/15 bg-background px-3 py-2 text-xs leading-relaxed text-foreground/85 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
-                    >
-                      {teamApprovalStatusMeta.label}:{" "}
-                      {teamApprovalStatusMeta.description}
+                  <div className="flex self-end gap-2">
+                    <div className="relative group">
+                      <button
+                        type="button"
+                        aria-label="Status meaning"
+                        className="inline-flex size-8 items-center justify-center rounded-full border border-foreground/20 bg-white/80 text-foreground/80 transition-colors hover:bg-white hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/45"
+                      >
+                        <Info size={16} strokeWidth={2.6} />
+                      </button>
+                      <div
+                        role="tooltip"
+                        className="pointer-events-none absolute right-0 z-20 -mt-28 w-72 rounded-lg border border-foreground/15 bg-background px-3 py-2 text-xs leading-relaxed text-foreground/80 font-medium opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                      >
+                        {teamApprovalStatusMeta.label}:{" "}
+                        {teamApprovalStatusMeta.description}
+                      </div>
+                    </div>
+
+                    <div className="relative group">
+                      <button
+                        type="button"
+                        aria-label="Open team ticket"
+                        onClick={openTeamTicketModal}
+                        disabled={
+                          !shouldShowAcceptedQr ||
+                          isGeneratingTeamQr ||
+                          teamQrGenerationError
+                        }
+                        className="inline-flex size-8 items-center justify-center rounded-full border border-foreground/20 bg-white/80 text-foreground/80 transition-colors hover:bg-white hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/45 disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        <QrCode size={16} strokeWidth={2.6} />
+                      </button>
+                      <div
+                        role="tooltip"
+                        className="pointer-events-none absolute right-0 z-20 -mt-24 w-72 rounded-lg border border-foreground/15 bg-background px-3 py-2 text-xs leading-relaxed text-foreground/80 font-medium opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
+                      >
+                        {shouldShowAcceptedQr
+                          ? "Click the QR icon to open and download your team ticket."
+                          : "Team ticket download unlocks once your team is accepted."}
+                      </div>
                     </div>
                   </div>
 
-                  {shouldShowAcceptedQr ? (
+                  {/* {shouldShowAcceptedQr ? (
                     <div className="w-full rounded-xl border border-fngreen/35 bg-white/90 p-3 shadow-sm md:w-[220px]">
                       <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-fngreen">
                         Team Ticket
@@ -2011,7 +2050,7 @@ export default function TeamDashboardPage() {
                         View QR Ticket
                       </FnButton>
                     </div>
-                  ) : null}
+                  ) : null} */}
                 </div>
               </div>
             </section>
@@ -2019,37 +2058,40 @@ export default function TeamDashboardPage() {
             <section
               className={`relative overflow-hidden rounded-2xl border border-b-4 p-6 md:p-8 shadow-xl ${
                 hasLockedProblemStatement
-                  ? "border-fnyellow bg-linear-to-br from-fnyellow/30 via-background to-fnblue/10"
-                  : "border-fnred bg-linear-to-br from-fnred/20 via-background to-fnorange/10"
+                  ? "border-fngreen border-b-fnyellow bg-linear-to-b from-fngreen/30 to-fnyellow/10"
+                  : "border-fnred border-b-fnorange bg-linear-to-b from-fnred/30 to-fnorange/10"
               }`}
             >
               <div className="absolute -top-10 -right-10 size-36 rounded-full bg-fnblue/10 blur-2xl pointer-events-none" />
               <div className="absolute -bottom-12 -left-12 size-32 rounded-full bg-fnyellow/25 blur-2xl pointer-events-none" />
               <div className="relative">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-foreground/75">
-                    Locked Problem Statement
+                  <p className={`text-xs font-extrabold uppercase tracking-wider ${
+                    hasLockedProblemStatement ?
+                      "text-fngreen" : "text-fnred"
+                    }`}>
+                    Your Problem Statement
                   </p>
                   <span
-                    className={`rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.16em] ${
+                    className={`rounded-full px-3 border-2 text-xs font-bold uppercase tracking-widest ${
                       problemStatementStatusTone === "green"
-                        ? "border-fngreen/35 bg-fngreen/10 text-fngreen"
-                        : "border-fnred/35 bg-fnred/10 text-fnred"
+                      ? "border-fngreen bg-fngreen/20 text-fngreen"
+                      : "border-fnred bg-fnred/20 text-fnred"
                     }`}
                   >
                     {problemStatementStatusLabel}
                   </span>
                 </div>
-                <h2 className="mt-3 text-2xl font-black uppercase tracking-tight md:text-3xl">
+                <h2 className="mt-10 text-2xl font-black uppercase tracking-tight md:text-3xl leading-none">
                   {problemStatementTitle}
                 </h2>
-                <p className="mt-2 max-w-3xl text-sm text-foreground/75 md:text-base">
+                <p className="mt-1 max-w-3xl text-xs text-foreground/80 font-medium">
                   {hasLockedProblemStatement
                     ? "This is your official track for Foundathon 3.0. Keep your build and pitch aligned to this statement."
                     : "No statement lock is attached to this team record yet. Move to Manage Team to complete your lock and continue."}
                 </p>
 
-                <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                {/* <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                   <HighlightTile
                     label="Statement ID"
                     value={problemStatement.id || "N/A"}
@@ -2065,7 +2107,7 @@ export default function TeamDashboardPage() {
                     value={formatDateTime(createdAt)}
                     tone="orange"
                   />
-                </div>
+                </div> */}
               </div>
             </section>
 
@@ -2074,29 +2116,29 @@ export default function TeamDashboardPage() {
               <div className="absolute -bottom-10 -left-8 size-32 rounded-full bg-fnblue/10 blur-3xl pointer-events-none" />
 
               <div className="relative grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnorange">
+                <div className="">
+                  <p className="text-xs font-extrabold uppercase tracking-widest text-fnorange">
                     Team Snapshot
                   </p>
-                  <h3 className="mt-2 text-2xl font-black uppercase tracking-tight">
+                  <h3 className="mt-6 text-2xl font-black uppercase tracking-tight leading-none">
                     Continue Team Operations
                   </h3>
-                  <p className="mt-2 text-sm leading-relaxed text-foreground/75">
+                  <p className="mt-2 text-sm leading-relaxed text-foreground/80">
                     Manage roster updates from Manage Team and complete one-time
                     PPT operations from Actions.
                   </p>
                   <div className="mt-4 flex flex-wrap gap-2">
-                    <span className="rounded-full border border-fnblue/35 bg-fnblue/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-fnblue">
+                    <span className="rounded-full border-2 border-fnblue bg-fnblue/20 px-3 text-sm font-extrabold uppercase tracking-wide text-fnblue">
                       {teamTypeLabel}
                     </span>
-                    <span className="rounded-full border border-fngreen/35 bg-fngreen/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-fngreen">
+                    <span className="rounded-full border-2 border-fngreen bg-fngreen/20 px-3 text-sm font-extrabold uppercase tracking-wide text-fngreen">
                       {memberCount}/5 Members
                     </span>
-                    <span className="rounded-full border border-fnorange/35 bg-fnorange/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-fnorange">
+                    <span className="rounded-full border-2 border-fnorange bg-fnorange/20 px-3 text-sm font-extrabold uppercase tracking-wide text-fnorange">
                       {completedProfiles}/{memberCount} Complete
                     </span>
                   </div>
-                  <div className="mt-4 flex flex-wrap gap-3">
+                  {/* <div className="mt-4 flex flex-wrap gap-3">
                     <FnButton type="button" onClick={() => goToTab("manage")}>
                       Go to Manage Team
                     </FnButton>
@@ -2107,18 +2149,18 @@ export default function TeamDashboardPage() {
                     >
                       Go to Actions
                     </FnButton>
-                  </div>
+                  </div> */}
                 </div>
 
-                <div className="rounded-xl border border-fnorange/25 bg-white/75 p-4 backdrop-blur-xs">
+                <div className="rounded-xl border border-fnorange/30 bg-white/70 p-4 backdrop-blur-xs">
                   <div className="grid gap-2 text-sm">
                     <MetricRow label="Team Name" value={teamName || "N/A"} />
-                    <div className="flex items-center justify-between gap-4 border-b border-foreground/10 py-1.5">
-                      <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/65">
+                    <div className="flex items-center justify-between gap-4 py-1.5 border-b border-foreground/10">
+                      <p className="text-sm font-extrabold uppercase text-foreground/80">
                         Team ID
                       </p>
                       <div className="flex items-center gap-2">
-                        <p className="font-mono text-xs text-right">{teamId}</p>
+                        <p className="font-sans font-medium text-right">{teamId}</p>
                         <button
                           type="button"
                           aria-label="Copy Team ID"
@@ -2173,11 +2215,11 @@ export default function TeamDashboardPage() {
 
               <div className="relative mt-6 border-t border-foreground/10 pt-4">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-fnyellow">
+                  <p className="text-xs font-extrabold uppercase tracking-widest text-fnorange">
                     Members Snapshot
                   </p>
-                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-foreground/65">
-                    Total: {memberCount}
+                  <p className="text-xs font-extrabold uppercase tracking-widest text-foreground/65">
+                    Total Members: <span className="text-fnorange">{memberCount}</span>
                   </p>
                 </div>
 
@@ -2193,7 +2235,7 @@ export default function TeamDashboardPage() {
                     <tbody>
                       <tr className="border-b border-foreground/10 hover:bg-fnblue/5">
                         <td className="py-2.5 px-3">
-                          <span className="inline-flex rounded-full border border-fnblue/35 bg-fnblue/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-fnblue">
+                          <span className="inline-flex rounded-full border-2 border-fnblue bg-fnblue/20 px-2 text-xs font-extrabold uppercase text-fnblue">
                             Lead
                           </span>
                         </td>
@@ -2202,7 +2244,7 @@ export default function TeamDashboardPage() {
                             ? leadSrm.name
                             : leadNonSrm.name) || "-"}
                         </td>
-                        <td className="py-2.5 px-3 font-mono text-xs">
+                        <td className="py-2.5 px-3 font-medium">
                           {currentLeadId || "-"}
                         </td>
                       </tr>
@@ -2212,14 +2254,14 @@ export default function TeamDashboardPage() {
                           className="border-b border-foreground/10 hover:bg-fnblue/5 last:border-b-0"
                         >
                           <td className="py-2.5 px-3">
-                            <span className="inline-flex rounded-full border border-fnorange/35 bg-fnorange/10 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-fnorange">
+                            <span className="inline-flex rounded-full border-2 border-fnorange bg-fnorange/20 px-2 text-xs font-extrabold uppercase text-fnorange">
                               M{idx + 1}
                             </span>
                           </td>
                           <td className="py-2.5 px-3 font-semibold">
                             {member.name}
                           </td>
-                          <td className="py-2.5 px-3 font-mono text-xs">
+                          <td className="py-2.5 px-3 font-medium">
                             {getCurrentMemberId(member)}
                           </td>
                         </tr>
@@ -3321,14 +3363,14 @@ const MetricRow = ({
       noBorder ? "" : "border-b border-foreground/10"
     }`}
   >
-    <p className="text-xs font-semibold uppercase tracking-[0.16em] text-foreground/65">
+    <p className="text-sm font-extrabold uppercase text-foreground/80">
       {label}
     </p>
     <p
       className={`text-right ${
         mono
-          ? "font-mono text-xs"
-          : "text-sm font-black uppercase tracking-[0.06em]"
+          ? "font-mono"
+          : "text-sm font-medium"
       }`}
     >
       {value}

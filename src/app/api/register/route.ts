@@ -10,6 +10,11 @@ import {
   deleteTeamByQueryId,
   listTeams,
 } from "@/server/registration/service";
+import { enforceSameOrigin } from "@/server/security/csrf";
+import {
+  enforceIpRateLimit,
+  enforceUserRateLimit,
+} from "@/server/security/rate-limit";
 
 const createTeamRequestSchema = z.object({
   lockToken: z.string().trim().min(1, "Lock token is required."),
@@ -39,6 +44,19 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const csrfResponse = enforceSameOrigin(request);
+  if (csrfResponse) {
+    return csrfResponse;
+  }
+
+  const ipRateLimitResponse = await enforceIpRateLimit({
+    policy: "register_create_ip",
+    request,
+  });
+  if (ipRateLimitResponse) {
+    return ipRateLimitResponse;
+  }
+
   if (!isJsonRequest(request)) {
     return jsonError("Content-Type must be application/json.", 415);
   }
@@ -61,6 +79,15 @@ export async function POST(request: NextRequest) {
     return context.response;
   }
 
+  const userRateLimitResponse = await enforceUserRateLimit({
+    policy: "register_create_user",
+    request,
+    userId: context.user.id,
+  });
+  if (userRateLimitResponse) {
+    return userRateLimitResponse;
+  }
+
   const result = await createTeam({
     input: parsed.data,
     supabase: context.supabase,
@@ -76,6 +103,19 @@ export async function POST(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const csrfResponse = enforceSameOrigin(request);
+  if (csrfResponse) {
+    return csrfResponse;
+  }
+
+  const ipRateLimitResponse = await enforceIpRateLimit({
+    policy: "register_modify_ip",
+    request,
+  });
+  if (ipRateLimitResponse) {
+    return ipRateLimitResponse;
+  }
+
   const id = request.nextUrl.searchParams.get("id")?.trim();
   if (!id) {
     return jsonError("Team id is required.", 400);
@@ -88,6 +128,15 @@ export async function DELETE(request: NextRequest) {
   const context = await getRouteAuthContext();
   if (!context.ok) {
     return context.response;
+  }
+
+  const userRateLimitResponse = await enforceUserRateLimit({
+    policy: "register_modify_user",
+    request,
+    userId: context.user.id,
+  });
+  if (userRateLimitResponse) {
+    return userRateLimitResponse;
   }
 
   const result = await deleteTeamByQueryId({

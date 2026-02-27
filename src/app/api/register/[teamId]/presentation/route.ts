@@ -3,10 +3,28 @@ import { UUID_PATTERN } from "@/lib/register-api";
 import { getRouteAuthContext } from "@/server/auth/context";
 import { jsonError, jsonNoStore } from "@/server/http/response";
 import { submitTeamPresentation } from "@/server/registration/service";
+import { enforceSameOrigin } from "@/server/security/csrf";
+import {
+  enforceIpRateLimit,
+  enforceUserRateLimit,
+} from "@/server/security/rate-limit";
 
 type Params = { params: Promise<{ teamId: string }> };
 
 export async function POST(request: NextRequest, { params }: Params) {
+  const csrfResponse = enforceSameOrigin(request);
+  if (csrfResponse) {
+    return csrfResponse;
+  }
+
+  const ipRateLimitResponse = await enforceIpRateLimit({
+    policy: "presentation_upload_ip",
+    request,
+  });
+  if (ipRateLimitResponse) {
+    return ipRateLimitResponse;
+  }
+
   const { teamId } = await params;
   if (!UUID_PATTERN.test(teamId)) {
     return jsonError("Team id is invalid.", 400);
@@ -15,6 +33,15 @@ export async function POST(request: NextRequest, { params }: Params) {
   const context = await getRouteAuthContext();
   if (!context.ok) {
     return context.response;
+  }
+
+  const userRateLimitResponse = await enforceUserRateLimit({
+    policy: "presentation_upload_user",
+    request,
+    userId: context.user.id,
+  });
+  if (userRateLimitResponse) {
+    return userRateLimitResponse;
   }
 
   let formData: FormData;

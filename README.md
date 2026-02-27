@@ -160,6 +160,9 @@ If your team uses Doppler/CI secret injection, that is fine, but local dev still
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Yes | Public + Server | `src/lib/register-api.ts`, `src/utils/supabase/*`, auth routes | Base Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Yes | Public + Server | `src/lib/register-api.ts`, `src/utils/supabase/*`, auth routes | Supabase anon key |
 | `NEXT_PUBLIC_SUPABASE_SERVICE_ROLE` | Optional | Recommended for PPT uploads | Server only | `src/server/supabase/service-role-client.ts`, registration service storage ops | Bypasses Storage RLS for server-side upload/delete/list |
+| `UPSTASH_REDIS_REST_URL` | Optional | Yes | Server | `src/server/security/rate-limit.ts` | Upstash REST URL for distributed API rate limiting |
+| `UPSTASH_REDIS_REST_TOKEN` | Optional | Yes | Server | `src/server/security/rate-limit.ts` | Upstash REST token for distributed API rate limiting |
+| `FOUNDATHON_ALLOWED_REDIRECT_HOSTS` | Optional | Recommended | Server | `src/server/auth/oauth.ts` | Comma-separated host allowlist for trusted OAuth callback redirect hosts |
 | `FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET` | Yes (for lock flow) | Yes | Server only | `src/lib/problem-lock-token.ts` | HMAC signing secret |
 | `FOUNDATHON_NEXT_PUBLIC_SITE_URL` | Optional | Recommended | Public + Server | `src/app/sitemap.ts`, `src/app/robots.ts`, auth + send routes | Canonical host + callback base |
 | `FOUNDATHON_NODE_ENV` | Optional | Optional | Runtime | auth login/callback | Set to `development` locally |
@@ -171,6 +174,9 @@ If your team uses Doppler/CI secret injection, that is fine, but local dev still
 NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 NEXT_PUBLIC_SUPABASE_SERVICE_ROLE=<service-role-key>
+UPSTASH_REDIS_REST_URL=https://<upstash-host>.upstash.io
+UPSTASH_REDIS_REST_TOKEN=<upstash-token>
+FOUNDATHON_ALLOWED_REDIRECT_HOSTS=localhost:3000,foundathon.thefoundersclub.tech
 FOUNDATHON_NEXT_PUBLIC_SITE_URL=http://localhost:3000
 FOUNDATHON_RESEND_API_KEY=<resend-key>
 FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET=<openssl-random>
@@ -182,6 +188,14 @@ FOUNDATHON_NODE_ENV=development
 ```bash
 openssl rand -base64 48
 ```
+
+### Security hardening notes
+
+- Mutating API endpoints enforce strict same-origin checks via `Origin` or `Referer`.
+- API endpoints use distributed rate limits backed by Upstash Redis.
+- OAuth callback redirects only trust `x-forwarded-host` values present in `FOUNDATHON_ALLOWED_REDIRECT_HOSTS`.
+- App responses include a CSP and production HSTS via `next.config.ts`.
+- This pass does **not** change DB migrations/RLS constraints; that remains a separate hardening track.
 
 ## 5) Supabase setup checklist
 

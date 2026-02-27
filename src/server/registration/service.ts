@@ -5,6 +5,7 @@ import {
 import {
   getPresentationExtension,
   isPresentationExtensionAllowed,
+  isPresentationFileSignatureAllowed,
   isPresentationMimeTypeAllowed,
   PRESENTATION_ALLOWED_EXTENSIONS,
   PRESENTATION_BUCKET_NAME,
@@ -806,6 +807,15 @@ export const submitTeamPresentation = async ({
     return fail("Only .ppt or .pptx files are allowed.", 400);
   }
 
+  const extension = getPresentationExtension(fileName);
+  const hasValidPresentationSignature = await isPresentationFileSignatureAllowed(
+    file,
+    extension,
+  );
+  if (!hasValidPresentationSignature) {
+    return fail("Invalid presentation file signature.", 400);
+  }
+
   if (file.type && !isPresentationMimeTypeAllowed(file.type)) {
     return fail("Invalid presentation file type.", 400);
   }
@@ -841,7 +851,6 @@ export const submitTeamPresentation = async ({
     return fail("Presentation already submitted for this team.", 409);
   }
 
-  const extension = getPresentationExtension(fileName);
   const storagePath = buildTeamPresentationStoragePath(input.teamId, extension);
   const storageClient = getStorageSupabaseClient(supabase);
   const storage = storageClient.storage.from(PRESENTATION_BUCKET_NAME);

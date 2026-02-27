@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 import {
+  getAllowedRedirectHosts,
   getFoundathonNodeEnv,
   getFoundathonSiteUrl,
   getProblemLockTokenSecret,
@@ -8,6 +9,7 @@ import {
 } from "@/server/env";
 
 const ENV_KEYS = [
+  "FOUNDATHON_ALLOWED_REDIRECT_HOSTS",
   "FOUNDATHON_NEXT_PUBLIC_SITE_URL",
   "FOUNDATHON_NODE_ENV",
   "FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET",
@@ -71,5 +73,15 @@ describe("server/env", () => {
     process.env.FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET = "   ";
 
     expect(getProblemLockTokenSecret()).toBeNull();
+  });
+
+  it("parses allowed redirect hosts", () => {
+    process.env.FOUNDATHON_ALLOWED_REDIRECT_HOSTS =
+      " foundathon.example, localhost:3000 ,  ";
+
+    expect(getAllowedRedirectHosts()).toEqual([
+      "foundathon.example",
+      "localhost:3000",
+    ]);
   });
 });

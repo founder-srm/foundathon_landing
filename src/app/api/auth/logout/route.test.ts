@@ -20,22 +20,30 @@ describe("/api/auth/logout", () => {
     mocks.signOutCurrentUser.mockResolvedValue(undefined);
   });
 
-  it("GET signs out and redirects with 303", async () => {
-    const { GET } = await import("./route");
+  it("does not expose a GET handler", async () => {
+    const routeModule = await import("./route");
+    expect("GET" in routeModule).toBe(false);
+  });
+
+  it("POST rejects CSRF mismatch", async () => {
+    const { POST } = await import("./route");
     const request = new Request("http://localhost/api/auth/logout", {
-      method: "GET",
+      headers: { origin: "https://evil.example" },
+      method: "POST",
     });
 
-    const response = await GET(request);
+    const response = await POST(request);
+    const body = await response.json();
 
-    expect(mocks.signOutCurrentUser).toHaveBeenCalledTimes(1);
-    expect(response.status).toBe(303);
-    expect(response.headers.get("location")).toBe("http://localhost/");
+    expect(response.status).toBe(403);
+    expect(body.code).toBe("CSRF_FAILED");
+    expect(mocks.signOutCurrentUser).not.toHaveBeenCalled();
   });
 
   it("POST signs out and redirects with 303", async () => {
     const { POST } = await import("./route");
     const request = new Request("http://localhost/api/auth/logout", {
+      headers: { origin: "http://localhost" },
       method: "POST",
     });
 

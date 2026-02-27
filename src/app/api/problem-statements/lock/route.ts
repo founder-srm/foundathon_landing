@@ -4,6 +4,11 @@ import { getRouteAuthContext } from "@/server/auth/context";
 import { isJsonRequest, parseJsonSafely } from "@/server/http/request";
 import { jsonError, jsonNoStore } from "@/server/http/response";
 import { lockProblemStatementForUser } from "@/server/problem-statements/service";
+import { enforceSameOrigin } from "@/server/security/csrf";
+import {
+  enforceIpRateLimit,
+  enforceUserRateLimit,
+} from "@/server/security/rate-limit";
 
 const lockRequestSchema = z.object({
   problemStatementId: z
@@ -13,6 +18,19 @@ const lockRequestSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  const csrfResponse = enforceSameOrigin(request);
+  if (csrfResponse) {
+    return csrfResponse;
+  }
+
+  const ipRateLimitResponse = await enforceIpRateLimit({
+    policy: "problem_lock_ip",
+    request,
+  });
+  if (ipRateLimitResponse) {
+    return ipRateLimitResponse;
+  }
+
   if (!isJsonRequest(request)) {
     return jsonError("Content-Type must be application/json.", 415);
   }
@@ -33,6 +51,15 @@ export async function POST(request: NextRequest) {
   const context = await getRouteAuthContext();
   if (!context.ok) {
     return context.response;
+  }
+
+  const userRateLimitResponse = await enforceUserRateLimit({
+    policy: "problem_lock_user",
+    request,
+    userId: context.user.id,
+  });
+  if (userRateLimitResponse) {
+    return userRateLimitResponse;
   }
 
   const result = await lockProblemStatementForUser({

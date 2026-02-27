@@ -98,10 +98,141 @@ type PresentationInfo = {
 
 type TeamApprovalStatus = NonNullable<TeamRecord["approvalStatus"]>;
 type ConfirmationStep = "confirm" | "type";
+type TeamTicketThemeId = "aurora-mint" | "crimson-heat" | "neon-royale";
+type TeamTicketTheme = {
+  accentGlowColor: string;
+  cardStops: readonly [string, string, string];
+  cardStrokeColor: string;
+  headingColor: string;
+  id: TeamTicketThemeId;
+  issuedTextColor: string;
+  label: string;
+  metaLabelColor: string;
+  noiseDotColor: string;
+  punchColor: string;
+  qrFrameFillColor: string;
+  qrHintColor: string;
+  qrPanelFillColor: string;
+  qrPanelStrokeColor: string;
+  qrTitleColor: string;
+  statementTextColor: string;
+  statusBgColor: string;
+  statusTextColor: string;
+  swatchClass: string;
+  teamIdTextColor: string;
+  teamTextColor: string;
+  titleColor: string;
+  backdropStops: readonly [string, string, string];
+  description: string;
+  splitStrokeColor: string;
+  uiAccentTextClass: string;
+  uiChipClass: string;
+  uiModalBorderClass: string;
+};
 
 const MAX_MEMBERS = 5;
 const SRM_EMAIL_DOMAIN = "@srmist.edu.in";
 const SRM_DEPARTMENT_DATALIST_ID = "srm-major-departments-dashboard";
+const TEAM_TICKET_THEME_STORAGE_KEY = "foundathon:ticket-theme";
+const TEAM_TICKET_THEMES: ReadonlyArray<TeamTicketTheme> = [
+  {
+    accentGlowColor: "rgba(56, 189, 248, 0.2)",
+    backdropStops: ["#082f49", "#1d4ed8", "#ea580c"],
+    cardStops: ["#fff7ed", "#ffffff", "#eff6ff"],
+    cardStrokeColor: "rgba(15, 23, 42, 0.2)",
+    description: "Electric blue and orange championship heat.",
+    headingColor: "#0f172a",
+    id: "neon-royale",
+    issuedTextColor: "rgba(15, 23, 42, 0.7)",
+    label: "Neon Royale",
+    metaLabelColor: "rgba(15, 23, 42, 0.65)",
+    noiseDotColor: "#ffffff",
+    punchColor: "#1d4ed8",
+    qrFrameFillColor: "#f8fafc",
+    qrHintColor: "rgba(15, 23, 42, 0.68)",
+    qrPanelFillColor: "#ffffff",
+    qrPanelStrokeColor: "rgba(59, 130, 246, 0.35)",
+    qrTitleColor: "#1e3a8a",
+    splitStrokeColor: "rgba(30, 64, 175, 0.35)",
+    statementTextColor: "#1f2937",
+    statusBgColor: "#dcfce7",
+    statusTextColor: "#166534",
+    swatchClass: "from-fnblue via-fnorange to-fnred",
+    teamIdTextColor: "#0f172a",
+    teamTextColor: "#111827",
+    titleColor: "#1d4ed8",
+    uiAccentTextClass: "text-fnblue",
+    uiChipClass: "border-fnblue/35 bg-fnblue/10 text-fnblue",
+    uiModalBorderClass: "border-fnblue",
+  },
+  {
+    accentGlowColor: "rgba(251, 146, 60, 0.25)",
+    backdropStops: ["#450a0a", "#b91c1c", "#ea580c"],
+    cardStops: ["#fff1f2", "#fff7ed", "#fef2f2"],
+    cardStrokeColor: "rgba(69, 10, 10, 0.24)",
+    description: "Red-orange inferno with bold finals-night energy.",
+    headingColor: "#450a0a",
+    id: "crimson-heat",
+    issuedTextColor: "rgba(69, 10, 10, 0.72)",
+    label: "Crimson Heat",
+    metaLabelColor: "rgba(69, 10, 10, 0.68)",
+    noiseDotColor: "#ffffff",
+    punchColor: "#b91c1c",
+    qrFrameFillColor: "#fff7ed",
+    qrHintColor: "rgba(69, 10, 10, 0.72)",
+    qrPanelFillColor: "#fffaf7",
+    qrPanelStrokeColor: "rgba(185, 28, 28, 0.35)",
+    qrTitleColor: "#991b1b",
+    splitStrokeColor: "rgba(185, 28, 28, 0.32)",
+    statementTextColor: "#7f1d1d",
+    statusBgColor: "#fee2e2",
+    statusTextColor: "#991b1b",
+    swatchClass: "from-fnred via-fnorange to-fnyellow",
+    teamIdTextColor: "#7f1d1d",
+    teamTextColor: "#450a0a",
+    titleColor: "#b91c1c",
+    uiAccentTextClass: "text-fnred",
+    uiChipClass: "border-fnred/35 bg-fnred/10 text-fnred",
+    uiModalBorderClass: "border-fnred",
+  },
+  {
+    accentGlowColor: "rgba(20, 184, 166, 0.24)",
+    backdropStops: ["#052e2b", "#0f766e", "#155e75"],
+    cardStops: ["#ecfeff", "#f0fdfa", "#eef2ff"],
+    cardStrokeColor: "rgba(8, 47, 73, 0.24)",
+    description: "Mint-cyan aurora with a cool futuristic finish.",
+    headingColor: "#083344",
+    id: "aurora-mint",
+    issuedTextColor: "rgba(8, 47, 73, 0.72)",
+    label: "Aurora Mint",
+    metaLabelColor: "rgba(8, 47, 73, 0.68)",
+    noiseDotColor: "#ecfeff",
+    punchColor: "#0f766e",
+    qrFrameFillColor: "#f0fdfa",
+    qrHintColor: "rgba(8, 47, 73, 0.7)",
+    qrPanelFillColor: "#f8fffe",
+    qrPanelStrokeColor: "rgba(15, 118, 110, 0.35)",
+    qrTitleColor: "#115e59",
+    splitStrokeColor: "rgba(20, 83, 45, 0.28)",
+    statementTextColor: "#0f766e",
+    statusBgColor: "#dcfce7",
+    statusTextColor: "#166534",
+    swatchClass: "from-fngreen via-fnblue to-cyan-400",
+    teamIdTextColor: "#0f766e",
+    teamTextColor: "#083344",
+    titleColor: "#0f766e",
+    uiAccentTextClass: "text-fngreen",
+    uiChipClass: "border-fngreen/35 bg-fngreen/10 text-fngreen",
+    uiModalBorderClass: "border-fngreen",
+  },
+] as const;
+
+const isTeamTicketThemeId = (value: string): value is TeamTicketThemeId =>
+  TEAM_TICKET_THEMES.some((theme) => theme.id === value);
+
+const getTeamTicketTheme = (themeId: TeamTicketThemeId): TeamTicketTheme =>
+  TEAM_TICKET_THEMES.find((theme) => theme.id === themeId) ??
+  TEAM_TICKET_THEMES[0];
 const TAB_PANEL_TRANSITION = {
   ...MOTION_TRANSITIONS.base,
   ease: MOTION_TRANSITIONS.xl.ease,
@@ -230,15 +361,19 @@ const buildAcceptedTeamTicketDataUrl = async ({
   statementTitle,
   teamId,
   teamName,
+  themeId,
 }: {
   qrDataUrl: string;
   statementTitle: string;
   teamId: string;
   teamName: string;
+  themeId: TeamTicketThemeId;
 }) => {
   if (typeof document === "undefined") {
     throw new Error("Document is unavailable.");
   }
+
+  const theme = getTeamTicketTheme(themeId);
 
   const canvas = document.createElement("canvas");
   const width = 1200;
@@ -252,14 +387,27 @@ const buildAcceptedTeamTicketDataUrl = async ({
   }
 
   const backdropGradient = ctx.createLinearGradient(0, 0, width, height);
-  backdropGradient.addColorStop(0, "#0f172a");
-  backdropGradient.addColorStop(0.56, "#1d4ed8");
-  backdropGradient.addColorStop(1, "#f97316");
+  backdropGradient.addColorStop(0, theme.backdropStops[0]);
+  backdropGradient.addColorStop(0.56, theme.backdropStops[1]);
+  backdropGradient.addColorStop(1, theme.backdropStops[2]);
   ctx.fillStyle = backdropGradient;
   ctx.fillRect(0, 0, width, height);
 
+  const glowGradient = ctx.createRadialGradient(
+    width * 0.78,
+    height * 0.16,
+    30,
+    width * 0.78,
+    height * 0.16,
+    360,
+  );
+  glowGradient.addColorStop(0, theme.accentGlowColor);
+  glowGradient.addColorStop(1, "transparent");
+  ctx.fillStyle = glowGradient;
+  ctx.fillRect(0, 0, width, height);
+
   ctx.globalAlpha = 0.14;
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = theme.noiseDotColor;
   for (let i = 0; i < 12; i += 1) {
     const size = 18 + ((i % 4) + 1) * 6;
     const x = 70 + i * 92;
@@ -281,21 +429,21 @@ const buildAcceptedTeamTicketDataUrl = async ({
     cardX + cardWidth,
     cardY + cardHeight,
   );
-  cardGradient.addColorStop(0, "#fff7ed");
-  cardGradient.addColorStop(0.48, "#ffffff");
-  cardGradient.addColorStop(1, "#eff6ff");
+  cardGradient.addColorStop(0, theme.cardStops[0]);
+  cardGradient.addColorStop(0.48, theme.cardStops[1]);
+  cardGradient.addColorStop(1, theme.cardStops[2]);
   ctx.fillStyle = cardGradient;
   ctx.fill();
 
   ctx.lineWidth = 3;
-  ctx.strokeStyle = "rgba(15, 23, 42, 0.2)";
+  ctx.strokeStyle = theme.cardStrokeColor;
   ctx.stroke();
 
   const splitX = Math.round(cardX + cardWidth * 0.67);
   ctx.save();
   ctx.setLineDash([12, 10]);
   ctx.lineWidth = 2;
-  ctx.strokeStyle = "rgba(30, 64, 175, 0.35)";
+  ctx.strokeStyle = theme.splitStrokeColor;
   ctx.beginPath();
   ctx.moveTo(splitX, cardY + 34);
   ctx.lineTo(splitX, cardY + cardHeight - 34);
@@ -303,7 +451,7 @@ const buildAcceptedTeamTicketDataUrl = async ({
   ctx.restore();
 
   const punchRadius = 24;
-  ctx.fillStyle = "#1d4ed8";
+  ctx.fillStyle = theme.punchColor;
   ctx.beginPath();
   ctx.arc(splitX, cardY, punchRadius, 0, Math.PI, true);
   ctx.fill();
@@ -316,11 +464,11 @@ const buildAcceptedTeamTicketDataUrl = async ({
   const teamNameLine = toTicketLine(teamName, 34);
   const statementLine = toTicketLine(statementTitle, 54);
 
-  ctx.fillStyle = "#1d4ed8";
+  ctx.fillStyle = theme.titleColor;
   ctx.font = "800 22px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText("FOUNDATHON 3.0", leftX, cardY + 56);
 
-  ctx.fillStyle = "#0f172a";
+  ctx.fillStyle = theme.headingColor;
   ctx.font = "800 50px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText("TEAM ACCESS PASS", leftX, cardY + 124);
 
@@ -338,9 +486,9 @@ const buildAcceptedTeamTicketDataUrl = async ({
     statusPillHeight,
     16,
   );
-  ctx.fillStyle = "#dcfce7";
+  ctx.fillStyle = theme.statusBgColor;
   ctx.fill();
-  ctx.fillStyle = "#166534";
+  ctx.fillStyle = theme.statusTextColor;
   let statusFontSize = 21;
   while (statusFontSize > 14) {
     ctx.font = `700 ${statusFontSize}px 'Helvetica Neue', Arial, sans-serif`;
@@ -359,28 +507,28 @@ const buildAcceptedTeamTicketDataUrl = async ({
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
 
-  ctx.fillStyle = "rgba(15, 23, 42, 0.65)";
+  ctx.fillStyle = theme.metaLabelColor;
   ctx.font = "700 18px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText("TEAM NAME", leftX, cardY + 238);
-  ctx.fillStyle = "#111827";
+  ctx.fillStyle = theme.teamTextColor;
   ctx.font = "800 40px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText(teamNameLine, leftX, cardY + 286, leftMaxWidth);
 
-  ctx.fillStyle = "rgba(15, 23, 42, 0.65)";
+  ctx.fillStyle = theme.metaLabelColor;
   ctx.font = "700 18px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText("TEAM ID", leftX, cardY + 340);
-  ctx.fillStyle = "#0f172a";
+  ctx.fillStyle = theme.teamIdTextColor;
   ctx.font = "700 26px 'SFMono-Regular', Menlo, Consolas, monospace";
   ctx.fillText(teamId, leftX, cardY + 378, leftMaxWidth);
 
-  ctx.fillStyle = "rgba(15, 23, 42, 0.65)";
+  ctx.fillStyle = theme.metaLabelColor;
   ctx.font = "700 18px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText("LOCKED TRACK", leftX, cardY + 430);
-  ctx.fillStyle = "#1f2937";
+  ctx.fillStyle = theme.statementTextColor;
   ctx.font = "700 26px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText(statementLine, leftX, cardY + 468, leftMaxWidth);
 
-  ctx.fillStyle = "rgba(15, 23, 42, 0.7)";
+  ctx.fillStyle = theme.issuedTextColor;
   ctx.font = "600 16px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText(
     `Issued: ${new Date().toLocaleString()}`,
@@ -393,13 +541,13 @@ const buildAcceptedTeamTicketDataUrl = async ({
   const qrPanelWidth = cardX + cardWidth - qrPanelX - 34;
   const qrPanelHeight = cardHeight - 172;
   drawRoundedRect(ctx, qrPanelX, qrPanelY, qrPanelWidth, qrPanelHeight, 22);
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = theme.qrPanelFillColor;
   ctx.fill();
-  ctx.strokeStyle = "rgba(59, 130, 246, 0.35)";
+  ctx.strokeStyle = theme.qrPanelStrokeColor;
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  ctx.fillStyle = "#1e3a8a";
+  ctx.fillStyle = theme.qrTitleColor;
   ctx.font = "800 20px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText("SCAN TEAM QR", qrPanelX + 26, qrPanelY + 42);
 
@@ -408,11 +556,11 @@ const buildAcceptedTeamTicketDataUrl = async ({
   const qrX = qrPanelX + (qrPanelWidth - qrSize) / 2;
   const qrY = qrPanelY + 66;
   drawRoundedRect(ctx, qrX - 12, qrY - 12, qrSize + 24, qrSize + 24, 16);
-  ctx.fillStyle = "#f8fafc";
+  ctx.fillStyle = theme.qrFrameFillColor;
   ctx.fill();
   ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
 
-  ctx.fillStyle = "rgba(15, 23, 42, 0.68)";
+  ctx.fillStyle = theme.qrHintColor;
   ctx.font = "700 14px 'Helvetica Neue', Arial, sans-serif";
   ctx.fillText(
     "Carry this pass during check-in.",
@@ -594,6 +742,10 @@ export default function TeamDashboardPage() {
   const [teamQrGenerationError, setTeamQrGenerationError] = useState(false);
   const [showTeamTicketModal, setShowTeamTicketModal] = useState(false);
   const [teamTicketPreviewDataUrl, setTeamTicketPreviewDataUrl] = useState("");
+  const [teamTicketThemeId, setTeamTicketThemeId] =
+    useState<TeamTicketThemeId>("neon-royale");
+  const [teamTicketPreviewThemeId, setTeamTicketPreviewThemeId] =
+    useState<TeamTicketThemeId | null>(null);
   const [isGeneratingTeamTicketPreview, setIsGeneratingTeamTicketPreview] =
     useState(false);
   const [teamTicketPreviewError, setTeamTicketPreviewError] = useState(false);
@@ -619,6 +771,10 @@ export default function TeamDashboardPage() {
     isPresentationSubmitted,
   });
   const shouldShowAcceptedQr = resolvedTeamApprovalStatus === "accepted";
+  const selectedTeamTicketTheme = useMemo(
+    () => getTeamTicketTheme(teamTicketThemeId),
+    [teamTicketThemeId],
+  );
   const presentationPreviewUrl = useMemo(
     () => toPresentationPreviewUrl(presentation.publicUrl),
     [presentation.publicUrl],
@@ -947,6 +1103,27 @@ export default function TeamDashboardPage() {
   }, [showTeamTicketModal]);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const storedTheme = window.localStorage.getItem(
+      TEAM_TICKET_THEME_STORAGE_KEY,
+    );
+    if (storedTheme && isTeamTicketThemeId(storedTheme)) {
+      setTeamTicketThemeId(storedTheme);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    window.localStorage.setItem(TEAM_TICKET_THEME_STORAGE_KEY, teamTicketThemeId);
+  }, [teamTicketThemeId]);
+
+  useEffect(() => {
     let cancelled = false;
 
     if (!shouldShowAcceptedQr || !teamId) {
@@ -955,6 +1132,7 @@ export default function TeamDashboardPage() {
       setTeamQrGenerationError(false);
       setShowTeamTicketModal(false);
       setTeamTicketPreviewDataUrl("");
+      setTeamTicketPreviewThemeId(null);
       setIsGeneratingTeamTicketPreview(false);
       setTeamTicketPreviewError(false);
       return;
@@ -1003,6 +1181,7 @@ export default function TeamDashboardPage() {
 
     if (!showTeamTicketModal || !teamIdQrDataUrl) {
       setTeamTicketPreviewDataUrl("");
+      setTeamTicketPreviewThemeId(null);
       setIsGeneratingTeamTicketPreview(false);
       setTeamTicketPreviewError(false);
       return;
@@ -1010,12 +1189,14 @@ export default function TeamDashboardPage() {
 
     setIsGeneratingTeamTicketPreview(true);
     setTeamTicketPreviewError(false);
+    setTeamTicketPreviewThemeId(null);
 
     void buildAcceptedTeamTicketDataUrl({
       qrDataUrl: teamIdQrDataUrl,
       statementTitle: problemStatement.title || "No track selected",
       teamId,
       teamName: teamName || "Unnamed Team",
+      themeId: teamTicketThemeId,
     })
       .then((dataUrl) => {
         if (cancelled) {
@@ -1023,6 +1204,7 @@ export default function TeamDashboardPage() {
         }
 
         setTeamTicketPreviewDataUrl(dataUrl);
+        setTeamTicketPreviewThemeId(teamTicketThemeId);
         setTeamTicketPreviewError(false);
       })
       .catch(() => {
@@ -1031,6 +1213,7 @@ export default function TeamDashboardPage() {
         }
 
         setTeamTicketPreviewDataUrl("");
+        setTeamTicketPreviewThemeId(null);
         setTeamTicketPreviewError(true);
       })
       .finally(() => {
@@ -1049,6 +1232,7 @@ export default function TeamDashboardPage() {
     showTeamTicketModal,
     teamId,
     teamIdQrDataUrl,
+    teamTicketThemeId,
     teamName,
   ]);
 
@@ -1726,12 +1910,15 @@ export default function TeamDashboardPage() {
     setIsDownloadingTeamTicket(true);
     try {
       const ticketDataUrl =
-        teamTicketPreviewDataUrl ||
+        (teamTicketPreviewThemeId === teamTicketThemeId
+          ? teamTicketPreviewDataUrl
+          : "") ||
         (await buildAcceptedTeamTicketDataUrl({
           qrDataUrl: teamIdQrDataUrl,
           statementTitle: problemStatement.title || "No track selected",
           teamId,
           teamName: teamName || "Unnamed Team",
+          themeId: teamTicketThemeId,
         }));
 
       if (typeof document === "undefined") {
@@ -1740,7 +1927,7 @@ export default function TeamDashboardPage() {
 
       const anchor = document.createElement("a");
       anchor.href = ticketDataUrl;
-      anchor.download = `foundathon-ticket-${teamId.replace(/[^a-zA-Z0-9_-]/g, "-")}.png`;
+      anchor.download = `foundathon-ticket-${teamId.replace(/[^a-zA-Z0-9_-]/g, "-")}-${teamTicketThemeId}.png`;
       document.body.appendChild(anchor);
       anchor.click();
       document.body.removeChild(anchor);
@@ -1773,6 +1960,7 @@ export default function TeamDashboardPage() {
       `Team: ${teamName || "Unnamed Team"}`,
       `Team ID: ${teamId}`,
       `Track: ${problemStatement.title || "N/A"}`,
+      `Theme: ${selectedTeamTicketTheme.label}`,
       `Dashboard: ${dashboardUrl}`,
     ].join("\n");
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
@@ -1795,19 +1983,22 @@ export default function TeamDashboardPage() {
       setIsSharingTeamTicket(true);
       try {
         const ticketDataUrl =
-          teamTicketPreviewDataUrl ||
+          (teamTicketPreviewThemeId === teamTicketThemeId
+            ? teamTicketPreviewDataUrl
+            : "") ||
           (await buildAcceptedTeamTicketDataUrl({
             qrDataUrl: teamIdQrDataUrl,
             statementTitle: problemStatement.title || "No track selected",
             teamId,
             teamName: teamName || "Unnamed Team",
+            themeId: teamTicketThemeId,
           }));
 
         const response = await fetch(ticketDataUrl);
         const ticketBlob = await response.blob();
         const ticketFile = new File(
           [ticketBlob],
-          `foundathon-ticket-${teamId.replace(/[^a-zA-Z0-9_-]/g, "-")}.png`,
+          `foundathon-ticket-${teamId.replace(/[^a-zA-Z0-9_-]/g, "-")}-${teamTicketThemeId}.png`,
           {
             type: "image/png",
           },
@@ -1967,7 +2158,7 @@ export default function TeamDashboardPage() {
               aria-label="Team dashboard sections"
             >
               <div className="rounded-xl overflow-hidden">
-                <div className="flex gap-2 overflow-x-auto">
+                <div className="flex gap-2 overflow-x-auto flex-wrap sm:flex-nowrap">
                   {DASHBOARD_TABS.map((tab) => {
                     const isSelected = activeTab === tab.id;
                     return (
@@ -3257,10 +3448,20 @@ export default function TeamDashboardPage() {
             aria-modal="true"
             aria-labelledby="team-ticket-title"
           >
-            <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-b-4 border-fngreen bg-background shadow-2xl">
+            <div
+              className={cn(
+                "w-full max-w-4xl overflow-hidden rounded-2xl border border-b-4 bg-background shadow-2xl",
+                selectedTeamTicketTheme.uiModalBorderClass,
+              )}
+            >
             <div className="flex items-start justify-between gap-3 border-b border-foreground/10 px-4 py-3 md:px-5">
               <div>
-                <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
+                <p
+                  className={cn(
+                    "text-xs font-extrabold uppercase tracking-widest",
+                    selectedTeamTicketTheme.uiAccentTextClass,
+                  )}
+                >
                   Accepted Team Pass
                 </p>
                 <h3
@@ -3269,6 +3470,14 @@ export default function TeamDashboardPage() {
                 >
                   Team QR Ticket
                 </h3>
+                <p
+                  className={cn(
+                    "mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em]",
+                    selectedTeamTicketTheme.uiChipClass,
+                  )}
+                >
+                  Theme: {selectedTeamTicketTheme.label}
+                </p>
               </div>
               <button
                 type="button"
@@ -3311,9 +3520,50 @@ export default function TeamDashboardPage() {
               </div>
 
               <div className="space-y-3 rounded-xl border border-foreground/10 bg-background p-4">
-                <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
+                <p
+                  className={cn(
+                    "text-xs font-extrabold uppercase tracking-widest",
+                    selectedTeamTicketTheme.uiAccentTextClass,
+                  )}
+                >
                   Ticket Details
                 </p>
+                <div className="space-y-2 rounded-lg border border-foreground/10 bg-foreground/5 p-3">
+                  <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-foreground/70">
+                    Select Ticket Theme
+                  </p>
+                  <div className="grid gap-2">
+                    {TEAM_TICKET_THEMES.map((theme) => {
+                      const isActiveTheme = teamTicketThemeId === theme.id;
+                      return (
+                        <button
+                          key={theme.id}
+                          type="button"
+                          onClick={() => setTeamTicketThemeId(theme.id)}
+                          className={cn(
+                            "rounded-md border px-2.5 py-2 text-left transition-[transform,box-shadow,border-color] duration-[var(--motion-duration-base)] ease-[var(--motion-ease-emphasized)] hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/40",
+                            isActiveTheme
+                              ? theme.uiChipClass
+                              : "border-foreground/20 bg-background text-foreground/80",
+                          )}
+                        >
+                          <span
+                            className={cn(
+                              "block h-1.5 rounded-full bg-linear-to-r",
+                              theme.swatchClass,
+                            )}
+                          />
+                          <span className="mt-1.5 block text-xs font-bold uppercase tracking-[0.12em]">
+                            {theme.label}
+                          </span>
+                          <span className="mt-1 block text-[11px] leading-snug text-foreground/70">
+                            {theme.description}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
                 <p className="text-sm">
                   <span className="font-semibold">Team:</span>{" "}
                   {teamName || "Unnamed Team"}
@@ -3327,8 +3577,8 @@ export default function TeamDashboardPage() {
                   {problemStatement.title || "N/A"}
                 </p>
                 <p className="text-xs text-foreground/60">
-                  Download this hot ticket layout for on-ground check-ins or
-                  share the accepted team details instantly on WhatsApp.
+                  Pick your favorite theme, then download this ticket for
+                  on-ground check-ins or share instantly on WhatsApp.
                 </p>
 
                 <div className="pt-1 space-y-2">

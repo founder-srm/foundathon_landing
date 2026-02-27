@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   createSupabaseClient: vi.fn(),
@@ -118,9 +118,32 @@ const makeParams = (id: string) => ({
   params: Promise.resolve({ teamId: id }),
 });
 
+const ENV_KEYS = [
+  "NEXT_PUBLIC_SUPABASE_SERVICE_ROLE",
+  "SUPABASE_SERVICE_ROLE_KEY",
+] as const;
+
+const ORIGINAL_ENV = Object.fromEntries(
+  ENV_KEYS.map((key) => [key, process.env[key]]),
+) as Record<(typeof ENV_KEYS)[number], string | undefined>;
+
+const restoreEnv = () => {
+  for (const key of ENV_KEYS) {
+    const value = ORIGINAL_ENV[key];
+    if (typeof value === "string") {
+      process.env[key] = value;
+    } else {
+      delete process.env[key];
+    }
+  }
+};
+
 describe("/api/register/[teamId] route", () => {
   beforeEach(() => {
     vi.resetModules();
+    restoreEnv();
+    delete process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     mocks.createSupabaseClient.mockReset();
     mocks.enforceIpRateLimit.mockReset();
     mocks.enforceSameOrigin.mockReset();
@@ -1102,4 +1125,8 @@ describe("/api/register/[teamId] route", () => {
     expect(res.status).toBe(400);
     expect(body.error).toContain("invalid");
   });
+});
+
+afterEach(() => {
+  restoreEnv();
 });

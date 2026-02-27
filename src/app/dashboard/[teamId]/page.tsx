@@ -98,11 +98,21 @@ type PresentationInfo = {
 
 type TeamApprovalStatus = NonNullable<TeamRecord["approvalStatus"]>;
 type ConfirmationStep = "confirm" | "type";
-type TeamTicketThemeId = "aurora-mint" | "crimson-heat" | "neon-royale";
+type TeamTicketThemeId =
+  | "aurora-mint"
+  | "crimson-heat"
+  | "neon-royale"
+  | "monopoly-classic";
+type TeamTicketLayoutId =
+  | "command-split"
+  | "poster-stack"
+  | "ops-grid"
+  | "boardwalk-pass";
 type TeamTicketTheme = {
   accentGlowColor: string;
   cardStops: readonly [string, string, string];
   cardStrokeColor: string;
+  layout: TeamTicketLayoutId;
   headingColor: string;
   id: TeamTicketThemeId;
   issuedTextColor: string;
@@ -140,11 +150,12 @@ const TEAM_TICKET_THEMES: ReadonlyArray<TeamTicketTheme> = [
     backdropStops: ["#082f49", "#1d4ed8", "#ea580c"],
     cardStops: ["#fff7ed", "#ffffff", "#eff6ff"],
     cardStrokeColor: "rgba(15, 23, 42, 0.2)",
-    description: "Electric blue and orange championship heat.",
+    description: "Command split style with a dedicated right-side scan bay.",
     headingColor: "#0f172a",
     id: "neon-royale",
     issuedTextColor: "rgba(15, 23, 42, 0.7)",
     label: "Neon Royale",
+    layout: "command-split",
     metaLabelColor: "rgba(15, 23, 42, 0.65)",
     noiseDotColor: "#ffffff",
     punchColor: "#1d4ed8",
@@ -170,11 +181,12 @@ const TEAM_TICKET_THEMES: ReadonlyArray<TeamTicketTheme> = [
     backdropStops: ["#450a0a", "#b91c1c", "#ea580c"],
     cardStops: ["#fff1f2", "#fff7ed", "#fef2f2"],
     cardStrokeColor: "rgba(69, 10, 10, 0.24)",
-    description: "Red-orange inferno with bold finals-night energy.",
+    description: "Poster stack style with a hero header and stacked blocks.",
     headingColor: "#450a0a",
     id: "crimson-heat",
     issuedTextColor: "rgba(69, 10, 10, 0.72)",
     label: "Crimson Heat",
+    layout: "poster-stack",
     metaLabelColor: "rgba(69, 10, 10, 0.68)",
     noiseDotColor: "#ffffff",
     punchColor: "#b91c1c",
@@ -200,11 +212,12 @@ const TEAM_TICKET_THEMES: ReadonlyArray<TeamTicketTheme> = [
     backdropStops: ["#052e2b", "#0f766e", "#155e75"],
     cardStops: ["#ecfeff", "#f0fdfa", "#eef2ff"],
     cardStrokeColor: "rgba(8, 47, 73, 0.24)",
-    description: "Mint-cyan aurora with a cool futuristic finish.",
+    description: "Ops grid style with modular cards and dashboard rails.",
     headingColor: "#083344",
     id: "aurora-mint",
     issuedTextColor: "rgba(8, 47, 73, 0.72)",
     label: "Aurora Mint",
+    layout: "ops-grid",
     metaLabelColor: "rgba(8, 47, 73, 0.68)",
     noiseDotColor: "#ecfeff",
     punchColor: "#0f766e",
@@ -224,6 +237,38 @@ const TEAM_TICKET_THEMES: ReadonlyArray<TeamTicketTheme> = [
     uiAccentTextClass: "text-fngreen",
     uiChipClass: "border-fngreen/35 bg-fngreen/10 text-fngreen",
     uiModalBorderClass: "border-fngreen",
+  },
+  {
+    accentGlowColor: "rgba(220, 38, 38, 0.22)",
+    backdropStops: ["#0f5132", "#15803d", "#dc2626"],
+    cardStops: ["#fffdf2", "#fff8dd", "#f9f2d4"],
+    cardStrokeColor: "rgba(15, 81, 50, 0.32)",
+    description:
+      "Boardwalk pass style inspired by Monopoly property-card layouts.",
+    headingColor: "#1f2937",
+    id: "monopoly-classic",
+    issuedTextColor: "rgba(31, 41, 55, 0.74)",
+    label: "Monopoly Classic",
+    layout: "boardwalk-pass",
+    metaLabelColor: "rgba(31, 41, 55, 0.62)",
+    noiseDotColor: "#fff8dd",
+    punchColor: "#dc2626",
+    qrFrameFillColor: "#fffced",
+    qrHintColor: "rgba(31, 41, 55, 0.72)",
+    qrPanelFillColor: "#fffdf4",
+    qrPanelStrokeColor: "rgba(21, 128, 61, 0.36)",
+    qrTitleColor: "#166534",
+    splitStrokeColor: "rgba(21, 128, 61, 0.28)",
+    statementTextColor: "#14532d",
+    statusBgColor: "#dcfce7",
+    statusTextColor: "#166534",
+    swatchClass: "from-[#0f7a36] via-[#dc2626] to-[#facc15]",
+    teamIdTextColor: "#1f2937",
+    teamTextColor: "#111827",
+    titleColor: "#dc2626",
+    uiAccentTextClass: "text-[#0f7a36]",
+    uiChipClass: "border-[#0f7a36]/45 bg-[#0f7a36]/10 text-[#0f7a36]",
+    uiModalBorderClass: "border-[#0f7a36]",
   },
 ] as const;
 
@@ -356,36 +401,89 @@ const loadCanvasImage = (src: string) =>
     image.src = src;
   });
 
-const buildAcceptedTeamTicketDataUrl = async ({
-  qrDataUrl,
-  statementTitle,
-  teamId,
-  teamName,
-  themeId,
-}: {
-  qrDataUrl: string;
-  statementTitle: string;
+type TicketLayoutRenderInput = {
+  ctx: CanvasRenderingContext2D;
+  height: number;
+  issuedLine: string;
+  qrImage: HTMLImageElement;
+  statementLine: string;
   teamId: string;
-  teamName: string;
-  themeId: TeamTicketThemeId;
+  teamNameLine: string;
+  theme: TeamTicketTheme;
+  width: number;
+};
+
+type TicketStatusPillInput = {
+  bgColor: string;
+  ctx: CanvasRenderingContext2D;
+  height: number;
+  text: string;
+  textColor: string;
+  width: number;
+  x: number;
+  y: number;
+};
+
+type TicketQrPanelInput = {
+  ctx: CanvasRenderingContext2D;
+  height: number;
+  hint: string;
+  qrImage: HTMLImageElement;
+  theme: TeamTicketTheme;
+  title: string;
+  width: number;
+  x: number;
+  y: number;
+};
+
+type TicketFittedTextInput = {
+  color: string;
+  ctx: CanvasRenderingContext2D;
+  family: string;
+  maxFontSize: number;
+  maxWidth: number;
+  minFontSize: number;
+  text: string;
+  weight: number;
+  x: number;
+  y: number;
+};
+
+const drawFittedTicketText = ({
+  color,
+  ctx,
+  family,
+  maxFontSize,
+  maxWidth,
+  minFontSize,
+  text,
+  weight,
+  x,
+  y,
+}: TicketFittedTextInput) => {
+  let fontSize = maxFontSize;
+  while (fontSize > minFontSize) {
+    ctx.font = `${weight} ${fontSize}px ${family}`;
+    if (ctx.measureText(text).width <= maxWidth) {
+      break;
+    }
+    fontSize -= 1;
+  }
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y, maxWidth);
+};
+
+const drawTicketBackdrop = ({
+  ctx,
+  height,
+  theme,
+  width,
+}: {
+  ctx: CanvasRenderingContext2D;
+  height: number;
+  theme: TeamTicketTheme;
+  width: number;
 }) => {
-  if (typeof document === "undefined") {
-    throw new Error("Document is unavailable.");
-  }
-
-  const theme = getTeamTicketTheme(themeId);
-
-  const canvas = document.createElement("canvas");
-  const width = 1200;
-  const height = 675;
-  canvas.width = width;
-  canvas.height = height;
-
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Canvas context is unavailable.");
-  }
-
   const backdropGradient = ctx.createLinearGradient(0, 0, width, height);
   backdropGradient.addColorStop(0, theme.backdropStops[0]);
   backdropGradient.addColorStop(0.56, theme.backdropStops[1]);
@@ -416,131 +514,64 @@ const buildAcceptedTeamTicketDataUrl = async ({
     ctx.arc(x, y, size, 0, Math.PI * 2);
     ctx.fill();
   }
-  ctx.globalAlpha = 1;
 
-  const cardX = 58;
-  const cardY = 52;
-  const cardWidth = width - 116;
-  const cardHeight = height - 104;
-  drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, 34);
-  const cardGradient = ctx.createLinearGradient(
-    cardX,
-    cardY,
-    cardX + cardWidth,
-    cardY + cardHeight,
-  );
-  cardGradient.addColorStop(0, theme.cardStops[0]);
-  cardGradient.addColorStop(0.48, theme.cardStops[1]);
-  cardGradient.addColorStop(1, theme.cardStops[2]);
-  ctx.fillStyle = cardGradient;
-  ctx.fill();
-
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = theme.cardStrokeColor;
-  ctx.stroke();
-
-  const splitX = Math.round(cardX + cardWidth * 0.67);
   ctx.save();
-  ctx.setLineDash([12, 10]);
+  ctx.globalAlpha = 0.16;
+  ctx.strokeStyle = theme.noiseDotColor;
   ctx.lineWidth = 2;
-  ctx.strokeStyle = theme.splitStrokeColor;
-  ctx.beginPath();
-  ctx.moveTo(splitX, cardY + 34);
-  ctx.lineTo(splitX, cardY + cardHeight - 34);
-  ctx.stroke();
+  for (let i = 0; i < 8; i += 1) {
+    const offset = -190 + i * 190;
+    ctx.beginPath();
+    ctx.moveTo(offset, 0);
+    ctx.lineTo(offset + 260, height);
+    ctx.stroke();
+  }
   ctx.restore();
+  ctx.globalAlpha = 1;
+};
 
-  const punchRadius = 24;
-  ctx.fillStyle = theme.punchColor;
-  ctx.beginPath();
-  ctx.arc(splitX, cardY, punchRadius, 0, Math.PI, true);
+const drawTicketStatusPill = ({
+  bgColor,
+  ctx,
+  height,
+  text,
+  textColor,
+  width,
+  x,
+  y,
+}: TicketStatusPillInput) => {
+  drawRoundedRect(ctx, x, y, width, height, 14);
+  ctx.fillStyle = bgColor;
   ctx.fill();
-  ctx.beginPath();
-  ctx.arc(splitX, cardY + cardHeight, punchRadius, Math.PI, 0, true);
-  ctx.fill();
 
-  const leftX = cardX + 52;
-  const leftMaxWidth = splitX - leftX - 48;
-  const teamNameLine = toTicketLine(teamName, 34);
-  const statementLine = toTicketLine(statementTitle, 54);
-
-  ctx.fillStyle = theme.titleColor;
-  ctx.font = "800 22px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
-  ctx.fillText("FOUNDATHON 3.0", leftX, cardY + 56);
-
-  ctx.fillStyle = theme.headingColor;
-  ctx.font = "800 50px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
-  ctx.fillText("TEAM ACCESS PASS", leftX, cardY + 124);
-
-  const statusPillX = leftX;
-  const statusPillY = cardY + 150;
-  const statusPillWidth = 276;
-  const statusPillHeight = 46;
-  const statusText = "STATUS: ACCEPTED";
-
-  drawRoundedRect(
-    ctx,
-    statusPillX,
-    statusPillY,
-    statusPillWidth,
-    statusPillHeight,
-    16,
-  );
-  ctx.fillStyle = theme.statusBgColor;
-  ctx.fill();
-  ctx.fillStyle = theme.statusTextColor;
-  let statusFontSize = 21;
-  while (statusFontSize > 14) {
-    ctx.font = `700 ${statusFontSize}px 'Helvetica Neue', Arial, sans-serif`;
-    if (ctx.measureText(statusText).width <= statusPillWidth - 24) {
+  ctx.fillStyle = textColor;
+  let fontSize = 20;
+  while (fontSize > 12) {
+    ctx.font = `700 ${fontSize}px 'Helvetica Neue', Arial, sans-serif`;
+    if (ctx.measureText(text).width <= width - 24) {
       break;
     }
-    statusFontSize -= 1;
+    fontSize -= 1;
   }
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(
-    statusText,
-    statusPillX + statusPillWidth / 2,
-    statusPillY + statusPillHeight / 2,
-  );
+  ctx.fillText(text, x + width / 2, y + height / 2);
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";
+};
 
-  ctx.fillStyle = theme.metaLabelColor;
-  ctx.font = "700 18px 'Helvetica Neue', Arial, sans-serif";
-  ctx.fillText("TEAM NAME", leftX, cardY + 238);
-  ctx.fillStyle = theme.teamTextColor;
-  ctx.font = "800 40px 'Helvetica Neue', Arial, sans-serif";
-  ctx.fillText(teamNameLine, leftX, cardY + 286, leftMaxWidth);
-
-  ctx.fillStyle = theme.metaLabelColor;
-  ctx.font = "700 18px 'Helvetica Neue', Arial, sans-serif";
-  ctx.fillText("TEAM ID", leftX, cardY + 340);
-  ctx.fillStyle = theme.teamIdTextColor;
-  ctx.font = "700 26px 'SFMono-Regular', Menlo, Consolas, monospace";
-  ctx.fillText(teamId, leftX, cardY + 378, leftMaxWidth);
-
-  ctx.fillStyle = theme.metaLabelColor;
-  ctx.font = "700 18px 'Helvetica Neue', Arial, sans-serif";
-  ctx.fillText("LOCKED TRACK", leftX, cardY + 430);
-  ctx.fillStyle = theme.statementTextColor;
-  ctx.font = "700 26px 'Helvetica Neue', Arial, sans-serif";
-  ctx.fillText(statementLine, leftX, cardY + 468, leftMaxWidth);
-
-  ctx.fillStyle = theme.issuedTextColor;
-  ctx.font = "600 16px 'Helvetica Neue', Arial, sans-serif";
-  ctx.fillText(
-    `Issued: ${new Date().toLocaleString()}`,
-    leftX,
-    cardY + cardHeight - 34,
-  );
-
-  const qrPanelX = splitX + 40;
-  const qrPanelY = cardY + 86;
-  const qrPanelWidth = cardX + cardWidth - qrPanelX - 34;
-  const qrPanelHeight = cardHeight - 172;
-  drawRoundedRect(ctx, qrPanelX, qrPanelY, qrPanelWidth, qrPanelHeight, 22);
+const drawTicketQrPanel = ({
+  ctx,
+  height,
+  hint,
+  qrImage,
+  theme,
+  title,
+  width,
+  x,
+  y,
+}: TicketQrPanelInput) => {
+  drawRoundedRect(ctx, x, y, width, height, 20);
   ctx.fillStyle = theme.qrPanelFillColor;
   ctx.fill();
   ctx.strokeStyle = theme.qrPanelStrokeColor;
@@ -549,24 +580,742 @@ const buildAcceptedTeamTicketDataUrl = async ({
 
   ctx.fillStyle = theme.qrTitleColor;
   ctx.font = "800 20px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
-  ctx.fillText("SCAN TEAM QR", qrPanelX + 26, qrPanelY + 42);
+  ctx.fillText(title, x + 24, y + 40, width - 48);
 
-  const qrImage = await loadCanvasImage(qrDataUrl);
-  const qrSize = 230;
-  const qrX = qrPanelX + (qrPanelWidth - qrSize) / 2;
-  const qrY = qrPanelY + 66;
-  drawRoundedRect(ctx, qrX - 12, qrY - 12, qrSize + 24, qrSize + 24, 16);
+  const verticalPadding = 24;
+  const contentTop = y + 58;
+  const contentBottom = y + height - 48;
+  const availableHeight = contentBottom - contentTop;
+  const qrSize = Math.max(
+    136,
+    Math.min(width - verticalPadding * 2, availableHeight - 18, 236),
+  );
+  const qrX = x + (width - qrSize) / 2;
+  const qrY = contentTop + (availableHeight - qrSize) / 2;
+
+  drawRoundedRect(ctx, qrX - 10, qrY - 10, qrSize + 20, qrSize + 20, 14);
   ctx.fillStyle = theme.qrFrameFillColor;
   ctx.fill();
   ctx.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
 
   ctx.fillStyle = theme.qrHintColor;
-  ctx.font = "700 14px 'Helvetica Neue', Arial, sans-serif";
-  ctx.fillText(
-    "Carry this pass during check-in.",
-    qrPanelX + 26,
-    qrY + qrSize + 54,
+  ctx.font = "700 13px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(hint, x + 24, y + height - 20, width - 48);
+};
+
+const drawCommandSplitLayout = ({
+  ctx,
+  height,
+  issuedLine,
+  qrImage,
+  statementLine,
+  teamId,
+  teamNameLine,
+  theme,
+  width,
+}: TicketLayoutRenderInput) => {
+  const cardX = 44;
+  const cardY = 38;
+  const cardWidth = width - 88;
+  const cardHeight = height - 76;
+  drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, 30);
+  const cardGradient = ctx.createLinearGradient(
+    cardX,
+    cardY,
+    cardX + cardWidth,
+    cardY + cardHeight,
   );
+  cardGradient.addColorStop(0, theme.cardStops[0]);
+  cardGradient.addColorStop(0.45, theme.cardStops[1]);
+  cardGradient.addColorStop(1, theme.cardStops[2]);
+  ctx.fillStyle = cardGradient;
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = theme.cardStrokeColor;
+  ctx.stroke();
+
+  const headerX = cardX + 24;
+  const headerY = cardY + 20;
+  const headerWidth = cardWidth - 48;
+  drawRoundedRect(ctx, headerX, headerY, headerWidth, 56, 14);
+  ctx.save();
+  ctx.globalAlpha = 0.16;
+  ctx.fillStyle = theme.punchColor;
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = theme.splitStrokeColor;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.fillStyle = theme.titleColor;
+  ctx.font = "800 18px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("FOUNDATHON // DASHBOARD PASS", headerX + 18, headerY + 35);
+
+  ctx.fillStyle = theme.issuedTextColor;
+  ctx.font = "700 13px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(
+    "foundathon.thefoundersclub.tech/dashboard",
+    headerX + headerWidth - 300,
+    headerY + 35,
+  );
+
+  const splitX = Math.round(cardX + cardWidth * 0.645);
+  ctx.save();
+  ctx.setLineDash([9, 9]);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = theme.splitStrokeColor;
+  ctx.beginPath();
+  ctx.moveTo(splitX, cardY + 98);
+  ctx.lineTo(splitX, cardY + cardHeight - 32);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = theme.punchColor;
+  ctx.beginPath();
+  ctx.arc(splitX, cardY, 18, 0, Math.PI, true);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(splitX, cardY + cardHeight, 18, Math.PI, 0, true);
+  ctx.fill();
+
+  const leftX = cardX + 50;
+  const leftWidth = splitX - leftX - 30;
+  drawFittedTicketText({
+    color: theme.headingColor,
+    ctx,
+    family: "'Arial Black', 'Helvetica Neue', Arial, sans-serif",
+    maxFontSize: 48,
+    maxWidth: leftWidth,
+    minFontSize: 34,
+    text: "TEAM ACCESS PASS",
+    weight: 800,
+    x: leftX,
+    y: cardY + 136,
+  });
+
+  drawTicketStatusPill({
+    bgColor: theme.statusBgColor,
+    ctx,
+    height: 44,
+    text: "STATUS: ACCEPTED",
+    textColor: theme.statusTextColor,
+    width: 292,
+    x: leftX,
+    y: cardY + 158,
+  });
+
+  const drawMetaCard = ({
+    label,
+    value,
+    valueColor,
+    valueFont,
+    y,
+  }: {
+    label: string;
+    value: string;
+    valueColor: string;
+    valueFont: string;
+    y: number;
+  }) => {
+    drawRoundedRect(ctx, leftX, y, leftWidth, 86, 12);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.58)";
+    ctx.fill();
+    ctx.strokeStyle = theme.splitStrokeColor;
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+
+    ctx.fillStyle = theme.metaLabelColor;
+    ctx.font = "700 15px 'Helvetica Neue', Arial, sans-serif";
+    ctx.fillText(label, leftX + 16, y + 28);
+
+    ctx.fillStyle = valueColor;
+    ctx.font = valueFont;
+    ctx.fillText(value, leftX + 16, y + 62, leftWidth - 32);
+  };
+
+  const metaStartY = cardY + 214;
+  drawMetaCard({
+    label: "TEAM NAME",
+    value: teamNameLine,
+    valueColor: theme.teamTextColor,
+    valueFont: "800 33px 'Helvetica Neue', Arial, sans-serif",
+    y: metaStartY,
+  });
+  drawMetaCard({
+    label: "TEAM ID",
+    value: teamId,
+    valueColor: theme.teamIdTextColor,
+    valueFont: "700 24px 'SFMono-Regular', Menlo, Consolas, monospace",
+    y: metaStartY + 98,
+  });
+  drawMetaCard({
+    label: "LOCKED TRACK",
+    value: statementLine,
+    valueColor: theme.statementTextColor,
+    valueFont: "700 24px 'Helvetica Neue', Arial, sans-serif",
+    y: metaStartY + 196,
+  });
+
+  drawRoundedRect(ctx, leftX, cardY + cardHeight - 70, leftWidth, 38, 10);
+  ctx.fillStyle = theme.qrFrameFillColor;
+  ctx.fill();
+  ctx.strokeStyle = theme.qrPanelStrokeColor;
+  ctx.stroke();
+  ctx.fillStyle = theme.issuedTextColor;
+  ctx.font = "700 13px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(
+    "Carry this pass with your college ID for on-ground check-in.",
+    leftX + 14,
+    cardY + cardHeight - 45,
+  );
+
+  const qrPanelX = splitX + 24;
+  drawTicketQrPanel({
+    ctx,
+    height: cardHeight - 138,
+    hint: "Scan this code at entry desk for fast verification.",
+    qrImage,
+    theme,
+    title: "SCAN TO VERIFY ENTRY",
+    width: cardX + cardWidth - qrPanelX - 24,
+    x: qrPanelX,
+    y: cardY + 96,
+  });
+
+  ctx.fillStyle = theme.issuedTextColor;
+  ctx.font = "600 14px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(issuedLine, leftX, cardY + cardHeight - 88);
+};
+
+const drawPosterStackLayout = ({
+  ctx,
+  height,
+  issuedLine,
+  qrImage,
+  statementLine,
+  teamId,
+  teamNameLine,
+  theme,
+  width,
+}: TicketLayoutRenderInput) => {
+  const cardX = 50;
+  const cardY = 42;
+  const cardWidth = width - 100;
+  const cardHeight = height - 84;
+  drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, 28);
+  const cardGradient = ctx.createLinearGradient(cardX, cardY, cardX, cardY + cardHeight);
+  cardGradient.addColorStop(0, theme.cardStops[0]);
+  cardGradient.addColorStop(0.36, theme.cardStops[1]);
+  cardGradient.addColorStop(1, theme.cardStops[2]);
+  ctx.fillStyle = cardGradient;
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = theme.cardStrokeColor;
+  ctx.stroke();
+
+  const heroX = cardX + 22;
+  const heroY = cardY + 20;
+  const heroWidth = cardWidth - 44;
+  drawRoundedRect(ctx, heroX, heroY, heroWidth, 98, 18);
+  ctx.save();
+  ctx.globalAlpha = 0.16;
+  ctx.fillStyle = theme.punchColor;
+  ctx.fill();
+  ctx.restore();
+  ctx.strokeStyle = theme.splitStrokeColor;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  ctx.fillStyle = theme.titleColor;
+  ctx.font = "900 24px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("FOUNDATHON 3.0", heroX + 18, heroY + 38);
+  ctx.fillStyle = theme.headingColor;
+  ctx.font = "800 26px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("ACCEPTED TEAM TICKET", heroX + 18, heroY + 76);
+
+  drawTicketStatusPill({
+    bgColor: theme.statusBgColor,
+    ctx,
+    height: 40,
+    text: "ACCEPTED",
+    textColor: theme.statusTextColor,
+    width: 258,
+    x: heroX + heroWidth - 278,
+    y: heroY + 29,
+  });
+
+  drawFittedTicketText({
+    color: theme.teamTextColor,
+    ctx,
+    family: "'Arial Black', 'Helvetica Neue', Arial, sans-serif",
+    maxFontSize: 56,
+    maxWidth: cardWidth - 72,
+    minFontSize: 36,
+    text: teamNameLine,
+    weight: 800,
+    x: cardX + 34,
+    y: cardY + 188,
+  });
+
+  ctx.fillStyle = theme.metaLabelColor;
+  ctx.font = "700 18px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(`LOCKED TRACK: ${statementLine}`, cardX + 34, cardY + 222, cardWidth - 68);
+
+  const infoX = cardX + 28;
+  const infoY = cardY + 242;
+  const infoWidth = cardWidth - 56;
+  const infoHeight = 94;
+  drawRoundedRect(ctx, infoX, infoY, infoWidth, infoHeight, 14);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+  ctx.fill();
+  ctx.strokeStyle = theme.splitStrokeColor;
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  const splitOne = infoX + Math.round(infoWidth * 0.38);
+  const splitTwo = infoX + Math.round(infoWidth * 0.67);
+  ctx.strokeStyle = theme.splitStrokeColor;
+  ctx.beginPath();
+  ctx.moveTo(splitOne, infoY + 12);
+  ctx.lineTo(splitOne, infoY + infoHeight - 12);
+  ctx.moveTo(splitTwo, infoY + 12);
+  ctx.lineTo(splitTwo, infoY + infoHeight - 12);
+  ctx.stroke();
+
+  ctx.fillStyle = theme.metaLabelColor;
+  ctx.font = "700 13px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("TEAM ID", infoX + 16, infoY + 28);
+  ctx.fillText("ISSUED", splitOne + 16, infoY + 28);
+  ctx.fillText("CHECK-IN", splitTwo + 16, infoY + 28);
+
+  ctx.fillStyle = theme.teamIdTextColor;
+  ctx.font = "700 22px 'SFMono-Regular', Menlo, Consolas, monospace";
+  ctx.fillText(teamId, infoX + 16, infoY + 64, splitOne - infoX - 26);
+  ctx.fillStyle = theme.issuedTextColor;
+  ctx.font = "700 15px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(issuedLine, splitOne + 16, infoY + 64, splitTwo - splitOne - 24);
+  ctx.fillStyle = theme.qrHintColor;
+  ctx.font = "700 15px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(
+    "Show this pass at gate",
+    splitTwo + 16,
+    infoY + 64,
+    infoX + infoWidth - splitTwo - 20,
+  );
+
+  const bottomY = cardY + 358;
+  const bottomHeight = cardY + cardHeight - bottomY - 28;
+  drawTicketQrPanel({
+    ctx,
+    height: bottomHeight,
+    hint: "Scan once at registration desk for final check-in.",
+    qrImage,
+    theme,
+    title: "QR CHECK-IN",
+    width: 422,
+    x: cardX + 30,
+    y: bottomY,
+  });
+
+  const rightPanelX = cardX + 470;
+  const rightPanelWidth = cardX + cardWidth - rightPanelX - 30;
+  drawRoundedRect(ctx, rightPanelX, bottomY, rightPanelWidth, bottomHeight, 20);
+  ctx.fillStyle = "rgba(255, 255, 255, 0.64)";
+  ctx.fill();
+  ctx.strokeStyle = theme.qrPanelStrokeColor;
+  ctx.stroke();
+
+  ctx.fillStyle = theme.headingColor;
+  ctx.font = "800 23px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("ENTRY CHECKLIST", rightPanelX + 20, bottomY + 40);
+
+  ctx.fillStyle = theme.statementTextColor;
+  ctx.font = "700 17px 'Helvetica Neue', Arial, sans-serif";
+  const checklist = [
+    "- Keep this ticket open or downloaded.",
+    "- Bring college ID for identity match.",
+    "- Team lead should check in first.",
+    "- Follow your assigned track queue.",
+  ];
+  checklist.forEach((line, index) => {
+    ctx.fillText(line, rightPanelX + 20, bottomY + 82 + index * 40, rightPanelWidth - 40);
+  });
+};
+
+const drawOpsGridLayout = ({
+  ctx,
+  height,
+  issuedLine,
+  qrImage,
+  statementLine,
+  teamId,
+  teamNameLine,
+  theme,
+  width,
+}: TicketLayoutRenderInput) => {
+  const cardX = 50;
+  const cardY = 44;
+  const cardWidth = width - 100;
+  const cardHeight = height - 88;
+  drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, 24);
+  const cardGradient = ctx.createLinearGradient(
+    cardX,
+    cardY,
+    cardX + cardWidth,
+    cardY + cardHeight,
+  );
+  cardGradient.addColorStop(0, theme.cardStops[0]);
+  cardGradient.addColorStop(0.5, theme.cardStops[1]);
+  cardGradient.addColorStop(1, theme.cardStops[2]);
+  ctx.fillStyle = cardGradient;
+  ctx.fill();
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = theme.cardStrokeColor;
+  ctx.stroke();
+
+  ctx.save();
+  drawRoundedRect(ctx, cardX + 4, cardY + 4, cardWidth - 8, cardHeight - 8, 20);
+  ctx.clip();
+  ctx.globalAlpha = 0.24;
+  ctx.strokeStyle = theme.splitStrokeColor;
+  ctx.lineWidth = 1;
+  for (let x = cardX + 18; x < cardX + cardWidth - 16; x += 42) {
+    ctx.beginPath();
+    ctx.moveTo(x, cardY + 8);
+    ctx.lineTo(x, cardY + cardHeight - 8);
+    ctx.stroke();
+  }
+  for (let y = cardY + 18; y < cardY + cardHeight - 16; y += 36) {
+    ctx.beginPath();
+    ctx.moveTo(cardX + 8, y);
+    ctx.lineTo(cardX + cardWidth - 8, y);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  drawRoundedRect(ctx, cardX + 26, cardY + 22, 340, 44, 12);
+  ctx.fillStyle = theme.qrFrameFillColor;
+  ctx.fill();
+  ctx.strokeStyle = theme.qrPanelStrokeColor;
+  ctx.stroke();
+  ctx.fillStyle = theme.titleColor;
+  ctx.font = "800 17px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("FOUNDATHON OPS BOARD", cardX + 42, cardY + 50);
+
+  drawRoundedRect(ctx, cardX + cardWidth - 308, cardY + 22, 282, 44, 12);
+  ctx.fillStyle = theme.qrFrameFillColor;
+  ctx.fill();
+  ctx.strokeStyle = theme.qrPanelStrokeColor;
+  ctx.stroke();
+  ctx.fillStyle = theme.teamIdTextColor;
+  ctx.font = "700 18px 'SFMono-Regular', Menlo, Consolas, monospace";
+  ctx.fillText(teamId, cardX + cardWidth - 292, cardY + 50, 260);
+
+  drawTicketStatusPill({
+    bgColor: theme.statusBgColor,
+    ctx,
+    height: 42,
+    text: "STATUS: ACCEPTED",
+    textColor: theme.statusTextColor,
+    width: 248,
+    x: cardX + cardWidth - 274,
+    y: cardY + 82,
+  });
+
+  drawTicketQrPanel({
+    ctx,
+    height: 378,
+    hint: "Primary check-in QR. Keep this ticket ready.",
+    qrImage,
+    theme,
+    title: "SCAN NODE",
+    width: 360,
+    x: cardX + 34,
+    y: cardY + 142,
+  });
+
+  const rightX = cardX + 420;
+  const rightWidth = cardX + cardWidth - rightX - 26;
+  const drawDataPanel = ({
+    label,
+    value,
+    valueColor,
+    valueFont,
+    y,
+  }: {
+    label: string;
+    value: string;
+    valueColor: string;
+    valueFont: string;
+    y: number;
+  }) => {
+    drawRoundedRect(ctx, rightX, y, rightWidth, 112, 14);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.62)";
+    ctx.fill();
+    ctx.strokeStyle = theme.qrPanelStrokeColor;
+    ctx.stroke();
+
+    ctx.fillStyle = theme.metaLabelColor;
+    ctx.font = "700 14px 'Helvetica Neue', Arial, sans-serif";
+    ctx.fillText(label, rightX + 16, y + 30);
+    ctx.fillStyle = valueColor;
+    ctx.font = valueFont;
+    ctx.fillText(value, rightX + 16, y + 74, rightWidth - 32);
+  };
+
+  drawDataPanel({
+    label: "TEAM",
+    value: teamNameLine,
+    valueColor: theme.teamTextColor,
+    valueFont: "800 34px 'Helvetica Neue', Arial, sans-serif",
+    y: cardY + 142,
+  });
+  drawDataPanel({
+    label: "LOCKED TRACK",
+    value: statementLine,
+    valueColor: theme.statementTextColor,
+    valueFont: "700 25px 'Helvetica Neue', Arial, sans-serif",
+    y: cardY + 270,
+  });
+  drawDataPanel({
+    label: "ISSUE LOG",
+    value: issuedLine,
+    valueColor: theme.issuedTextColor,
+    valueFont: "700 18px 'Helvetica Neue', Arial, sans-serif",
+    y: cardY + 398,
+  });
+
+  drawRoundedRect(ctx, rightX, cardY + cardHeight - 56, rightWidth, 30, 10);
+  ctx.fillStyle = theme.qrFrameFillColor;
+  ctx.fill();
+  ctx.strokeStyle = theme.splitStrokeColor;
+  ctx.stroke();
+  ctx.fillStyle = theme.qrHintColor;
+  ctx.font = "700 12px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(
+    "VALID FOR ON-GROUND CHECK-IN ONLY",
+    rightX + 14,
+    cardY + cardHeight - 37,
+  );
+};
+
+const drawBoardwalkPassLayout = ({
+  ctx,
+  height,
+  issuedLine,
+  qrImage,
+  statementLine,
+  teamId,
+  teamNameLine,
+  theme,
+  width,
+}: TicketLayoutRenderInput) => {
+  const cardX = 56;
+  const cardY = 44;
+  const cardWidth = width - 112;
+  const cardHeight = height - 88;
+  drawRoundedRect(ctx, cardX, cardY, cardWidth, cardHeight, 22);
+  const cardGradient = ctx.createLinearGradient(cardX, cardY, cardX, cardY + cardHeight);
+  cardGradient.addColorStop(0, theme.cardStops[0]);
+  cardGradient.addColorStop(0.5, theme.cardStops[1]);
+  cardGradient.addColorStop(1, theme.cardStops[2]);
+  ctx.fillStyle = cardGradient;
+  ctx.fill();
+  ctx.lineWidth = 4;
+  ctx.strokeStyle = theme.cardStrokeColor;
+  ctx.stroke();
+
+  drawRoundedRect(ctx, cardX + 12, cardY + 12, cardWidth - 24, cardHeight - 24, 16);
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = theme.splitStrokeColor;
+  ctx.stroke();
+
+  drawRoundedRect(ctx, cardX + 22, cardY + 20, cardWidth - 44, 68, 12);
+  ctx.fillStyle = "#dc2626";
+  ctx.fill();
+  ctx.fillStyle = "#fffdf2";
+  ctx.font = "900 26px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText("FOUNDATHON BOARDWALK PASS", cardX + 44, cardY + 63);
+
+  const railX = cardX + 28;
+  const railY = cardY + 110;
+  const railWidth = 144;
+  const railHeight = cardHeight - 190;
+  drawRoundedRect(ctx, railX, railY, railWidth, railHeight, 12);
+  ctx.fillStyle = "#fef3c7";
+  ctx.fill();
+  ctx.strokeStyle = "#d97706";
+  ctx.lineWidth = 1.6;
+  ctx.stroke();
+
+  const propertyColors = ["#16a34a", "#dc2626", "#2563eb", "#f59e0b"];
+  propertyColors.forEach((color, index) => {
+    const blockY = railY + 14 + index * 68;
+    drawRoundedRect(ctx, railX + 12, blockY, railWidth - 24, 52, 8);
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.fillStyle = "#fffef9";
+    ctx.font = "800 11px 'Arial Black', 'Helvetica Neue', Arial, sans-serif";
+    ctx.fillText(`ZONE ${index + 1}`, railX + 24, blockY + 31);
+  });
+
+  const qrPanelWidth = 292;
+  const qrPanelX = cardX + cardWidth - qrPanelWidth - 28;
+  drawTicketQrPanel({
+    ctx,
+    height: cardHeight - 204,
+    hint: "Scan this title-deed QR at the registration counter.",
+    qrImage,
+    theme,
+    title: "TITLE DEED QR",
+    width: qrPanelWidth,
+    x: qrPanelX,
+    y: cardY + 110,
+  });
+
+  const centerX = railX + railWidth + 20;
+  const centerWidth = qrPanelX - centerX - 18;
+  drawFittedTicketText({
+    color: theme.headingColor,
+    ctx,
+    family: "'Arial Black', 'Helvetica Neue', Arial, sans-serif",
+    maxFontSize: 46,
+    maxWidth: centerWidth,
+    minFontSize: 28,
+    text: "TEAM ACCESS TITLE",
+    weight: 800,
+    x: centerX,
+    y: cardY + 156,
+  });
+
+  drawTicketStatusPill({
+    bgColor: theme.statusBgColor,
+    ctx,
+    height: 44,
+    text: "STATUS: ACCEPTED",
+    textColor: theme.statusTextColor,
+    width: Math.min(286, centerWidth),
+    x: centerX,
+    y: cardY + 176,
+  });
+
+  const drawCenterCard = ({
+    label,
+    value,
+    valueColor,
+    valueFont,
+    y,
+  }: {
+    label: string;
+    value: string;
+    valueColor: string;
+    valueFont: string;
+    y: number;
+  }) => {
+    drawRoundedRect(ctx, centerX, y, centerWidth, 88, 10);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.6)";
+    ctx.fill();
+    ctx.strokeStyle = theme.qrPanelStrokeColor;
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = theme.metaLabelColor;
+    ctx.font = "700 14px 'Helvetica Neue', Arial, sans-serif";
+    ctx.fillText(label, centerX + 14, y + 28);
+    ctx.fillStyle = valueColor;
+    ctx.font = valueFont;
+    ctx.fillText(value, centerX + 14, y + 62, centerWidth - 24);
+  };
+
+  drawCenterCard({
+    label: "TEAM NAME",
+    value: teamNameLine,
+    valueColor: theme.teamTextColor,
+    valueFont: "800 30px 'Helvetica Neue', Arial, sans-serif",
+    y: cardY + 238,
+  });
+  drawCenterCard({
+    label: "TEAM ID",
+    value: teamId,
+    valueColor: theme.teamIdTextColor,
+    valueFont: "700 23px 'SFMono-Regular', Menlo, Consolas, monospace",
+    y: cardY + 338,
+  });
+  drawCenterCard({
+    label: "TRACK",
+    value: statementLine,
+    valueColor: theme.statementTextColor,
+    valueFont: "700 22px 'Helvetica Neue', Arial, sans-serif",
+    y: cardY + 438,
+  });
+
+  drawRoundedRect(ctx, centerX, cardY + cardHeight - 66, centerWidth, 34, 8);
+  ctx.fillStyle = "#166534";
+  ctx.fill();
+  ctx.fillStyle = "#ecfdf5";
+  ctx.font = "700 13px 'Helvetica Neue', Arial, sans-serif";
+  ctx.fillText(issuedLine, centerX + 12, cardY + cardHeight - 44, centerWidth - 24);
+};
+
+const buildAcceptedTeamTicketDataUrl = async ({
+  qrDataUrl,
+  statementTitle,
+  teamId,
+  teamName,
+  themeId,
+}: {
+  qrDataUrl: string;
+  statementTitle: string;
+  teamId: string;
+  teamName: string;
+  themeId: TeamTicketThemeId;
+}) => {
+  if (typeof document === "undefined") {
+    throw new Error("Document is unavailable.");
+  }
+
+  const theme = getTeamTicketTheme(themeId);
+
+  const canvas = document.createElement("canvas");
+  const width = 1200;
+  const height = 675;
+  canvas.width = width;
+  canvas.height = height;
+
+  const ctx = canvas.getContext("2d");
+  if (!ctx) {
+    throw new Error("Canvas context is unavailable.");
+  }
+
+  const qrImage = await loadCanvasImage(qrDataUrl);
+  const issuedLine = `Issued: ${new Date().toLocaleString()}`;
+  const layoutInput: TicketLayoutRenderInput = {
+    ctx,
+    height,
+    issuedLine,
+    qrImage,
+    statementLine: toTicketLine(statementTitle, 50),
+    teamId,
+    teamNameLine: toTicketLine(teamName, 30),
+    theme,
+    width,
+  };
+
+  drawTicketBackdrop({ ctx, height, theme, width });
+
+  switch (theme.layout) {
+    case "poster-stack":
+      drawPosterStackLayout(layoutInput);
+      break;
+    case "ops-grid":
+      drawOpsGridLayout(layoutInput);
+      break;
+    case "boardwalk-pass":
+      drawBoardwalkPassLayout(layoutInput);
+      break;
+    default:
+      drawCommandSplitLayout(layoutInput);
+      break;
+  }
 
   return canvas.toDataURL("image/png");
 };
@@ -743,7 +1492,7 @@ export default function TeamDashboardPage() {
   const [showTeamTicketModal, setShowTeamTicketModal] = useState(false);
   const [teamTicketPreviewDataUrl, setTeamTicketPreviewDataUrl] = useState("");
   const [teamTicketThemeId, setTeamTicketThemeId] =
-    useState<TeamTicketThemeId>("neon-royale");
+    useState<TeamTicketThemeId>("monopoly-classic");
   const [teamTicketPreviewThemeId, setTeamTicketPreviewThemeId] =
     useState<TeamTicketThemeId | null>(null);
   const [isGeneratingTeamTicketPreview, setIsGeneratingTeamTicketPreview] =
@@ -1960,7 +2709,7 @@ export default function TeamDashboardPage() {
       `Team: ${teamName || "Unnamed Team"}`,
       `Team ID: ${teamId}`,
       `Track: ${problemStatement.title || "N/A"}`,
-      `Theme: ${selectedTeamTicketTheme.label}`,
+      `Style: ${selectedTeamTicketTheme.label}`,
       `Dashboard: ${dashboardUrl}`,
     ].join("\n");
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
@@ -3443,183 +4192,190 @@ export default function TeamDashboardPage() {
       {showTeamTicketModal && shouldShowAcceptedQr ? (
         <ModalPortal>
           <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-6"
+            className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-2 py-2 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6"
             role="dialog"
             aria-modal="true"
             aria-labelledby="team-ticket-title"
           >
             <div
               className={cn(
-                "w-full max-w-4xl overflow-hidden rounded-2xl border border-b-4 bg-background shadow-2xl",
+                "my-auto flex max-h-[calc(100dvh-0.75rem)] w-full max-w-4xl min-h-0 flex-col overflow-hidden rounded-xl border border-b-4 bg-background shadow-2xl sm:max-h-[calc(100dvh-2.5rem)] sm:rounded-2xl",
                 selectedTeamTicketTheme.uiModalBorderClass,
               )}
             >
-            <div className="flex items-start justify-between gap-3 border-b border-foreground/10 px-4 py-3 md:px-5">
-              <div>
-                <p
-                  className={cn(
-                    "text-xs font-extrabold uppercase tracking-widest",
-                    selectedTeamTicketTheme.uiAccentTextClass,
-                  )}
-                >
-                  Accepted Team Pass
-                </p>
-                <h3
-                  id="team-ticket-title"
-                  className="mt-1 text-lg font-black uppercase tracking-tight md:text-xl"
-                >
-                  Team QR Ticket
-                </h3>
-                <p
-                  className={cn(
-                    "mt-2 inline-flex rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.14em]",
-                    selectedTeamTicketTheme.uiChipClass,
-                  )}
-                >
-                  Theme: {selectedTeamTicketTheme.label}
-                </p>
-              </div>
-              <button
-                type="button"
-                aria-label="Close team ticket modal"
-                onClick={closeTeamTicketModal}
-                className="inline-flex size-8 items-center justify-center rounded-md border border-foreground/20 bg-white text-foreground/70 transition-colors hover:bg-fnblue/10 hover:text-fnblue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/40"
-              >
-                <X size={16} strokeWidth={2.6} />
-              </button>
-            </div>
-
-            <div className="grid gap-5 bg-white/70 p-4 md:grid-cols-[1.2fr_0.8fr] md:p-5">
-              <div className="rounded-xl border border-foreground/10 bg-foreground/5 p-3">
-                {isGeneratingTeamTicketPreview ? (
-                  <div className="h-55 w-full animate-pulse rounded-lg bg-foreground/10 md:h-65" />
-                ) : teamTicketPreviewError ? (
-                  <div className="flex h-55 flex-col items-center justify-center rounded-lg border border-fnred/25 bg-fnred/5 px-4 text-center md:h-65">
-                    <p className="text-sm font-semibold text-fnred">
-                      Ticket preview unavailable right now.
-                    </p>
-                    <p className="mt-2 text-xs text-foreground/80 font-medium">
-                      You can still download and share using the actions on the
-                      right.
-                    </p>
-                  </div>
-                ) : teamTicketPreviewDataUrl ? (
-                  <Image
-                    src={teamTicketPreviewDataUrl}
-                    alt={`Ticket preview for team ${teamName || teamId}`}
-                    width={1200}
-                    height={675}
-                    unoptimized
-                    className="w-full rounded-lg border border-foreground/10 bg-white"
-                  />
-                ) : (
-                  <div className="flex h-55 items-center justify-center rounded-lg border border-foreground/10 bg-background text-sm text-foreground/75 md:h-65">
-                    Ticket preview is being prepared.
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-3 rounded-xl border border-foreground/10 bg-background p-4">
-                <p
-                  className={cn(
-                    "text-xs font-extrabold uppercase tracking-widest",
-                    selectedTeamTicketTheme.uiAccentTextClass,
-                  )}
-                >
-                  Ticket Details
-                </p>
-                <div className="space-y-2 rounded-lg border border-foreground/10 bg-foreground/5 p-3">
-                  <p className="text-[11px] font-extrabold uppercase tracking-[0.14em] text-foreground/70">
-                    Select Ticket Theme
+              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-foreground/10 bg-background px-3 py-3 sm:px-4 md:px-5">
+                <div>
+                  <p
+                    className={cn(
+                      "text-[11px] font-extrabold uppercase tracking-widest sm:text-xs",
+                      selectedTeamTicketTheme.uiAccentTextClass,
+                    )}
+                  >
+                    Accepted Team Pass
                   </p>
-                  <div className="grid gap-2">
-                    {TEAM_TICKET_THEMES.map((theme) => {
-                      const isActiveTheme = teamTicketThemeId === theme.id;
-                      return (
-                        <button
-                          key={theme.id}
-                          type="button"
-                          onClick={() => setTeamTicketThemeId(theme.id)}
-                          className={cn(
-                            "rounded-md border px-2.5 py-2 text-left transition-[transform,box-shadow,border-color] duration-[var(--motion-duration-base)] ease-[var(--motion-ease-emphasized)] hover:-translate-y-0.5 hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/40",
-                            isActiveTheme
-                              ? theme.uiChipClass
-                              : "border-foreground/20 bg-background text-foreground/80",
-                          )}
-                        >
-                          <span
+                  <h3
+                    id="team-ticket-title"
+                    className="mt-1 text-base font-black uppercase tracking-tight sm:text-lg md:text-xl"
+                  >
+                    Team QR Ticket
+                  </h3>
+                  <p
+                    className={cn(
+                      "mt-2 inline-flex rounded-full border px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.14em] sm:text-[10px]",
+                      selectedTeamTicketTheme.uiChipClass,
+                    )}
+                  >
+                    Style: {selectedTeamTicketTheme.label}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Close team ticket modal"
+                  onClick={closeTeamTicketModal}
+                  className="inline-flex size-8 items-center justify-center rounded-md border border-foreground/20 bg-white text-foreground/70 transition-colors hover:bg-fnblue/10 hover:text-fnblue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/40"
+                >
+                  <X size={16} strokeWidth={2.6} />
+                </button>
+              </div>
+
+              <div className="grid min-h-0 flex-1 grid-rows-[auto_auto] gap-3 overflow-y-auto bg-white/70 p-3 sm:gap-4 sm:p-4 md:grid-cols-[1.2fr_0.8fr] md:grid-rows-1 md:gap-5 md:overflow-hidden md:p-5">
+                <div className="min-h-0 rounded-xl border border-foreground/10 bg-foreground/5 p-2.5 sm:p-3">
+                  {isGeneratingTeamTicketPreview ? (
+                    <div className="flex h-full min-h-44 items-center justify-center rounded-lg bg-foreground/10 sm:min-h-55 md:min-h-65">
+                      <div className="h-44 w-full animate-pulse rounded-lg bg-foreground/10 sm:h-55 md:h-65" />
+                    </div>
+                  ) : teamTicketPreviewError ? (
+                    <div className="flex h-full min-h-44 flex-col items-center justify-center rounded-lg border border-fnred/25 bg-fnred/5 px-4 text-center sm:min-h-55 md:min-h-65">
+                      <p className="text-sm font-semibold text-fnred">
+                        Ticket preview unavailable right now.
+                      </p>
+                      <p className="mt-2 text-xs font-medium text-foreground/80">
+                        You can still download and share using the actions on
+                        the right.
+                      </p>
+                    </div>
+                  ) : teamTicketPreviewDataUrl ? (
+                    <div className="h-full min-h-44 overflow-hidden rounded-lg border border-foreground/10 bg-white sm:min-h-55 md:min-h-65">
+                      <Image
+                        src={teamTicketPreviewDataUrl}
+                        alt={`Ticket preview for team ${teamName || teamId}`}
+                        width={1200}
+                        height={675}
+                        unoptimized
+                        className="h-auto w-full rounded-lg bg-white"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex h-full min-h-44 items-center justify-center rounded-lg border border-foreground/10 bg-background text-sm text-foreground/75 sm:min-h-55 md:min-h-65">
+                      Ticket preview is being prepared.
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-2.5 rounded-xl border border-foreground/10 bg-background p-3 sm:space-y-3 sm:p-4 md:overflow-y-auto">
+                  <p
+                    className={cn(
+                      "text-xs font-extrabold uppercase tracking-widest",
+                      selectedTeamTicketTheme.uiAccentTextClass,
+                    )}
+                  >
+                    Ticket Details
+                  </p>
+                  <div className="space-y-2 rounded-lg border border-foreground/10 bg-foreground/5 p-2.5 sm:p-3">
+                    <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-foreground/70 sm:text-[11px]">
+                      Select Ticket Style
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      {TEAM_TICKET_THEMES.map((theme) => {
+                        const isActiveTheme = teamTicketThemeId === theme.id;
+                        return (
+                          <button
+                            key={theme.id}
+                            type="button"
+                            onClick={() => setTeamTicketThemeId(theme.id)}
                             className={cn(
-                              "block h-1.5 rounded-full bg-linear-to-r",
-                              theme.swatchClass,
+                              "min-w-0 rounded-md border px-2 py-2 text-left transition-[transform,box-shadow,border-color] duration-[var(--motion-duration-base)] ease-[var(--motion-ease-emphasized)] hover:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/40 sm:px-2.5",
+                              isActiveTheme
+                                ? theme.uiChipClass
+                                : "border-foreground/20 bg-background text-foreground/80",
                             )}
-                          />
-                          <span className="mt-1.5 block text-xs font-bold uppercase tracking-[0.12em]">
-                            {theme.label}
-                          </span>
-                          <span className="mt-1 block text-[11px] leading-snug text-foreground/70">
-                            {theme.description}
-                          </span>
-                        </button>
-                      );
-                    })}
+                          >
+                            <span
+                              className={cn(
+                                "block h-1.5 rounded-full bg-linear-to-r",
+                                theme.swatchClass,
+                              )}
+                            />
+                            <span className="mt-1 block text-[10px] font-bold uppercase tracking-[0.08em] sm:mt-1.5 sm:text-[11px] sm:tracking-[0.11em]">
+                              {theme.label}
+                            </span>
+                            <span className="mt-1 hidden text-[10px] leading-snug text-foreground/70 md:block">
+                              {theme.description}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="text-xs sm:text-sm">
+                    <span className="font-semibold">Team:</span>{" "}
+                    {teamName || "Unnamed Team"}
+                  </p>
+                  <p className="text-xs sm:text-sm">
+                    <span className="font-semibold">Team ID:</span>{" "}
+                    <span className="font-mono text-xs">{teamId}</span>
+                  </p>
+                  <p className="text-xs sm:text-sm">
+                    <span className="font-semibold">Track:</span>{" "}
+                    {problemStatement.title || "N/A"}
+                  </p>
+                  <p className="text-xs text-foreground/60">
+                    Pick your favorite ticket style, then download this ticket for
+                    on-ground check-ins or share instantly on WhatsApp.
+                  </p>
+
+                  <div className="space-y-2 pt-1">
+                    <FnButton
+                      type="button"
+                      size="sm"
+                      className="w-full justify-center"
+                      onClick={downloadTeamTicket}
+                      loading={isDownloadingTeamTicket}
+                      loadingText="Preparing Ticket..."
+                      disabled={isGeneratingTeamQr || teamQrGenerationError}
+                    >
+                      <Download size={16} strokeWidth={3} />
+                      Download Ticket PNG
+                    </FnButton>
+                    <FnButton
+                      type="button"
+                      tone="green"
+                      size="sm"
+                      className="w-full justify-center"
+                      onClick={shareTeamTicketOnWhatsApp}
+                      loading={isSharingTeamTicket}
+                      loadingText="Opening Share..."
+                      disabled={
+                        isGeneratingTeamQr ||
+                        teamQrGenerationError ||
+                        isSharingTeamTicket
+                      }
+                    >
+                      <ExternalLink size={16} strokeWidth={3} />
+                      Share on WhatsApp
+                    </FnButton>
+                    <FnButton
+                      type="button"
+                      tone="gray"
+                      size="sm"
+                      className="w-full justify-center"
+                      onClick={copyTeamId}
+                    >
+                      Copy Team ID
+                    </FnButton>
                   </div>
                 </div>
-                <p className="text-sm">
-                  <span className="font-semibold">Team:</span>{" "}
-                  {teamName || "Unnamed Team"}
-                </p>
-                <p className="text-sm">
-                  <span className="font-semibold">Team ID:</span>{" "}
-                  <span className="font-mono text-xs">{teamId}</span>
-                </p>
-                <p className="text-sm">
-                  <span className="font-semibold">Track:</span>{" "}
-                  {problemStatement.title || "N/A"}
-                </p>
-                <p className="text-xs text-foreground/60">
-                  Pick your favorite theme, then download this ticket for
-                  on-ground check-ins or share instantly on WhatsApp.
-                </p>
-
-                <div className="pt-1 space-y-2">
-                  <FnButton
-                    type="button"
-                    className="w-full justify-center"
-                    onClick={downloadTeamTicket}
-                    loading={isDownloadingTeamTicket}
-                    loadingText="Preparing Ticket..."
-                    disabled={isGeneratingTeamQr || teamQrGenerationError}
-                  >
-                    <Download size={16} strokeWidth={3} />
-                    Download Ticket PNG
-                  </FnButton>
-                  <FnButton
-                    type="button"
-                    tone="green"
-                    className="w-full justify-center"
-                    onClick={shareTeamTicketOnWhatsApp}
-                    loading={isSharingTeamTicket}
-                    loadingText="Opening Share..."
-                    disabled={
-                      isGeneratingTeamQr ||
-                      teamQrGenerationError ||
-                      isSharingTeamTicket
-                    }
-                  >
-                    <ExternalLink size={16} strokeWidth={3} />
-                    Share on WhatsApp
-                  </FnButton>
-                  <FnButton
-                    type="button"
-                    tone="gray"
-                    className="w-full justify-center"
-                    onClick={copyTeamId}
-                  >
-                    Copy Team ID
-                  </FnButton>
-                </div>
               </div>
-            </div>
             </div>
           </div>
         </ModalPortal>

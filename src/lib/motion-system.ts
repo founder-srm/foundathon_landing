@@ -46,21 +46,25 @@ export const MOTION_TRANSITIONS = {
 
 export const MOTION_VARIANTS = {
   fadeBlurIn: {
-    hidden: { filter: "blur(4px)", opacity: 0, y: 22 },
-    visible: { filter: "blur(0px)", opacity: 1, y: 0 },
+    hidden: { filter: "blur(6px)", opacity: 0, scale: 0.988, y: 26 },
+    visible: { filter: "blur(0px)", opacity: 1, scale: 1, y: 0 },
+  } satisfies Variants,
+  fadeLiftIn: {
+    hidden: { filter: "blur(7px)", opacity: 0, scale: 0.982, y: 32 },
+    visible: { filter: "blur(0px)", opacity: 1, scale: 1, y: 0 },
   } satisfies Variants,
   fadeUpSoft: {
-    hidden: { filter: "blur(3px)", opacity: 0, y: 18 },
-    visible: { filter: "blur(0px)", opacity: 1, y: 0 },
+    hidden: { filter: "blur(4px)", opacity: 0, scale: 0.992, y: 20 },
+    visible: { filter: "blur(0px)", opacity: 1, scale: 1, y: 0 },
   } satisfies Variants,
   modalInOut: {
-    exit: { filter: "blur(2px)", opacity: 0, scale: 0.985, y: -8 },
-    hidden: { filter: "blur(3px)", opacity: 0, scale: 0.99, y: 14 },
+    exit: { filter: "blur(3px)", opacity: 0, scale: 0.982, y: -10 },
+    hidden: { filter: "blur(4px)", opacity: 0, scale: 0.986, y: 18 },
     visible: { filter: "blur(0px)", opacity: 1, scale: 1, y: 0 },
   } satisfies Variants,
   staggerItem: {
-    hidden: { filter: "blur(2px)", opacity: 0, y: 12 },
-    visible: { filter: "blur(0px)", opacity: 1, y: 0 },
+    hidden: { filter: "blur(3px)", opacity: 0, scale: 0.994, y: 14 },
+    visible: { filter: "blur(0px)", opacity: 1, scale: 1, y: 0 },
   } satisfies Variants,
 } as const;
 

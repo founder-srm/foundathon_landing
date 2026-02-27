@@ -116,6 +116,49 @@
       transform: translate3d(-10px, 10px, 0) scale(1.03);
     }
   }
+  @keyframes ambient-pan {
+    0%,
+    100% {
+      transform: translate3d(-2%, 0, 0) scale(1);
+    }
+    50% {
+      transform: translate3d(2%, -1.5%, 0) scale(1.03);
+    }
+  }
+  @keyframes ambient-orbit {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    25% {
+      transform: translate3d(8px, -10px, 0) scale(1.04);
+    }
+    50% {
+      transform: translate3d(0, -14px, 0) scale(1.02);
+    }
+    75% {
+      transform: translate3d(-10px, -6px, 0) scale(1.03);
+    }
+  }
+  @keyframes pulse-glow {
+    0%,
+    100% {
+      opacity: 0.52;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.9;
+      transform: scale(1.04);
+    }
+  }
+  @keyframes line-scan {
+    0% {
+      transform: translateX(-55%);
+    }
+    100% {
+      transform: translateX(155%);
+    }
+  }
 }
 
 :root {

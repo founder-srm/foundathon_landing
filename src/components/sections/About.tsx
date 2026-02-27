@@ -40,7 +40,7 @@ const onboardingSequence = [
 ];
 
 const ABOUT_SCROLL_VARIANTS = MOTION_VARIANTS.fadeBlurIn;
-const ABOUT_CARD_VARIANTS = MOTION_VARIANTS.fadeUpSoft;
+const ABOUT_CARD_VARIANTS = MOTION_VARIANTS.fadeLiftIn;
 
 const About = () => {
   return (
@@ -48,6 +48,12 @@ const About = () => {
       className="bg-background text-foreground font-mono relative scroll-auto"
       id="overview"
     >
+      <div
+        className="absolute inset-0 opacity-35 pointer-events-none"
+        style={{ backgroundImage: "url(/textures/circle-16px.svg)" }}
+      />
+      <div className="absolute -top-20 left-[20%] size-64 rounded-full bg-fnblue/10 blur-3xl pointer-events-none motion-safe:animate-[ambient-orbit_17s_ease-in-out_infinite]" />
+      <div className="absolute -bottom-20 right-[12%] size-64 rounded-full bg-fnyellow/15 blur-3xl pointer-events-none motion-safe:animate-[ambient-orbit_19s_ease-in-out_infinite]" />
       <div className="fncontainer relative py-20 md:py-24 space-y-16">
         <InView
           once
@@ -82,7 +88,8 @@ const About = () => {
               }}
               once
             >
-              <div className="rounded-xl h-full bg-gray-100 border-b-4 border-fnblue border px-6 py-7 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+              <div className="group relative h-full overflow-hidden rounded-xl border border-b-4 border-fnblue bg-gray-100 px-6 py-7 shadow-sm transition-[transform,box-shadow,border-color,background-color] duration-[var(--motion-duration-base)] ease-[var(--motion-ease-emphasized)] hover:-translate-y-1 hover:scale-[1.01] hover:border-fnblue/55 hover:bg-white hover:shadow-[0_18px_34px_rgba(39,114,160,0.18)]">
+                <div className="pointer-events-none absolute -left-1/2 top-0 h-px w-1/2 bg-linear-to-r from-transparent via-fnblue/65 to-transparent opacity-80 motion-safe:animate-[line-scan_3.2s_linear_infinite]" />
                 <p className="text-sm uppercase tracking-[0.2em] text-fnblue font-extrabold">
                   Board Rule
                 </p>
@@ -125,7 +132,8 @@ const About = () => {
                   }}
                   variants={ABOUT_CARD_VARIANTS}
                 >
-                  <div className="rounded-xl border border-b-4 border-fnblue bg-gray-100 px-5 py-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
+                  <div className="group relative overflow-hidden rounded-xl border border-b-4 border-fnblue bg-gray-100 px-5 py-5 shadow-sm transition-[transform,box-shadow,border-color,background-color] duration-[var(--motion-duration-base)] ease-[var(--motion-ease-emphasized)] hover:-translate-y-1 hover:scale-[1.01] hover:border-fnblue/55 hover:bg-white hover:shadow-[0_18px_34px_rgba(39,114,160,0.18)]">
+                    <div className="pointer-events-none absolute -left-1/2 top-0 h-px w-1/2 bg-linear-to-r from-transparent via-fnblue/65 to-transparent opacity-80 motion-safe:animate-[line-scan_3s_linear_infinite]" />
                     <p className="text-sm uppercase text-fnblue font-extrabold">
                       {item.step}
                     </p>
@@ -153,6 +161,7 @@ const About = () => {
                 className="absolute inset-0 opacity-100 mix-blend-multiply pointer-events-none bg-repeat bg-center"
                 style={{ backgroundImage: "url(/textures/noise-main.svg)" }}
               ></div>
+              <div className="absolute inset-0 bg-linear-to-tr from-transparent via-white/6 to-fnyellow/14 pointer-events-none motion-safe:animate-[ambient-pan_14s_ease-in-out_infinite]" />
               <div className="absolute -top-10 -right-12 size-36 rounded-full bg-white/10 blur-2xl motion-safe:animate-[float-soft_10s_ease-in-out_infinite]" />
               <div className="absolute -bottom-8 -left-8 size-28 rounded-full bg-fnyellow/20 blur-2xl motion-safe:animate-[float-soft_12s_ease-in-out_infinite]" />
 

@@ -17,7 +17,7 @@ const content = {
   secondaryButtonText: "Problem Statements",
 };
 
-const HERO_REVEAL_VARIANTS = MOTION_VARIANTS.fadeUpSoft;
+const HERO_REVEAL_VARIANTS = MOTION_VARIANTS.fadeLiftIn;
 const HERO_TRANSITION_BASE = MOTION_TRANSITIONS.base;
 const HERO_TRANSITION_SLOW = MOTION_TRANSITIONS.slow;
 
@@ -32,23 +32,24 @@ const Hero = async () => {
         className="absolute inset-0 z-0 opacity-60"
         style={{ backgroundImage: "url(/textures/circle-16px.svg)" }}
       />
+      <div className="absolute inset-0 z-0 bg-linear-to-br from-white/20 via-transparent to-fnblue/12 opacity-55 motion-safe:animate-[ambient-pan_15s_ease-in-out_infinite]" />
       <div className="bg-fnyellow blur-2xl size-90 rounded-full absolute top-16 -left-16 opacity-20 z-10 motion-safe:animate-[hero-drift-yellow_14s_ease-in-out_infinite]" />
       <div className="bg-fnblue blur-[100px] size-120 rounded-full absolute -bottom-24 right-0 opacity-20 z-10 motion-safe:animate-[hero-drift-blue_18s_ease-in-out_infinite]" />
+      <div className="absolute -right-20 top-20 h-56 w-56 rounded-full border border-fnblue/20 bg-fnblue/8 blur-2xl pointer-events-none motion-safe:animate-[ambient-orbit_16s_ease-in-out_infinite]" />
       <div className="fncontainer relative flex items-center justify-center min-h-[92vh] z-10 py-20">
         <div className="flex flex-col items-center gap-7 max-w-5xl">
-
           <InView
             once
             transition={{ ...HERO_TRANSITION_BASE, delay: 0.04 }}
             variants={MOTION_VARIANTS.fadeBlurIn}
           >
             <div className="relative w-full max-w-3xl">
-              <div className="relative mx-auto flex w-fit max-w-full items-center gap-2 overflow-hidden rounded-full border border-fnred/85 bg-linear-to-r from-fnred/16 via-fnorange/22 to-fnred/16 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.07em] text-fnred shadow-[0_0_0_1px_rgba(188,44,26,0.25),0_0_26px_rgba(188,44,26,0.5)] backdrop-blur-sm sm:pl-2 sm:pr-4">
+              <div className="relative mx-auto flex w-fit max-w-full items-center gap-2 overflow-hidden rounded-full border border-fnred/85 bg-linear-to-r from-fnred/16 via-fnorange/22 to-fnred/16 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.07em] text-fnred shadow-[0_0_0_1px_rgba(188,44,26,0.25),0_0_26px_rgba(188,44,26,0.5)] backdrop-blur-sm motion-safe:animate-[pulse-glow_3s_ease-in-out_infinite] sm:pl-2 sm:pr-4">
                 <div
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0 overflow-hidden rounded-full"
                 >
-                  <div className="absolute inset-y-0 -left-1/2 w-2/5 bg-linear-to-r from-transparent via-white/45 to-transparent opacity-80 blur-[1px] sm:w-1/3 motion-safe:animate-[route-progress_2.2s_linear_infinite]" />
+                  <div className="absolute inset-y-0 -left-1/2 w-2/5 bg-linear-to-r from-transparent via-white/55 to-transparent opacity-80 blur-[1px] sm:w-1/3 motion-safe:animate-[line-scan_2.4s_linear_infinite]" />
                 </div>
                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-fnred/80 bg-fnred px-2 py-0.5 text-[9px] tracking-[0.2em] text-white">
                   <span className="relative flex size-1.5 overflow-hidden rounded-full">
@@ -70,7 +71,7 @@ const Hero = async () => {
             transition={HERO_TRANSITION_BASE}
             variants={MOTION_VARIANTS.fadeBlurIn}
           >
-            <div className="text-xs sm:text-sm md:text-lg rounded-full px-4 uppercase font-bold tracking-wide bg-fngreen/20 text-fngreen border-2 border-fngreen text-center">
+            <div className="text-xs sm:text-sm md:text-lg rounded-full px-4 uppercase font-bold tracking-wide bg-fngreen/20 text-fngreen border-2 border-fngreen text-center shadow-[0_0_18px_rgba(0,158,96,0.22)] motion-safe:animate-[float-soft_7s_ease-in-out_infinite]">
               {content.caption}
             </div>
           </InView>
@@ -113,7 +114,8 @@ const Hero = async () => {
             transition={{ ...HERO_TRANSITION_BASE, delay: 0.2 }}
             variants={HERO_REVEAL_VARIANTS}
           >
-            <div className="flex items-center mt-6 gap-4 flex-wrap justify-center">
+            <div className="relative mt-6 flex items-center gap-4 flex-wrap justify-center">
+              <div className="pointer-events-none absolute -inset-x-8 -inset-y-6 rounded-full bg-fnblue/14 blur-3xl motion-safe:animate-[pulse-glow_3.4s_ease-in-out_infinite]" />
               <HeroRegisterButton
                 initialIsSignedIn={isSignedIn}
                 initialTeamId={teamId}

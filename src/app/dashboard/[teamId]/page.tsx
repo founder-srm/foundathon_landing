@@ -104,9 +104,10 @@ const SRM_EMAIL_DOMAIN = "@srmist.edu.in";
 const SRM_DEPARTMENT_DATALIST_ID = "srm-major-departments-dashboard";
 const TAB_PANEL_TRANSITION = {
   ...MOTION_TRANSITIONS.base,
+  ease: MOTION_TRANSITIONS.xl.ease,
 } as const;
 const SCROLL_FLOW_VARIANTS = {
-  ...MOTION_VARIANTS.fadeBlurIn,
+  ...MOTION_VARIANTS.fadeLiftIn,
 } as const;
 const SCROLL_FLOW_VIEW_OPTIONS = {
   margin: "0px 0px -14% 0px",
@@ -1871,8 +1872,9 @@ export default function TeamDashboardPage() {
           className="absolute inset-0 opacity-40 pointer-events-none"
           style={{ backgroundImage: "url(/textures/circle-16px.svg)" }}
         />
-        <div className="absolute -top-24 right-0 size-80 rounded-full bg-fnblue/20 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-20 -left-12 size-80 rounded-full bg-fnyellow/25 blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-br from-white/14 via-transparent to-fnblue/12 opacity-60 pointer-events-none motion-safe:animate-[ambient-pan_14s_ease-in-out_infinite]" />
+        <div className="absolute -top-24 right-0 size-80 rounded-full bg-fnblue/20 blur-3xl pointer-events-none motion-safe:animate-[ambient-orbit_18s_ease-in-out_infinite]" />
+        <div className="absolute -bottom-20 -left-12 size-80 rounded-full bg-fnyellow/25 blur-3xl pointer-events-none motion-safe:animate-[ambient-orbit_21s_ease-in-out_infinite]" />
 
         <div className="fncontainer relative py-10 md:py-14">
           <div className="h-8 w-56 animate-pulse rounded-md bg-foreground/10" />
@@ -1936,8 +1938,9 @@ export default function TeamDashboardPage() {
         className="absolute inset-0 opacity-40 pointer-events-none"
         style={{ backgroundImage: "url(/textures/circle-16px.svg)" }}
       />
-      <div className="absolute -top-24 right-0 size-96 rounded-full bg-fnblue/20 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-28 -left-16 size-96 rounded-full bg-fnyellow/25 blur-3xl pointer-events-none" />
+      <div className="absolute inset-0 bg-linear-to-br from-white/14 via-transparent to-fnblue/12 opacity-60 pointer-events-none motion-safe:animate-[ambient-pan_14s_ease-in-out_infinite]" />
+      <div className="absolute -top-24 right-0 size-96 rounded-full bg-fnblue/20 blur-3xl pointer-events-none motion-safe:animate-[ambient-orbit_18s_ease-in-out_infinite]" />
+      <div className="absolute -bottom-28 -left-16 size-96 rounded-full bg-fnyellow/25 blur-3xl pointer-events-none motion-safe:animate-[ambient-orbit_21s_ease-in-out_infinite]" />
 
       <div className="fncontainer relative py-10 md:py-14">
         <div className="lg:flex items-end justify-between">
@@ -1977,7 +1980,7 @@ export default function TeamDashboardPage() {
                         aria-selected={isSelected}
                         tabIndex={isSelected ? 0 : -1}
                         onClick={() => goToTab(tab.id)}
-                        className={`shrink-0 rounded-xl px-4 py-2 text-sm font-extrabold uppercase tracking-wide duration-300 transition-colors ${
+                        className={`shrink-0 rounded-xl px-4 py-2 text-sm font-extrabold uppercase tracking-wide transition-[transform,background-color,color,box-shadow] duration-[var(--motion-duration-base)] ease-[var(--motion-ease-emphasized)] hover:-translate-y-0.5 ${
                           isSelected
                             ? "bg-fnblue text-white shadow-sm"
                             : "bg-white/80 text-foreground/75 hover:bg-white hover:text-foreground"

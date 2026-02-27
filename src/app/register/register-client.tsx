@@ -96,12 +96,13 @@ const STEP1_ERROR_FOCUS_ORDER = [
 const STEP1_LEAD_PATH_PREFIX = "lead.";
 const PANEL_TRANSITION = {
   ...MOTION_TRANSITIONS.base,
+  ease: MOTION_TRANSITIONS.xl.ease,
 } as const;
 const STEP_PANEL_VARIANTS = {
   ...MOTION_VARIANTS.modalInOut,
 } as const;
 const SCROLL_FLOW_VARIANTS = {
-  ...MOTION_VARIANTS.fadeBlurIn,
+  ...MOTION_VARIANTS.fadeLiftIn,
 } as const;
 const SCROLL_FLOW_VIEW_OPTIONS = {
   margin: "0px 0px -14% 0px",
@@ -1100,15 +1101,18 @@ const RegisterClient = () => {
         className="absolute inset-0 opacity-45 pointer-events-none"
         style={{ backgroundImage: "url(/textures/circle-16px.svg)" }}
       />
+      <div className="absolute inset-0 bg-linear-to-br from-white/16 via-transparent to-fnblue/10 pointer-events-none opacity-65 motion-safe:animate-[ambient-pan_14s_ease-in-out_infinite]" />
+      <div className="absolute -top-20 -left-10 size-80 rounded-full bg-fnblue/16 blur-3xl pointer-events-none motion-safe:animate-[ambient-orbit_17s_ease-in-out_infinite]" />
+      <div className="absolute -bottom-24 right-0 size-96 rounded-full bg-fnyellow/20 blur-3xl pointer-events-none motion-safe:animate-[ambient-orbit_20s_ease-in-out_infinite]" />
       <div className="fncontainer relative py-10 md:py-14">
         <div className="grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
           <InView
             once
             viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
-            transition={{ duration: 0.26, ease: "easeOut" }}
+            transition={{ ...MOTION_TRANSITIONS.slow, delay: 0.02 }}
             variants={SCROLL_FLOW_VARIANTS}
           >
-            <section className="rounded-2xl border bg-background/95 p-6 md:p-8 shadow-lg border-b-4 border-fnblue backdrop-blur-sm">
+            <section className="rounded-2xl border border-b-4 border-fnblue bg-background/95 p-6 shadow-lg backdrop-blur-sm transition-[transform,box-shadow,border-color] duration-[var(--motion-duration-base)] ease-[var(--motion-ease-emphasized)] hover:-translate-y-0.5 hover:border-fnblue/80 hover:shadow-[0_20px_36px_rgba(39,114,160,0.2)] md:p-8">
               <div className="space-y-4">
                 <h1 className="text-3xl md:text-4xl font-black uppercase tracking-tight">
                   onboarding wizard
@@ -1628,10 +1632,10 @@ const RegisterClient = () => {
             <InView
               once
               viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
-              transition={{ duration: 0.24, ease: "easeOut", delay: 0.04 }}
+              transition={{ ...MOTION_TRANSITIONS.slow, delay: 0.08 }}
               variants={SCROLL_FLOW_VARIANTS}
             >
-              <div className="rounded-2xl border bg-background/95 p-6 shadow-md border-b-4 border-fnyellow backdrop-blur-sm">
+              <div className="rounded-2xl border border-b-4 border-fnyellow bg-background/95 p-6 shadow-md backdrop-blur-sm transition-[transform,box-shadow,border-color] duration-[var(--motion-duration-base)] ease-[var(--motion-ease-emphasized)] hover:-translate-y-0.5 hover:border-fnyellow/80 hover:shadow-[0_16px_30px_rgba(245,208,0,0.2)]">
                 <p className="text-xs uppercase tracking-[0.22em] text-foreground/70 font-semibold">
                   Team Status
                 </p>
@@ -1671,10 +1675,10 @@ const RegisterClient = () => {
             <InView
               once
               viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
-              transition={{ duration: 0.24, ease: "easeOut", delay: 0.08 }}
+              transition={{ ...MOTION_TRANSITIONS.slow, delay: 0.12 }}
               variants={SCROLL_FLOW_VARIANTS}
             >
-              <div className="rounded-2xl border bg-background/95 p-6 shadow-md border-b-4 border-fnblue backdrop-blur-sm">
+              <div className="rounded-2xl border border-b-4 border-fnblue bg-background/95 p-6 shadow-md backdrop-blur-sm transition-[transform,box-shadow,border-color] duration-[var(--motion-duration-base)] ease-[var(--motion-ease-emphasized)] hover:-translate-y-0.5 hover:border-fnblue/80 hover:shadow-[0_16px_30px_rgba(39,114,160,0.2)]">
                 <p className="text-xs uppercase tracking-[0.22em] text-foreground/70 font-semibold">
                   Live Team Members
                 </p>

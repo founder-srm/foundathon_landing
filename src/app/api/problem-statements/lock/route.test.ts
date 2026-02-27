@@ -4,6 +4,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   createProblemLockToken: vi.fn(),
   createSupabaseClient: vi.fn(),
+  enforceIpRateLimit: vi.fn(),
+  enforceSameOrigin: vi.fn(),
+  enforceUserRateLimit: vi.fn(),
   getProblemStatementById: vi.fn(),
   problemStatementCap: vi.fn(),
   getSupabaseCredentials: vi.fn(),
@@ -20,6 +23,15 @@ vi.mock("@/lib/problem-lock-token", () => ({
   createProblemLockToken: mocks.createProblemLockToken,
 }));
 
+vi.mock("@/server/security/csrf", () => ({
+  enforceSameOrigin: mocks.enforceSameOrigin,
+}));
+
+vi.mock("@/server/security/rate-limit", () => ({
+  enforceIpRateLimit: mocks.enforceIpRateLimit,
+  enforceUserRateLimit: mocks.enforceUserRateLimit,
+}));
+
 vi.mock("@/data/problem-statements", () => ({
   getProblemStatementById: mocks.getProblemStatementById,
   PROBLEM_STATEMENT_CAP: mocks.problemStatementCap(),
@@ -30,6 +42,9 @@ describe("/api/problem-statements/lock POST", () => {
     vi.resetModules();
 
     mocks.createSupabaseClient.mockReset();
+    mocks.enforceIpRateLimit.mockReset();
+    mocks.enforceSameOrigin.mockReset();
+    mocks.enforceUserRateLimit.mockReset();
     mocks.getProblemStatementById.mockReset();
     mocks.problemStatementCap.mockReset();
     mocks.getSupabaseCredentials.mockReset();
@@ -39,6 +54,9 @@ describe("/api/problem-statements/lock POST", () => {
       anonKey: "anon",
       url: "http://localhost",
     });
+    mocks.enforceIpRateLimit.mockResolvedValue(null);
+    mocks.enforceSameOrigin.mockReturnValue(null);
+    mocks.enforceUserRateLimit.mockResolvedValue(null);
 
     mocks.createProblemLockToken.mockReturnValue({
       expiresAt: "2026-02-20T00:00:00.000Z",
@@ -231,5 +249,57 @@ describe("/api/problem-statements/lock POST", () => {
       problemStatementId: "ps-01",
       userId: "user-1",
     });
+  });
+
+  it("returns 403 when CSRF validation fails", async () => {
+    mocks.enforceSameOrigin.mockReturnValue(
+      new Response(JSON.stringify({ code: "CSRF_FAILED" }), {
+        headers: { "content-type": "application/json" },
+        status: 403,
+      }),
+    );
+
+    const { POST } = await import("./route");
+    const request = new NextRequest(
+      "http://localhost/api/problem-statements/lock",
+      {
+        body: JSON.stringify({ problemStatementId: "ps-01" }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      },
+    );
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.code).toBe("CSRF_FAILED");
+    expect(mocks.createSupabaseClient).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 when request is rate limited by IP", async () => {
+    mocks.enforceIpRateLimit.mockResolvedValue(
+      new Response(JSON.stringify({ code: "RATE_LIMITED" }), {
+        headers: { "content-type": "application/json" },
+        status: 429,
+      }),
+    );
+
+    const { POST } = await import("./route");
+    const request = new NextRequest(
+      "http://localhost/api/problem-statements/lock",
+      {
+        body: JSON.stringify({ problemStatementId: "ps-01" }),
+        headers: { "content-type": "application/json" },
+        method: "POST",
+      },
+    );
+
+    const response = await POST(request);
+    const body = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(body.code).toBe("RATE_LIMITED");
+    expect(mocks.createSupabaseClient).not.toHaveBeenCalled();
   });
 });

@@ -6,6 +6,11 @@ import { getRouteAuthContext } from "@/server/auth/context";
 import { isJsonRequest, parseJsonSafely } from "@/server/http/request";
 import { jsonError, jsonNoStore } from "@/server/http/response";
 import { deleteTeam, getTeam, patchTeam } from "@/server/registration/service";
+import { enforceSameOrigin } from "@/server/security/csrf";
+import {
+  enforceIpRateLimit,
+  enforceUserRateLimit,
+} from "@/server/security/rate-limit";
 
 type Params = { params: Promise<{ teamId: string }> };
 
@@ -42,6 +47,19 @@ export async function GET(_: NextRequest, { params }: Params) {
 }
 
 export async function PATCH(request: NextRequest, { params }: Params) {
+  const csrfResponse = enforceSameOrigin(request);
+  if (csrfResponse) {
+    return csrfResponse;
+  }
+
+  const ipRateLimitResponse = await enforceIpRateLimit({
+    policy: "register_modify_ip",
+    request,
+  });
+  if (ipRateLimitResponse) {
+    return ipRateLimitResponse;
+  }
+
   const { teamId } = await params;
   if (!UUID_PATTERN.test(teamId)) {
     return jsonError("Team id is invalid.", 400);
@@ -85,6 +103,15 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     return context.response;
   }
 
+  const userRateLimitResponse = await enforceUserRateLimit({
+    policy: "register_modify_user",
+    request,
+    userId: context.user.id,
+  });
+  if (userRateLimitResponse) {
+    return userRateLimitResponse;
+  }
+
   const result = await patchTeam({
     input: {
       ...(lockPayloadParsed.success ? { lock: lockPayloadParsed.data } : {}),
@@ -102,7 +129,20 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   return jsonNoStore(result.data, result.status);
 }
 
-export async function DELETE(_: NextRequest, { params }: Params) {
+export async function DELETE(request: NextRequest, { params }: Params) {
+  const csrfResponse = enforceSameOrigin(request);
+  if (csrfResponse) {
+    return csrfResponse;
+  }
+
+  const ipRateLimitResponse = await enforceIpRateLimit({
+    policy: "register_modify_ip",
+    request,
+  });
+  if (ipRateLimitResponse) {
+    return ipRateLimitResponse;
+  }
+
   const { teamId } = await params;
   if (!UUID_PATTERN.test(teamId)) {
     return jsonError("Team id is invalid.", 400);
@@ -111,6 +151,15 @@ export async function DELETE(_: NextRequest, { params }: Params) {
   const context = await getRouteAuthContext();
   if (!context.ok) {
     return context.response;
+  }
+
+  const userRateLimitResponse = await enforceUserRateLimit({
+    policy: "register_modify_user",
+    request,
+    userId: context.user.id,
+  });
+  if (userRateLimitResponse) {
+    return userRateLimitResponse;
   }
 
   const result = await deleteTeam({

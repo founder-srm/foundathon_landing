@@ -1,4 +1,5 @@
 type EnvKey =
+  | "FOUNDATHON_ALLOWED_REDIRECT_HOSTS"
   | "FOUNDATHON_NEXT_PUBLIC_SITE_URL"
   | "FOUNDATHON_NODE_ENV"
   | "FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET"
@@ -66,3 +67,15 @@ export const getFoundathonSiteUrl = () =>
 
 export const getProblemLockTokenSecret = () =>
   readRequiredEnv("FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET");
+
+export const getAllowedRedirectHosts = () => {
+  const raw = readOptionalEnv("FOUNDATHON_ALLOWED_REDIRECT_HOSTS");
+  if (!raw) {
+    return [];
+  }
+
+  return raw
+    .split(",")
+    .map((item) => item.trim().toLowerCase())
+    .filter((item) => item.length > 0);
+};

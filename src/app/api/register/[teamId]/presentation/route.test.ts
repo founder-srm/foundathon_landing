@@ -3,12 +3,24 @@ import { NextResponse } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  enforceIpRateLimit: vi.fn(),
+  enforceSameOrigin: vi.fn(),
+  enforceUserRateLimit: vi.fn(),
   getRouteAuthContext: vi.fn(),
   submitTeamPresentation: vi.fn(),
 }));
 
 vi.mock("@/server/auth/context", () => ({
   getRouteAuthContext: mocks.getRouteAuthContext,
+}));
+
+vi.mock("@/server/security/csrf", () => ({
+  enforceSameOrigin: mocks.enforceSameOrigin,
+}));
+
+vi.mock("@/server/security/rate-limit", () => ({
+  enforceIpRateLimit: mocks.enforceIpRateLimit,
+  enforceUserRateLimit: mocks.enforceUserRateLimit,
 }));
 
 vi.mock("@/server/registration/service", () => ({
@@ -26,6 +38,8 @@ const supabaseClient = {};
 const buildRequest = (formData: FormData) =>
   ({
     formData: vi.fn().mockResolvedValue(formData),
+    headers: new Headers(),
+    url: "http://localhost/api/register/team/presentation",
   }) as unknown as NextRequest;
 
 const validFile = () =>
@@ -78,9 +92,15 @@ const uploadedTeam = {
 describe("/api/register/[teamId]/presentation route", () => {
   beforeEach(() => {
     vi.resetModules();
+    mocks.enforceIpRateLimit.mockReset();
+    mocks.enforceSameOrigin.mockReset();
+    mocks.enforceUserRateLimit.mockReset();
     mocks.getRouteAuthContext.mockReset();
     mocks.submitTeamPresentation.mockReset();
 
+    mocks.enforceIpRateLimit.mockResolvedValue(null);
+    mocks.enforceSameOrigin.mockReturnValue(null);
+    mocks.enforceUserRateLimit.mockResolvedValue(null);
     mocks.getRouteAuthContext.mockResolvedValue({
       ok: true,
       supabase: supabaseClient as never,
@@ -104,6 +124,46 @@ describe("/api/register/[teamId]/presentation route", () => {
     expect(response.status).toBe(401);
     expect(body.error).toBe("Unauthorized");
     expect(mocks.submitTeamPresentation).not.toHaveBeenCalled();
+  });
+
+  it("returns 403 when CSRF validation fails", async () => {
+    mocks.enforceSameOrigin.mockReturnValue(
+      new Response(JSON.stringify({ code: "CSRF_FAILED" }), {
+        headers: { "content-type": "application/json" },
+        status: 403,
+      }),
+    );
+
+    const formData = new FormData();
+    formData.set("file", validFile());
+
+    const { POST } = await import("./route");
+    const response = await POST(buildRequest(formData), makeParams(teamId));
+    const body = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(body.code).toBe("CSRF_FAILED");
+    expect(mocks.getRouteAuthContext).not.toHaveBeenCalled();
+  });
+
+  it("returns 429 when IP rate limit is exceeded", async () => {
+    mocks.enforceIpRateLimit.mockResolvedValue(
+      new Response(JSON.stringify({ code: "RATE_LIMITED" }), {
+        headers: { "content-type": "application/json" },
+        status: 429,
+      }),
+    );
+
+    const formData = new FormData();
+    formData.set("file", validFile());
+
+    const { POST } = await import("./route");
+    const response = await POST(buildRequest(formData), makeParams(teamId));
+    const body = await response.json();
+
+    expect(response.status).toBe(429);
+    expect(body.code).toBe("RATE_LIMITED");
+    expect(mocks.getRouteAuthContext).not.toHaveBeenCalled();
   });
 
   it("returns 400 for invalid team id", async () => {

@@ -56,7 +56,12 @@ const HeaderClient = ({
 
     setIsLoggingOut(true);
     setIsAccountMenuOpen(false);
-    window.location.assign("/api/auth/logout");
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = "/api/auth/logout";
+    form.style.display = "none";
+    document.body.appendChild(form);
+    form.submit();
   }, [isLoggingOut]);
 
   const closeMobileMenu = useCallback(() => {

@@ -1,8 +1,11 @@
 import { NextRequest } from "next/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   createSupabaseClient: vi.fn(),
+  enforceIpRateLimit: vi.fn(),
+  enforceSameOrigin: vi.fn(),
+  enforceUserRateLimit: vi.fn(),
   getProblemStatementById: vi.fn(),
   problemStatementCap: vi.fn(),
   getSupabaseCredentials: vi.fn(),
@@ -24,6 +27,15 @@ vi.mock("@/lib/register-api", () => ({
 
 vi.mock("@/lib/problem-lock-token", () => ({
   verifyProblemLockToken: mocks.verifyProblemLockToken,
+}));
+
+vi.mock("@/server/security/csrf", () => ({
+  enforceSameOrigin: mocks.enforceSameOrigin,
+}));
+
+vi.mock("@/server/security/rate-limit", () => ({
+  enforceIpRateLimit: mocks.enforceIpRateLimit,
+  enforceUserRateLimit: mocks.enforceUserRateLimit,
 }));
 
 vi.mock("@/data/problem-statements", () => ({
@@ -106,10 +118,36 @@ const makeParams = (id: string) => ({
   params: Promise.resolve({ teamId: id }),
 });
 
+const ENV_KEYS = [
+  "NEXT_PUBLIC_SUPABASE_SERVICE_ROLE",
+  "SUPABASE_SERVICE_ROLE_KEY",
+] as const;
+
+const ORIGINAL_ENV = Object.fromEntries(
+  ENV_KEYS.map((key) => [key, process.env[key]]),
+) as Record<(typeof ENV_KEYS)[number], string | undefined>;
+
+const restoreEnv = () => {
+  for (const key of ENV_KEYS) {
+    const value = ORIGINAL_ENV[key];
+    if (typeof value === "string") {
+      process.env[key] = value;
+    } else {
+      delete process.env[key];
+    }
+  }
+};
+
 describe("/api/register/[teamId] route", () => {
   beforeEach(() => {
     vi.resetModules();
+    restoreEnv();
+    delete process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     mocks.createSupabaseClient.mockReset();
+    mocks.enforceIpRateLimit.mockReset();
+    mocks.enforceSameOrigin.mockReset();
+    mocks.enforceUserRateLimit.mockReset();
     mocks.getProblemStatementById.mockReset();
     mocks.problemStatementCap.mockReset();
     mocks.getSupabaseCredentials.mockReset();
@@ -121,6 +159,9 @@ describe("/api/register/[teamId] route", () => {
       anonKey: "anon",
       url: "http://localhost",
     });
+    mocks.enforceIpRateLimit.mockResolvedValue(null);
+    mocks.enforceSameOrigin.mockReturnValue(null);
+    mocks.enforceUserRateLimit.mockResolvedValue(null);
     mocks.toTeamRecord.mockReturnValue(srmRecord);
     mocks.problemStatementCap.mockReturnValue(10);
     mocks.getProblemStatementById.mockReturnValue({
@@ -166,6 +207,48 @@ describe("/api/register/[teamId] route", () => {
 
     expect(res.status).toBe(200);
     expect(body.team.id).toBe(teamId);
+  });
+
+  it("PATCH returns 403 when CSRF validation fails", async () => {
+    mocks.enforceSameOrigin.mockReturnValue(
+      new Response(JSON.stringify({ code: "CSRF_FAILED" }), {
+        headers: { "content-type": "application/json" },
+        status: 403,
+      }),
+    );
+
+    const { PATCH } = await import("./route");
+    const req = new NextRequest(`http://localhost/api/register/${teamId}`, {
+      body: JSON.stringify(srmRecord),
+      headers: { "content-type": "application/json" },
+      method: "PATCH",
+    });
+    const res = await PATCH(req, makeParams(teamId));
+    const body = await res.json();
+
+    expect(res.status).toBe(403);
+    expect(body.code).toBe("CSRF_FAILED");
+    expect(mocks.createSupabaseClient).not.toHaveBeenCalled();
+  });
+
+  it("DELETE returns 429 when IP rate limit is exceeded", async () => {
+    mocks.enforceIpRateLimit.mockResolvedValue(
+      new Response(JSON.stringify({ code: "RATE_LIMITED" }), {
+        headers: { "content-type": "application/json" },
+        status: 429,
+      }),
+    );
+
+    const { DELETE } = await import("./route");
+    const req = new NextRequest(`http://localhost/api/register/${teamId}`, {
+      method: "DELETE",
+    });
+    const res = await DELETE(req, makeParams(teamId));
+    const body = await res.json();
+
+    expect(res.status).toBe(429);
+    expect(body.code).toBe("RATE_LIMITED");
+    expect(mocks.createSupabaseClient).not.toHaveBeenCalled();
   });
 
   it("GET clears stale presentation metadata when storage object is missing", async () => {
@@ -1042,4 +1125,8 @@ describe("/api/register/[teamId] route", () => {
     expect(res.status).toBe(400);
     expect(body.error).toContain("invalid");
   });
+});
+
+afterEach(() => {
+  restoreEnv();
 });

@@ -26,9 +26,11 @@ import {
 } from "react";
 import { FnButton } from "@/components/ui/fn-button";
 import { InView } from "@/components/ui/in-view";
+import ModalPortal from "@/components/ui/modal-portal";
 import { useMotionPreferences } from "@/components/ui/motion-preferences";
 import { useRouteProgress } from "@/components/ui/route-progress";
 import { toast } from "@/hooks/use-toast";
+import { MOTION_TRANSITIONS, MOTION_VARIANTS } from "@/lib/motion-system";
 import {
   isPresentationExtensionAllowed,
   isPresentationMimeTypeAllowed,
@@ -45,7 +47,12 @@ import {
   teamSubmissionSchema,
 } from "@/lib/register-schema";
 import { cn } from "@/lib/utils";
-import { DASHBOARD_RULE_GROUPS } from "./dashboard-rules";
+import {
+  DASHBOARD_EVENT_VENUES,
+  DASHBOARD_EVENT_OVERVIEW,
+  DASHBOARD_QUICK_RULES,
+  DASHBOARD_RULE_SECTIONS,
+} from "./dashboard-rules";
 import {
   buildDashboardTabUrl,
   DASHBOARD_TABS,
@@ -96,12 +103,11 @@ const MAX_MEMBERS = 5;
 const SRM_EMAIL_DOMAIN = "@srmist.edu.in";
 const SRM_DEPARTMENT_DATALIST_ID = "srm-major-departments-dashboard";
 const TAB_PANEL_TRANSITION = {
-  duration: 0.22,
-  ease: [0.2, 0, 0, 1],
+  ...MOTION_TRANSITIONS.base,
+  ease: MOTION_TRANSITIONS.xl.ease,
 } as const;
 const SCROLL_FLOW_VARIANTS = {
-  hidden: { opacity: 0, y: 22, filter: "blur(4px)" },
-  visible: { opacity: 1, y: 0, filter: "blur(0px)" },
+  ...MOTION_VARIANTS.fadeLiftIn,
 } as const;
 const SCROLL_FLOW_VIEW_OPTIONS = {
   margin: "0px 0px -14% 0px",
@@ -483,7 +489,7 @@ const getTeamApprovalStatusMeta = (status: TeamApprovalStatus) => {
       return {
         badgeClass: "border-fnred/40 bg-fnred/10 text-fnred",
         description:
-          "Your submission was reviewed and rejected by admins. Wait for organizer guidance on next steps.",
+          "We appreciate the time and effort you put into your submission. After careful consideration, it was not selected.",
         dotClass: "bg-fnred",
         label: "Rejected",
         panelClass:
@@ -503,7 +509,7 @@ const getTeamApprovalStatusMeta = (status: TeamApprovalStatus) => {
       return {
         badgeClass: "border-slate-500/40 bg-slate-500/10 text-slate-700",
         description:
-          "Team is created but no PPT is submitted yet. Submit your presentation from Actions to move to review.",
+          "Team is created but no PPT is submitted yet. Submit your presentation from PPT Submission to move to review.",
         dotClass: "bg-slate-500",
         label: "Invalid",
         panelClass:
@@ -629,13 +635,33 @@ export default function TeamDashboardPage() {
   const legacyLockConfirmationPhrase = pendingLockProblemStatement
     ? `lock ${pendingLockProblemStatement.title}`
     : "";
+  const normalizedDeleteConfirmationInput = normalizeConfirmationText(
+    deleteConfirmationInput,
+  );
+  const normalizedDeleteConfirmationPhrase = normalizeConfirmationText(
+    deleteConfirmationPhrase,
+  );
+  const normalizedQuotedDeleteConfirmationPhrase = normalizeConfirmationText(
+    `"${deleteConfirmationPhrase}"`,
+  );
+  const normalizedLegacyLockConfirmationInput = normalizeConfirmationText(
+    legacyLockConfirmationInput,
+  );
+  const normalizedLegacyLockConfirmationPhrase = normalizeConfirmationText(
+    legacyLockConfirmationPhrase,
+  );
+  const normalizedQuotedLegacyLockConfirmationPhrase = normalizeConfirmationText(
+    `"${legacyLockConfirmationPhrase}"`,
+  );
   const canConfirmDelete =
-    normalizeConfirmationText(deleteConfirmationInput) ===
-    normalizeConfirmationText(deleteConfirmationPhrase);
+    normalizedDeleteConfirmationInput === normalizedDeleteConfirmationPhrase ||
+    normalizedDeleteConfirmationInput === normalizedQuotedDeleteConfirmationPhrase;
   const canConfirmLegacyLock =
     Boolean(pendingLockProblemStatement) &&
-    normalizeConfirmationText(legacyLockConfirmationInput) ===
-      normalizeConfirmationText(legacyLockConfirmationPhrase);
+    (normalizedLegacyLockConfirmationInput ===
+      normalizedLegacyLockConfirmationPhrase ||
+      normalizedLegacyLockConfirmationInput ===
+        normalizedQuotedLegacyLockConfirmationPhrase);
   const getCurrentMemberId = (member: SrmMember | NonSrmMember) =>
     teamType === "srm"
       ? (member as SrmMember).netId
@@ -1846,8 +1872,9 @@ export default function TeamDashboardPage() {
           className="absolute inset-0 opacity-40 pointer-events-none"
           style={{ backgroundImage: "url(/textures/circle-16px.svg)" }}
         />
-        <div className="absolute -top-24 right-0 size-80 rounded-full bg-fnblue/20 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-20 -left-12 size-80 rounded-full bg-fnyellow/25 blur-3xl pointer-events-none" />
+        <div className="absolute inset-0 bg-linear-to-br from-white/14 via-transparent to-fnblue/12 opacity-60 pointer-events-none motion-safe:animate-[ambient-pan_14s_ease-in-out_infinite]" />
+        <div className="absolute -top-24 right-0 size-80 rounded-full bg-fnblue/20 blur-3xl pointer-events-none motion-safe:animate-[ambient-orbit_18s_ease-in-out_infinite]" />
+        <div className="absolute -bottom-20 -left-12 size-80 rounded-full bg-fnyellow/25 blur-3xl pointer-events-none motion-safe:animate-[ambient-orbit_21s_ease-in-out_infinite]" />
 
         <div className="fncontainer relative py-10 md:py-14">
           <div className="h-8 w-56 animate-pulse rounded-md bg-foreground/10" />
@@ -1911,8 +1938,9 @@ export default function TeamDashboardPage() {
         className="absolute inset-0 opacity-40 pointer-events-none"
         style={{ backgroundImage: "url(/textures/circle-16px.svg)" }}
       />
-      <div className="absolute -top-24 right-0 size-96 rounded-full bg-fnblue/20 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-28 -left-16 size-96 rounded-full bg-fnyellow/25 blur-3xl pointer-events-none" />
+      <div className="absolute inset-0 bg-linear-to-br from-white/14 via-transparent to-fnblue/12 opacity-60 pointer-events-none motion-safe:animate-[ambient-pan_14s_ease-in-out_infinite]" />
+      <div className="absolute -top-24 right-0 size-96 rounded-full bg-fnblue/20 blur-3xl pointer-events-none motion-safe:animate-[ambient-orbit_18s_ease-in-out_infinite]" />
+      <div className="absolute -bottom-28 -left-16 size-96 rounded-full bg-fnyellow/25 blur-3xl pointer-events-none motion-safe:animate-[ambient-orbit_21s_ease-in-out_infinite]" />
 
       <div className="fncontainer relative py-10 md:py-14">
         <div className="lg:flex items-end justify-between">
@@ -1952,7 +1980,7 @@ export default function TeamDashboardPage() {
                         aria-selected={isSelected}
                         tabIndex={isSelected ? 0 : -1}
                         onClick={() => goToTab(tab.id)}
-                        className={`shrink-0 rounded-xl px-4 py-2 text-sm font-extrabold uppercase tracking-wide duration-300 transition-colors ${
+                        className={`shrink-0 rounded-xl px-4 py-2 text-sm font-extrabold uppercase tracking-wide transition-[transform,background-color,color,box-shadow] duration-[var(--motion-duration-base)] ease-[var(--motion-ease-emphasized)] hover:-translate-y-0.5 ${
                           isSelected
                             ? "bg-fnblue text-white shadow-sm"
                             : "bg-white/80 text-foreground/75 hover:bg-white hover:text-foreground"
@@ -2192,7 +2220,7 @@ export default function TeamDashboardPage() {
                       </h3>
                       <p className="mt-2 text-sm leading-relaxed text-foreground/80">
                         Manage roster updates from Manage Team and complete
-                        one-time PPT operations from Actions.
+                        one-time PPT operations from PPT Submission.
                       </p>
                       <div className="mt-4 flex flex-wrap gap-2">
                         <span className="rounded-full border-2 border-fnblue bg-fnblue/20 px-3 text-sm font-extrabold uppercase tracking-wide text-fnblue">
@@ -2214,7 +2242,7 @@ export default function TeamDashboardPage() {
                       tone="yellow"
                       onClick={() => goToTab("actions")}
                     >
-                      Go to Actions
+                      Go to PPT Submission
                     </FnButton>
                   </div> */}
                     </div>
@@ -2386,27 +2414,141 @@ export default function TeamDashboardPage() {
                 transition={{ duration: 0.24, ease: "easeOut" }}
                 variants={SCROLL_FLOW_VARIANTS}
               >
-                <section className="rounded-2xl border border-b-4 border-fnblue bg-background/95 p-6 shadow-lg md:p-8">
+                <section className="relative overflow-hidden rounded-2xl border border-b-4 border-fnblue/85 bg-linear-to-br from-background via-white to-fnblue/8 p-6 shadow-lg md:p-8">
+                  <div className="pointer-events-none absolute -top-20 -right-14 size-52 rounded-full bg-fnblue/15 blur-3xl" />
+                  <div className="pointer-events-none absolute -bottom-24 -left-10 size-60 rounded-full bg-fnyellow/12 blur-3xl" />
                   <p className="text-xs font-extrabold uppercase tracking-widest text-fnblue">
-                    Rules
+                    Event Details
                   </p>
                   <h2 className="mt-3 text-3xl uppercase font-black tracking-tight">
-                    Operating Rules for Team Dashboard
+                    {DASHBOARD_EVENT_OVERVIEW.title}
                   </h2>
-                  <p className="mt-3 max-w-3xl text-base leading-relaxed text-foreground/80 font-medium">
-                    These rules define how your team progresses through
-                    statement lock, roster management, and one-time presentation
-                    submission.
+                  <p className="mt-3 max-w-3xl text-base leading-relaxed text-foreground/85 font-medium">
+                    {DASHBOARD_EVENT_OVERVIEW.summary}
                   </p>
+
+                  <div className="mt-5 grid gap-3 md:grid-cols-3">
+                    <div className="rounded-xl border border-fnblue/45 bg-fnblue/10 p-3 shadow-sm backdrop-blur-sm">
+                      <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-fnblue">
+                        Event Dates
+                      </p>
+                      <p className="mt-1 text-base md:text-lg font-black tracking-[0.03em] text-foreground">
+                        {DASHBOARD_EVENT_OVERVIEW.date}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-fngreen/45 bg-fngreen/10 p-3 shadow-sm backdrop-blur-sm">
+                      <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-fngreen">
+                        Registration
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-foreground/90">
+                        {DASHBOARD_EVENT_OVERVIEW.registration}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-fnorange/45 bg-fnorange/10 p-3 shadow-sm backdrop-blur-sm">
+                      <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-fnorange">
+                        Participation Fee
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-foreground/90">
+                        {DASHBOARD_EVENT_OVERVIEW.fee}
+                      </p>
+                    </div>
+                  </div>
                 </section>
               </InView>
 
-              <div className="grid gap-5 lg:grid-cols-2">
-                {DASHBOARD_RULE_GROUPS.map((group, index) => (
+              <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+                <InView
+                  once
+                  className="h-full"
+                  viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                  transition={{ duration: 0.22, ease: "easeOut", delay: 0.03 }}
+                  variants={SCROLL_FLOW_VARIANTS}
+                >
+                  <section className="relative overflow-hidden rounded-2xl border border-b-4 border-fngreen/55 bg-linear-to-br from-white via-white to-fngreen/8 p-6 shadow-lg h-full">
+                    <div className="pointer-events-none absolute -right-16 -top-16 size-40 rounded-full bg-fngreen/12 blur-3xl" />
+                    <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
+                      Rulebook At a Glance
+                    </p>
+                    <ul className="mt-4 space-y-2 text-sm leading-relaxed text-foreground/90 font-medium">
+                      {DASHBOARD_QUICK_RULES.map((item) => (
+                        <li key={item} className="flex items-start gap-2">
+                          <span className="mt-2 inline-flex size-1 shrink-0 rounded-full bg-fnblue" />
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                </InView>
+
+                <InView
+                  once
+                  className="h-full"
+                  viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                  transition={{ duration: 0.22, ease: "easeOut", delay: 0.06 }}
+                  variants={SCROLL_FLOW_VARIANTS}
+                >
+                  <section className="relative overflow-hidden rounded-2xl border border-b-4 border-fnorange/95 bg-linear-to-br from-fnorange/18 via-background to-fnblue/12 p-6 shadow-lg h-full">
+                    <div className="pointer-events-none absolute -left-16 -bottom-20 size-52 rounded-full bg-fnorange/25 blur-3xl" />
+                    <div className="pointer-events-none absolute -right-12 -top-16 size-48 rounded-full bg-fnblue/18 blur-3xl" />
+                    <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-linear-to-r from-transparent via-fnorange/60 to-transparent" />
+
+                    <p className="text-xs font-extrabold uppercase tracking-widest text-fnorange">
+                      Venue Showcase
+                    </p>
+                    <h3 className="mt-2 text-2xl font-black uppercase tracking-tight text-foreground">
+                      Four Signature Campus Arenas
+                    </h3>
+                    <p className="mt-2 text-sm leading-relaxed text-foreground/85 font-medium">
+                      Foundathon 3.0 spans high-impact spaces for fast builds,
+                      live reviews, and final pitch energy.
+                    </p>
+
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] font-bold uppercase tracking-[0.14em]">
+                      <span className="rounded-md border border-fnorange/45 bg-fnorange/15 px-2 py-1 text-center text-fnorange">
+                        4 Venues
+                      </span>
+                      <span className="rounded-md border border-fnblue/45 bg-fnblue/12 px-2 py-1 text-center text-fnblue">
+                        3-Day Run
+                      </span>
+                    </div>
+
+                    <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                      {DASHBOARD_EVENT_VENUES.map((venue, index) => (
+                        <div
+                          key={venue}
+                          className="group relative overflow-hidden rounded-xl border border-fnorange/45 bg-background/80 px-3 py-3 shadow-sm backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md"
+                        >
+                          <div className="pointer-events-none absolute -right-7 -top-7 size-16 rounded-full bg-fnorange/14 blur-2xl" />
+                          <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-fnorange/80">
+                            Zone 0{index + 1}
+                          </p>
+                          <p className="mt-1 text-sm font-black uppercase tracking-[0.06em] text-foreground">
+                            {venue}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                </InView>
+              </div>
+
+              <div className="grid gap-5 lg:grid-cols-12 auto-rows-fr">
+                {DASHBOARD_RULE_SECTIONS.map((section, index) => (
                   <InView
-                    key={group.id}
+                    key={section.id}
                     once
-                    className="h-full"
+                    className={cn(
+                      "h-full lg:col-span-6",
+                      index === 0 && "lg:col-span-7",
+                      index === 1 && "lg:col-span-5",
+                      index === 2 && "lg:col-span-5",
+                      index === 3 && "lg:col-span-7",
+                      index === 4 && "lg:col-span-7",
+                      index === 5 && "lg:col-span-5",
+                      index === 6 && "lg:col-span-4",
+                      index === 7 && "lg:col-span-4",
+                      index === 8 && "lg:col-span-4",
+                    )}
                     viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
                     transition={{
                       duration: 0.22,
@@ -2415,17 +2557,15 @@ export default function TeamDashboardPage() {
                     }}
                     variants={SCROLL_FLOW_VARIANTS}
                   >
-                    <section className="rounded-2xl border border-b-4 border-fngreen/45 bg-white p-6 shadow-lg">
+                    <section className="relative h-full overflow-hidden rounded-2xl border border-b-4 border-fngreen/45 bg-linear-to-br from-white via-white to-fnblue/6 p-6 shadow-lg">
+                      <div className="pointer-events-none absolute -right-16 -top-16 size-40 rounded-full bg-fnblue/10 blur-3xl" />
                       <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
-                        {group.label}
-                      </p>
-                      <p className="mt-3 text-sm leading-relaxed text-foreground/80 font-medium">
-                        {group.description}
+                        {index + 1}. {section.title}
                       </p>
                       <ul className="mt-4 space-y-2 text-sm leading-relaxed text-foreground/90 font-medium">
-                        {group.items.map((item) => (
-                          <li key={item} className="flex items-center gap-2">
-                            <span className="inline-flex size-1 shrink-0 rounded-full bg-fnblue" />
+                        {section.items.map((item) => (
+                          <li key={item} className="flex items-start gap-2">
+                            <span className="mt-2 inline-flex size-1 shrink-0 rounded-full bg-fnblue" />
                             <span>{item}</span>
                           </li>
                         ))}
@@ -2952,7 +3092,7 @@ export default function TeamDashboardPage() {
               >
                 <section className="rounded-2xl border border-b-4 border-fnorange bg-background/95 p-6 shadow-lg">
                   <p className="text-xs font-extrabold uppercase tracking-widest text-fnorange">
-                    Actions
+                    PPT Submission
                   </p>
                   <h2 className="mt-2 text-2xl font-black tracking-tight uppercase">
                     PPT Submission Controls
@@ -3110,13 +3250,14 @@ export default function TeamDashboardPage() {
       </div>
 
       {showTeamTicketModal && shouldShowAcceptedQr ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="team-ticket-title"
-        >
-          <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-b-4 border-fngreen bg-background shadow-2xl">
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-6"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="team-ticket-title"
+          >
+            <div className="w-full max-w-4xl overflow-hidden rounded-2xl border border-b-4 border-fngreen bg-background shadow-2xl">
             <div className="flex items-start justify-between gap-3 border-b border-foreground/10 px-4 py-3 md:px-5">
               <div>
                 <p className="text-xs font-extrabold uppercase tracking-widest text-fngreen">
@@ -3229,18 +3370,20 @@ export default function TeamDashboardPage() {
                 </div>
               </div>
             </div>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       ) : null}
 
       {showPresentationPreview && isPresentationSubmitted ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="presentation-preview-title"
-        >
-          <div className="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-b-4 border-fnblue bg-background shadow-2xl">
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-6"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="presentation-preview-title"
+          >
+            <div className="flex h-[85vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-b-4 border-fnblue bg-background shadow-2xl">
             <div className="flex items-start justify-between gap-3 border-b border-foreground/10 px-4 py-3 md:px-5">
               <div>
                 <p className="text-xs font-extrabold uppercase tracking-widest text-fnblue">
@@ -3302,18 +3445,20 @@ export default function TeamDashboardPage() {
                 </FnButton>
               </div>
             </div>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       ) : null}
 
       {showPresentationConfirm && pendingPresentationFile ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="presentation-submit-title"
-        >
-          <div className="w-full max-w-md rounded-xl border border-b-4 border-fnred bg-background p-6 shadow-xl">
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm px-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="presentation-submit-title"
+          >
+            <div className="w-full max-w-md rounded-xl border border-b-4 border-fnred bg-background p-6 shadow-xl">
             <p
               id="presentation-submit-title"
               className="text-sm uppercase tracking-[0.18em] font-bold text-fnred"
@@ -3356,18 +3501,20 @@ export default function TeamDashboardPage() {
                 Submit PPT
               </FnButton>
             </div>
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       ) : null}
 
       {pendingLockProblemStatement && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="legacy-lock-title"
-        >
-          <div className="w-full max-w-md rounded-xl border border-b-4 border-fnred bg-background p-6 shadow-xl">
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm px-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="legacy-lock-title"
+          >
+            <div className="w-full max-w-md rounded-xl border border-b-4 border-fnred bg-background p-6 shadow-xl">
             <p
               id="legacy-lock-title"
               className="text-sm uppercase tracking-[0.18em] font-bold text-fnred"
@@ -3402,12 +3549,19 @@ export default function TeamDashboardPage() {
               </div>
             ) : (
               <>
+                <div className="mt-3 rounded-lg border border-fnred/25 bg-fnred/5 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-fnred">
+                    Final Confirmation
+                  </p>
+                  <p className="mt-1 text-xs text-foreground/75">
+                    Type this exact phrase to continue:
+                  </p>
+                  <p className="mt-2 rounded-md border border-foreground/15 bg-white px-3 py-2 font-mono text-sm font-semibold text-foreground">
+                    "{legacyLockConfirmationPhrase}"
+                  </p>
+                </div>
                 <p className="mt-3 text-xs text-foreground/70">
-                  Type{" "}
-                  <span className="font-mono">
-                    {legacyLockConfirmationPhrase}
-                  </span>{" "}
-                  to continue.
+                  Include spaces exactly as shown above.
                 </p>
                 <input
                   type="text"
@@ -3415,7 +3569,10 @@ export default function TeamDashboardPage() {
                   onChange={(event) =>
                     setLegacyLockConfirmationInput(event.target.value)
                   }
-                  placeholder={legacyLockConfirmationPhrase}
+                  placeholder={`Type "${legacyLockConfirmationPhrase}"`}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="mt-2 w-full rounded-md border border-foreground/20 bg-white px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-fnblue/50"
                 />
                 <div className="mt-6 flex justify-end gap-2">
@@ -3439,18 +3596,20 @@ export default function TeamDashboardPage() {
                 </div>
               </>
             )}
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       {showDeleteConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-team-title"
-        >
-          <div className="w-full max-w-md rounded-xl border border-b-4 border-fnred bg-background p-6 shadow-xl">
+        <ModalPortal>
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm px-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-team-title"
+          >
+            <div className="w-full max-w-md rounded-xl border border-b-4 border-fnred bg-background p-6 shadow-xl">
             <p
               id="delete-team-title"
               className="text-sm uppercase tracking-[0.18em] font-bold text-fnred"
@@ -3484,10 +3643,19 @@ export default function TeamDashboardPage() {
               </div>
             ) : (
               <>
+                <div className="mt-3 rounded-lg border border-fnred/25 bg-fnred/5 p-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-fnred">
+                    Final Confirmation
+                  </p>
+                  <p className="mt-1 text-xs text-foreground/75">
+                    Type this exact phrase to continue:
+                  </p>
+                  <p className="mt-2 rounded-md border border-foreground/15 bg-white px-3 py-2 font-mono text-sm font-semibold text-foreground">
+                    "{deleteConfirmationPhrase}"
+                  </p>
+                </div>
                 <p className="mt-3 text-xs text-foreground/70">
-                  Type{" "}
-                  <span className="font-mono">{deleteConfirmationPhrase}</span>{" "}
-                  to continue.
+                  Include spaces exactly as shown above.
                 </p>
                 <input
                   type="text"
@@ -3495,7 +3663,10 @@ export default function TeamDashboardPage() {
                   onChange={(event) =>
                     setDeleteConfirmationInput(event.target.value)
                   }
-                  placeholder={deleteConfirmationPhrase}
+                  placeholder={`Type "${deleteConfirmationPhrase}"`}
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
                   className="mt-2 w-full rounded-md border border-foreground/20 bg-white px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-fnblue/50"
                 />
                 <div className="mt-6 flex justify-end gap-2">
@@ -3523,8 +3694,9 @@ export default function TeamDashboardPage() {
                 </div>
               </>
             )}
+            </div>
           </div>
-        </div>
+        </ModalPortal>
       )}
 
       <datalist id={SRM_DEPARTMENT_DATALIST_ID}>

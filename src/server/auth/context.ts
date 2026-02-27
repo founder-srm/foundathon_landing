@@ -3,6 +3,7 @@ import {
   createSupabaseClient,
   getSupabaseCredentials,
 } from "@/lib/register-api";
+import { isBlockedLoginEmail } from "@/server/auth/email-policy";
 import { jsonError } from "@/server/http/response";
 
 type RouteSupabaseClient = Awaited<ReturnType<typeof createSupabaseClient>>;
@@ -49,6 +50,14 @@ export const getRouteAuthContext = async (): Promise<RouteAuthContext> => {
   } = await supabase.auth.getUser();
 
   if (error || !user) {
+    return {
+      ok: false,
+      response: unauthorizedResponse(),
+    };
+  }
+
+  if (isBlockedLoginEmail(user.email)) {
+    await supabase.auth.signOut();
     return {
       ok: false,
       response: unauthorizedResponse(),

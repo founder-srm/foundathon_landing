@@ -29,8 +29,8 @@ const toastVariants = cva(
     variants: {
       variant: {
         default: "border-fnblue/45 bg-background/95 text-foreground",
-        success: "border-fngreen/45 bg-fngreen/12 text-fngreen",
-        destructive: "border-fnred/45 bg-fnred/12 text-fnred",
+        success: "border-fngreen/45 bg-fngreen/12 text-foreground",
+        destructive: "border-fnred/45 bg-fnred/12 text-foreground",
       },
     },
     defaultVariants: {
@@ -46,6 +46,7 @@ const Toast = React.forwardRef<
 >(({ className, variant, ...props }, ref) => (
   <ToastPrimitives.Root
     ref={ref}
+    data-variant={variant ?? "default"}
     className={cn(toastVariants({ variant }), className)}
     {...props}
   />
@@ -74,7 +75,7 @@ const ToastClose = React.forwardRef<
   <ToastPrimitives.Close
     ref={ref}
     className={cn(
-      "absolute right-2 top-2 rounded-md p-1 opacity-75 transition-opacity hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-fnblue/50",
+      "absolute right-2 top-2 rounded-md p-1 text-foreground/75 opacity-75 transition-opacity hover:opacity-100 focus:opacity-100 focus:outline-none focus:ring-2 focus:ring-fnblue/50",
       className,
     )}
     toast-close=""
@@ -92,7 +93,7 @@ const ToastTitle = React.forwardRef<
   <ToastPrimitives.Title
     ref={ref}
     className={cn(
-      "text-xs font-semibold uppercase tracking-[0.2em]",
+      "text-xs font-semibold uppercase tracking-[0.2em] text-foreground group-data-[variant=success]:text-emerald-900 group-data-[variant=success]:dark:text-emerald-200 group-data-[variant=destructive]:text-fnredb group-data-[variant=destructive]:dark:text-red-200",
       className,
     )}
     {...props}
@@ -106,7 +107,10 @@ const ToastDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ToastPrimitives.Description
     ref={ref}
-    className={cn("mt-1 text-sm font-semibold", className)}
+    className={cn(
+      "mt-1 text-sm font-semibold text-foreground/95 dark:text-foreground/90",
+      className,
+    )}
     {...props}
   />
 ));

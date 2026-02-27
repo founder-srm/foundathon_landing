@@ -1,4 +1,8 @@
 import { cookies } from "next/headers";
+import {
+  AUTH_ERROR_REASON_SRM_BLOCKED,
+  isBlockedLoginEmail,
+} from "@/server/auth/email-policy";
 import { getFoundathonSiteUrl, isFoundathonDevelopment } from "@/server/env";
 import {
   createRouteSupabaseClient,
@@ -58,6 +62,15 @@ const toSafeNextPath = (nextParam: string | null) => {
   return isSafeNext ? (nextParam as string) : "/";
 };
 
+const resolveAuthErrorRedirect = (origin: string, reason?: string) => {
+  const errorUrl = new URL("/auth/auth-code-error", origin);
+  if (reason) {
+    errorUrl.searchParams.set("reason", reason);
+  }
+
+  return errorUrl.toString();
+};
+
 export const resolveAuthCallbackRedirect = async (request: Request) => {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
@@ -66,9 +79,14 @@ export const resolveAuthCallbackRedirect = async (request: Request) => {
   if (code) {
     const cookieStore = cookies();
     const supabase = await createClient(cookieStore);
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
     if (!error) {
+      if (isBlockedLoginEmail(data.user.email)) {
+        await supabase.auth.signOut();
+        return resolveAuthErrorRedirect(origin, AUTH_ERROR_REASON_SRM_BLOCKED);
+      }
+
       const forwardedHost = request.headers.get("x-forwarded-host");
       if (isFoundathonDevelopment()) {
         return `${origin}${next}`;
@@ -82,7 +100,7 @@ export const resolveAuthCallbackRedirect = async (request: Request) => {
     }
   }
 
-  return `${origin}/auth/auth-code-error`;
+  return resolveAuthErrorRedirect(origin);
 };
 
 export const signOutCurrentUser = async () => {

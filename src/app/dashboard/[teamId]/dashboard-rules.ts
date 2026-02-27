@@ -1,33 +1,122 @@
-export type DashboardRuleGroup = {
-  description: string;
-  id: string;
-  items: string[];
-  label: string;
+export type DashboardEventOverview = {
+  date: string;
+  fee: string;
+  registration: string;
+  summary: string;
+  title: string;
 };
 
-export const DASHBOARD_RULE_GROUPS: DashboardRuleGroup[] = [
+export type DashboardRuleSection = {
+  id: string;
+  items: string[];
+  title: string;
+};
+
+export const DASHBOARD_EVENT_OVERVIEW: DashboardEventOverview = {
+  date: "9th-11th March 2026",
+  fee: "Selected teams may be required to pay a ₹300 participation fee.",
+  registration:
+    "First-come, first-served based on available problem-statement slots.",
+  summary:
+    "Open to undergraduate students; teams of 3-5 members must complete onboarding before locking one problem statement.",
+  title: "Foundathon 3.0 - Rules & Guidelines",
+};
+
+export const DASHBOARD_EVENT_VENUES = [
+  "BEL-605",
+  "TP2-1401",
+  "FabLab",
+  "JC Bose Hall",
+] as const;
+
+export const DASHBOARD_QUICK_RULES = [
+  "Open to undergraduate students; teams of 3-5 members must complete onboarding before locking one problem statement.",
+  "Registration is first-come, first-served; selected teams may pay a ₹300 fee. Event dates: 9th-11th March 2026.",
+  "Each team can choose only one problem statement (limited slots per track); changes require organizer approval.",
+  "No plagiarism or cheating; only registered members can work on the project.",
+  "Final submission must include a working prototype/demo, source code repository, PPT/pitch deck, and solution explanation; late submissions are not accepted.",
+  "Winners may receive certificates, internships, or cash prizes; organizer decisions are final and rules may be modified if required.",
+] as const;
+
+export const DASHBOARD_RULE_SECTIONS: DashboardRuleSection[] = [
   {
-    description:
-      "How teams move from onboarding into the active dashboard lifecycle.",
-    id: "event-flow",
+    id: "eligibility",
     items: [
-      "Each team must be linked to one locked problem statement.",
-      "Problem statement lock is one-time and cannot be reassigned.",
-      "Legacy teams without a lock must complete locking from the Manage Team tab.",
-      "Any approval communication is sent to your lead email based on team type.",
+      "Open to all undergraduate students.",
+      "Teams must have 3-5 members, including a team lead.",
+      "All members must complete onboarding before locking a problem statement.",
     ],
-    label: "Event Flow and Statement Lock",
+    title: "Eligibility",
   },
   {
-    description:
-      "Operational constraints enforced directly from this dashboard.",
-    id: "dashboard-ops",
+    id: "registration",
     items: [
-      "PPT submission is one-time for each team and becomes view-only after upload.",
-      "Only .ppt or .pptx files up to 5 MB are accepted.",
-      "Team profile edits do not reset your locked statement or submitted PPT metadata.",
-      "Destructive actions (team delete, lock, PPT submit) show irreversible warnings.",
+      "Registration is first-come, first-served based on available problem-statement slots.",
+      "Teams must register and lock one problem statement before creating the team officially.",
+      "Selected teams may be required to pay a ₹300 participation fee.",
+      "Event dates: 9th-11th March 2026.",
     ],
-    label: "Dashboard Operating Rules",
+    title: "Registration",
+  },
+  {
+    id: "problem-statement-rules",
+    items: [
+      "Each team can select only one problem statement.",
+      "Each problem track has a fixed team cap.",
+      "Once a problem statement is locked, it cannot be changed without organizer approval.",
+    ],
+    title: "Problem Statement Rules",
+  },
+  {
+    id: "hackathon-conduct",
+    items: [
+      "Teams must work only with their registered members.",
+      "Any plagiarism, cheating, or undisclosed copied solutions will lead to disqualification.",
+      "Maintain respectful and professional behavior throughout the event.",
+    ],
+    title: "Hackathon Conduct",
+  },
+  {
+    id: "development-guidelines",
+    items: [
+      "Teams may start working on ideas and prototypes before the event.",
+      "Open-source libraries are allowed with proper attribution.",
+      "Teams should maintain documentation of their work.",
+    ],
+    title: "Development Guidelines",
+  },
+  {
+    id: "submission-rules",
+    items: [
+      "Final submission must include a working prototype or demo.",
+      "Submit source code repository, PPT or pitch deck, and problem explanation with solution approach.",
+      "Late submissions will not be accepted.",
+    ],
+    title: "Submission Rules",
+  },
+  {
+    id: "rewards-certificates",
+    items: [
+      "Winners may receive certificates, internships, or cash prizes depending on partner tracks.",
+      "Internship opportunities are subject to partner company policies.",
+    ],
+    title: "Rewards & Certificates",
+  },
+  {
+    id: "organizer-rights",
+    items: [
+      "Founders Club reserves the right to modify rules, schedule, or problem statements if required.",
+      "Organizer decisions will be final.",
+    ],
+    title: "Organizer Rights",
+  },
+  {
+    id: "code-of-ethics",
+    items: [
+      "Respect mentors, judges, and fellow participants.",
+      "Follow venue rules and event timelines.",
+      "Any misconduct may lead to removal from the event.",
+    ],
+    title: "Code of Ethics",
   },
 ];

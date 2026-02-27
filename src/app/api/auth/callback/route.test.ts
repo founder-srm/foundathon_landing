@@ -1,9 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AUTH_ERROR_REASON_SRM_BLOCKED } from "@/server/auth/email-policy";
 
 const mocks = vi.hoisted(() => ({
   cookies: vi.fn(),
   createClient: vi.fn(),
   exchangeCodeForSession: vi.fn(),
+  signOut: vi.fn(),
 }));
 
 vi.mock("next/headers", () => ({
@@ -36,12 +38,18 @@ describe("/api/auth/callback GET", () => {
     mocks.cookies.mockReset();
     mocks.createClient.mockReset();
     mocks.exchangeCodeForSession.mockReset();
+    mocks.signOut.mockReset();
 
     mocks.cookies.mockReturnValue({});
-    mocks.exchangeCodeForSession.mockResolvedValue({ error: null });
+    mocks.exchangeCodeForSession.mockResolvedValue({
+      data: { user: { email: "lead@example.com" } },
+      error: null,
+    });
+    mocks.signOut.mockResolvedValue({ error: null });
     mocks.createClient.mockResolvedValue({
       auth: {
         exchangeCodeForSession: mocks.exchangeCodeForSession,
+        signOut: mocks.signOut,
       },
     });
 
@@ -81,6 +89,26 @@ describe("/api/auth/callback GET", () => {
     expect(response.headers.get("location")).toBe(
       "http://localhost/dashboard/team-1",
     );
+    expect(mocks.signOut).not.toHaveBeenCalled();
+  });
+
+  it("redirects to auth-code-error with reason for blocked SRM email", async () => {
+    process.env.FOUNDATHON_NODE_ENV = "development";
+    mocks.exchangeCodeForSession.mockResolvedValue({
+      data: { user: { email: "blocked@srmist.edu.in" } },
+      error: null,
+    });
+
+    const { GET } = await import("./route");
+    const response = await GET(
+      new Request("http://localhost/api/auth/callback?code=abc123"),
+    );
+
+    expect(response.status).toBe(307);
+    expect(response.headers.get("location")).toBe(
+      `http://localhost/auth/auth-code-error?reason=${AUTH_ERROR_REASON_SRM_BLOCKED}`,
+    );
+    expect(mocks.signOut).toHaveBeenCalledTimes(1);
   });
 
   it("falls back to root for unsafe next path", async () => {

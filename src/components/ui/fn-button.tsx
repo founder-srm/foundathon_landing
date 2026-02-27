@@ -44,6 +44,7 @@ const fnButtonVariants = cva(
 type FnButtonProps = React.ComponentProps<"button"> &
   VariantProps<typeof fnButtonVariants> & {
     asChild?: boolean;
+    "data-cursor-kind"?: string;
     loading?: boolean;
     loadingText?: string;
   };
@@ -58,6 +59,7 @@ function FnButton({
   loading = false,
   loadingText,
   disabled,
+  ["data-cursor-kind"]: dataCursorKind,
   ...props
 }: FnButtonProps) {
   const Comp = asChild ? Slot.Root : "button";
@@ -66,6 +68,7 @@ function FnButton({
   return (
     <Comp
       className={cn(fnButtonVariants({ tone, kind, size }), className)}
+      data-cursor-kind={dataCursorKind ?? "button"}
       aria-busy={loading || undefined}
       disabled={isDisabled}
       {...props}

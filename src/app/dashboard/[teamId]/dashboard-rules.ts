@@ -34,7 +34,7 @@ export const DASHBOARD_QUICK_RULES = [
   "Registration is first-come, first-served; selected teams may pay a ₹300 fee. Event dates: 9th-11th March 2026.",
   "Each team can choose only one problem statement (limited slots per track); changes require organizer approval.",
   "No plagiarism or cheating; only registered members can work on the project.",
-  "Final submission must include a working prototype/demo, source code repository, PPT/pitch deck, and solution explanation; late submissions are not accepted.",
+  "Follow submission timelines strictly; late submissions will not be accepted.",
   "Winners may receive certificates, internships, or cash prizes; organizer decisions are final and rules may be modified if required.",
 ] as const;
 
@@ -79,7 +79,6 @@ export const DASHBOARD_RULE_SECTIONS: DashboardRuleSection[] = [
   {
     id: "development-guidelines",
     items: [
-      "Teams may start working on ideas and prototypes before the event.",
       "Open-source libraries are allowed with proper attribution.",
       "Teams should maintain documentation of their work.",
     ],
@@ -88,8 +87,6 @@ export const DASHBOARD_RULE_SECTIONS: DashboardRuleSection[] = [
   {
     id: "submission-rules",
     items: [
-      "Final submission must include a working prototype or demo.",
-      "Submit source code repository, PPT or pitch deck, and problem explanation with solution approach.",
       "Late submissions will not be accepted.",
     ],
     title: "Submission Rules",

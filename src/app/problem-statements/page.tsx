@@ -5,9 +5,65 @@ import {
   PROBLEM_STATEMENT_CAP,
   PROBLEM_STATEMENTS,
 } from "@/data/problem-statements";
+import {
+  buildProblemStatementCounts,
+  type ProblemStatementCountRow,
+} from "@/lib/problem-statement-availability";
+import { EVENT_ID } from "@/server/registration/constants";
+import { getServiceRoleSupabaseClient } from "@/server/supabase/service-role-client";
 
-export default function ProblemStatementsPage() {
-  const statements = PROBLEM_STATEMENTS;
+export const dynamic = "force-dynamic";
+
+const getProblemStatementCounts = async () => {
+  const supabase = getServiceRoleSupabaseClient();
+  if (!supabase) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("eventsregistrations")
+      .select("details")
+      .eq("event_id", EVENT_ID);
+
+    if (error) {
+      return null;
+    }
+
+    return buildProblemStatementCounts(
+      (data ?? []) as ProblemStatementCountRow[],
+    );
+  } catch {
+    return null;
+  }
+};
+
+export default async function ProblemStatementsPage() {
+  const counts = await getProblemStatementCounts();
+  const hasLiveAvailability = counts !== null;
+  const statements = PROBLEM_STATEMENTS.map((statement) => {
+    const registeredCount = hasLiveAvailability
+      ? (counts.get(statement.id) ?? 0)
+      : null;
+    const isFull =
+      typeof registeredCount === "number" &&
+      registeredCount >= PROBLEM_STATEMENT_CAP;
+    const remaining =
+      typeof registeredCount === "number"
+        ? Math.max(PROBLEM_STATEMENT_CAP - registeredCount, 0)
+        : null;
+
+    return {
+      ...statement,
+      isFull,
+      registeredCount,
+      remaining,
+    };
+  });
+  const fullTracksCount = statements.reduce(
+    (total, statement) => total + (statement.isFull ? 1 : 0),
+    0,
+  );
   const bentoSpanClasses = [
     "md:col-span-2 lg:col-span-4",
     "lg:col-span-2",
@@ -33,9 +89,9 @@ export default function ProblemStatementsPage() {
       value: `${statements.length}`,
     },
     {
-      label: "Lock Policy",
+      label: "Tracks Full",
       tone: "text-fnred",
-      value: "One-Time",
+      value: `${fullTracksCount}`,
     },
     {
       label: "Max Teams / Track",
@@ -124,6 +180,11 @@ export default function ProblemStatementsPage() {
                 <p className="text-xs uppercase tracking-[0.18em] text-fnblue font-semibold">
                   Available Problem Statements
                 </p>
+                <p className="mt-2 text-xs font-medium text-foreground/70">
+                  {hasLiveAvailability
+                    ? "Live slot status is shown for every track."
+                    : "Live slot status is currently unavailable."}
+                </p>
                 <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-6">
                   {statements.map((statement, index) => (
                     <InView
@@ -143,7 +204,11 @@ export default function ProblemStatementsPage() {
                       }}
                     >
                       <div
-                        className={`group relative h-full overflow-hidden rounded-xl border border-b-4 bg-linear-to-br p-5 shadow-sm transition-all duration-[var(--motion-duration-base)] ease-[var(--motion-ease-standard)] hover:-translate-y-0.5 hover:shadow-lg ${bentoToneClasses[index % bentoToneClasses.length]}`}
+                        className={`group relative h-full overflow-hidden rounded-xl border border-b-4 bg-linear-to-br p-5 shadow-sm transition-all duration-[var(--motion-duration-base)] ease-[var(--motion-ease-standard)] ${
+                          statement.isFull
+                            ? "border-foreground/30 from-gray-200/60 via-gray-100 to-gray-50 opacity-80 saturate-0"
+                            : `${bentoToneClasses[index % bentoToneClasses.length]} hover:-translate-y-0.5 hover:shadow-lg`
+                        }`}
                       >
                         <div className="absolute -right-8 -top-8 size-24 rounded-full bg-fnblue/15 blur-2xl pointer-events-none" />
                         <div className="absolute -bottom-10 -left-10 size-24 rounded-full bg-fnyellow/20 blur-2xl pointer-events-none" />
@@ -152,8 +217,20 @@ export default function ProblemStatementsPage() {
                             <p className="text-xs font-bold uppercase tracking-widest text-fnblue/80">
                               Track {index + 1}
                             </p>
-                            <span className="inline-flex size-7 items-center justify-center rounded-full border border-fnblue/25 bg-white/90 text-xs font-black text-fnblue transition-colors group-hover:bg-fnblue group-hover:text-white">
-                              {index + 1}
+                            <span
+                              className={`inline-flex rounded-full border px-2 py-0.5 text-[10px] font-black uppercase tracking-wider ${
+                                !hasLiveAvailability
+                                  ? "border-foreground/25 bg-white/80 text-foreground/60"
+                                  : statement.isFull
+                                    ? "border-fnred/40 bg-fnred/15 text-fnred"
+                                    : "border-fngreen/40 bg-fngreen/15 text-fngreen"
+                              }`}
+                            >
+                              {!hasLiveAvailability
+                                ? "N/A"
+                                : statement.isFull
+                                  ? "Full"
+                                  : "Open"}
                             </span>
                           </div>
                           <div className="h-px w-14 bg-linear-to-r from-fnblue/80 to-transparent" />

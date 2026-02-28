@@ -24,7 +24,7 @@ const isValidStatsApiKey = ({
 };
 
 export async function GET(request: NextRequest) {
-  const expectedApiKey = getFoundathonStatsApiKey();
+  const expectedApiKey = getFoundathonStatsApiKey()?.trim();
   if (!expectedApiKey) {
     return jsonError("Stats API key is not configured.", 500);
   }

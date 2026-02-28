@@ -72,6 +72,21 @@ describe("/api/stats/registrations GET", () => {
     expect(mocks.getRegistrationStats).not.toHaveBeenCalled();
   });
 
+  it("accepts trimmed stats API key from env", async () => {
+    mocks.getFoundathonStatsApiKey.mockReturnValue("  stats-secret  ");
+    const { GET } = await import("./route");
+
+    const response = await GET(
+      new NextRequest("http://localhost/api/stats/registrations", {
+        headers: { "x-foundathon-stats-key": "stats-secret" },
+      }),
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.generatedAt).toBe("2026-02-28T00:00:00.000Z");
+  });
+
   it("returns service errors", async () => {
     mocks.getRegistrationStats.mockResolvedValue({
       error: "Failed to fetch registrations for stats.",

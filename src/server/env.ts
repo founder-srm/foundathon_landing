@@ -3,6 +3,9 @@ type EnvKey =
   | "FOUNDATHON_NEXT_PUBLIC_SITE_URL"
   | "FOUNDATHON_NODE_ENV"
   | "FOUNDATHON_PROBLEM_LOCK_TOKEN_SECRET"
+  | "FOUNDATHON_STATS_API_KEY"
+  | "FOUNDATHON_STATS_EXCLUDED_EMAILS"
+  | "FOUNDATHON_STATS_PAGE_KEY"
   | "NEXT_PUBLIC_SUPABASE_SERVICE_ROLE"
   | "NEXT_PUBLIC_SUPABASE_ANON_KEY"
   | "SUPABASE_SERVICE_ROLE_KEY"
@@ -78,4 +81,24 @@ export const getAllowedRedirectHosts = () => {
     .split(",")
     .map((item) => item.trim().toLowerCase())
     .filter((item) => item.length > 0);
+};
+
+export const getFoundathonStatsApiKey = () =>
+  readRequiredEnv("FOUNDATHON_STATS_API_KEY");
+
+export const getFoundathonStatsPageKey = () =>
+  readRequiredEnv("FOUNDATHON_STATS_PAGE_KEY");
+
+const DEFAULT_STATS_EXCLUDED_EMAILS = ["opdhaker2007@gmail.com"];
+
+export const getFoundathonStatsExcludedEmails = () => {
+  const raw = readOptionalEnv("FOUNDATHON_STATS_EXCLUDED_EMAILS");
+  const emails = [
+    ...DEFAULT_STATS_EXCLUDED_EMAILS,
+    ...(raw ? raw.split(",") : []),
+  ]
+    .map((email) => email.trim().toLowerCase())
+    .filter((email) => email.length > 0);
+
+  return [...new Set(emails)];
 };

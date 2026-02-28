@@ -44,12 +44,12 @@ const Hero = async () => {
             variants={MOTION_VARIANTS.fadeBlurIn}
           >
             <div className="relative w-full max-w-3xl">
-              <div className="relative mx-auto flex w-fit max-w-full items-center gap-2 overflow-hidden rounded-full border border-fnred/85 bg-linear-to-r from-fnred/16 via-fnorange/22 to-fnred/16 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-[0.07em] text-fnred shadow-[0_0_0_1px_rgba(188,44,26,0.25),0_0_26px_rgba(188,44,26,0.5)] backdrop-blur-sm motion-safe:animate-[pulse-glow_3s_ease-in-out_infinite] sm:pl-2 sm:pr-4">
+              <div className="relative mx-auto flex w-fit max-w-full items-center gap-2 overflow-hidden rounded-full border border-fnred/85 bg-linear-to-r from-fnred/16 via-fnorange/22 to-fnred/16 pl-1 pr-3 py-1 text-[10px] font-extrabold uppercase tracking-[0.07em] text-fnred shadow-[0_0_0_1px_rgba(188,44,26,0.25),0_0_26px_rgba(188,44,26,0.5)] backdrop-blur-sm motion-safe:animate-[pulse-glow_3s_ease-in-out_infinite] sm:py-1 sm:pl-1 sm:pr-3">
                 <div
                   aria-hidden="true"
                   className="pointer-events-none absolute inset-0 overflow-hidden rounded-full"
                 >
-                  <div className="absolute inset-y-0 -left-1/2 w-2/5 bg-linear-to-r from-transparent via-white/55 to-transparent opacity-80 blur-[1px] sm:w-1/3 motion-safe:animate-[line-scan_2.4s_linear_infinite]" />
+                  <div className="absolute inset-y-0 -left-1/2 w-full bg-linear-to-r from-transparent via-white/55 to-transparent opacity-80 blur-[1px] sm:w-full motion-safe:animate-[line-scan_2.4s_linear_infinite]" />
                 </div>
                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-fnred/80 bg-fnred px-2 py-0.5 text-[9px] tracking-[0.2em] text-white">
                   <span className="relative flex size-1.5 overflow-hidden rounded-full">

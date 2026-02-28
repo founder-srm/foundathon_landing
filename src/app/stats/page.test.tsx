@@ -220,6 +220,19 @@ describe("/stats page", () => {
     ).toBeInTheDocument();
   });
 
+  it("accepts trimmed stats page key from env", async () => {
+    mocks.getFoundathonStatsPageKey.mockReturnValue("  page-secret  ");
+
+    const page = await StatsPage({
+      searchParams: Promise.resolve({ key: "page-secret" }),
+    });
+
+    render(page);
+
+    expect(screen.getByText(/registration analytics/i)).toBeInTheDocument();
+    expect(mocks.getRegistrationStats).toHaveBeenCalledTimes(1);
+  });
+
   it("renders detailed guidance when service-role env is missing", async () => {
     mocks.getRegistrationStats.mockResolvedValue({
       error: "Stats service role client is not configured.",

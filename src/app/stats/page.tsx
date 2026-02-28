@@ -6,6 +6,9 @@ import {
   type RegistrationStatsResponse,
 } from "@/server/registration-stats/service";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 type StatsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
@@ -440,7 +443,7 @@ const StatsContent = ({ stats }: { stats: RegistrationStatsResponse }) => {
 export default async function StatsPage({ searchParams }: StatsPageProps) {
   const params = await searchParams;
   const providedKey = toSingleSearchParam(params.key)?.trim();
-  const expectedKey = getFoundathonStatsPageKey();
+  const expectedKey = getFoundathonStatsPageKey()?.trim();
 
   if (!providedKey || !expectedKey) {
     notFound();

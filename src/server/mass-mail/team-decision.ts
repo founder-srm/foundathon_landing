@@ -1,5 +1,4 @@
 import { Resend } from "resend";
-import { ACCEPTED_TEAM_PAYMENT_FORM_URL } from "@/lib/accepted-team";
 import { getFoundathonResendApiKey, getFoundathonSiteUrl } from "@/server/env";
 
 const DEFAULT_SITE_URL = "https://foundathon.thefoundersclub.tech";
@@ -104,10 +103,9 @@ export const getTeamDecisionEmailContent = ({
       `Problem Statement: ${displayProblemStatement}`,
       `Registration Status: ${decisionLabel}`,
       "",
-      "Please complete your payment using the Google Form below to confirm your slot:",
-      ACCEPTED_TEAM_PAYMENT_FORM_URL,
-      "",
-      "After signing in, look for the QR icon at the top-right of the Team Status card on your dashboard to open and download your Team Entrance ticket.",
+      "Open your team dashboard and complete the INR 300 payment using the statement-specific UPI QR shown there.",
+      "Submit both your Transaction ID / UTR and payment proof from the dashboard so the admin team can verify it.",
+      "After payment is approved, look for the QR icon at the top-right of the Team Status card on your dashboard to open and download your Team Entrance ticket.",
       `Open your team dashboard here: ${dashboardUrl}`,
       "",
       "Regards,",
@@ -144,22 +142,17 @@ export const getTeamDecisionEmailContent = ({
                     </tr>
                   </table>
                   <p style="margin:20px 0 0 0;font-size:15px;color:#334155;">
-                    Please complete your payment using the Google Form below to confirm your slot.
+                    Open your dashboard and complete the <strong>INR 300 payment</strong> using the problem-statement-specific UPI QR shown there.
                   </p>
                   <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-top:16px;background:#F8FAFC;border:1px solid #DCFCE7;border-radius:12px;">
                     <tr>
                       <td style="padding:16px 18px;font-size:14px;line-height:1.7;color:#1E293B;">
-                        <strong>Payment Form:</strong>
-                        <a href="${ACCEPTED_TEAM_PAYMENT_FORM_URL}" target="_blank" rel="noopener noreferrer" style="color:${theme.accent};font-weight:700;text-decoration:none;">
-                          Open Google Form
-                        </a>
-                        <br />
-                        Link: ${ACCEPTED_TEAM_PAYMENT_FORM_URL}
+                        <strong>Next Step:</strong> Upload your <strong>Transaction ID / UTR</strong> and <strong>payment proof</strong> from the dashboard payment section after scanning the displayed UPI QR.
                       </td>
                     </tr>
                   </table>
                   <p style="margin:14px 0 0 0;font-size:15px;color:#334155;">
-                    After signing in, look for the <strong>QR icon at the top-right of the Team Status card</strong> on your dashboard to open and download your <strong>Team Entrance ticket</strong>.
+                    After payment is approved, look for the <strong>QR icon at the top-right of the Team Status card</strong> on your dashboard to open and download your <strong>Team Entrance ticket</strong>.
                   </p>
                 </td>
               </tr>

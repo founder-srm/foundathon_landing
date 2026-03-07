@@ -1,5 +1,10 @@
 import { getProblemStatementById } from "@/data/problem-statements";
 import {
+  getPaymentProofExtension,
+  getPaymentProofStoragePathsForCleanup,
+  PAYMENT_PROOF_BUCKET_NAME,
+} from "@/lib/payments";
+import {
   getPresentationExtension,
   isPresentationExtensionAllowed,
   isPresentationFileSignatureAllowed,
@@ -119,6 +124,18 @@ const PRESENTATION_DETAIL_KEYS = [
   "presentationFileSizeBytes",
 ] as const;
 
+const PAYMENT_DETAIL_KEYS = [
+  "paymentStatus",
+  "paymentUtr",
+  "paymentSubmittedAt",
+  "paymentReviewedAt",
+  "paymentRejectedReason",
+  "paymentProofFileName",
+  "paymentProofMimeType",
+  "paymentProofFileSizeBytes",
+  "paymentProofStoragePath",
+] as const;
+
 const getDetailsRecord = (details: unknown) =>
   details && typeof details === "object"
     ? (details as Record<string, unknown>)
@@ -148,6 +165,22 @@ const clearPresentationMetadata = (details: Record<string, unknown>) => {
 
   return nextDetails;
 };
+
+const hasPaymentMetadata = (details: Record<string, unknown>) =>
+  PAYMENT_DETAIL_KEYS.some((key) => {
+    const value = details[key];
+
+    if (typeof value === "string") {
+      return value.trim().length > 0;
+    }
+
+    return (
+      key === "paymentProofFileSizeBytes" &&
+      typeof value === "number" &&
+      Number.isInteger(value) &&
+      value > 0
+    );
+  });
 
 const splitStoragePath = (storagePath: string) => {
   const normalizedPath = storagePath.trim().replace(/^\/+/, "");
@@ -632,6 +665,24 @@ export const patchTeam = async ({
     }
   }
 
+  for (const key of PAYMENT_DETAIL_KEYS) {
+    const value = existingDetails[key];
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      updatedDetails[key] = value;
+      continue;
+    }
+
+    if (
+      key === "paymentProofFileSizeBytes" &&
+      typeof value === "number" &&
+      Number.isInteger(value) &&
+      value > 0
+    ) {
+      updatedDetails[key] = value;
+    }
+  }
+
   if (input.lock) {
     const statementCap = await getProblemStatementCap();
 
@@ -753,6 +804,48 @@ export const deleteTeam = async ({
 
           return fail(
             storageRemoveError.message || "Failed to remove team presentation.",
+            500,
+          );
+        }
+      }
+    }
+
+    if (hasPaymentMetadata(existingDetails)) {
+      const paymentStoragePath =
+        typeof existingDetails.paymentProofStoragePath === "string"
+          ? existingDetails.paymentProofStoragePath
+          : "";
+      const paymentProofFileName =
+        typeof existingDetails.paymentProofFileName === "string"
+          ? existingDetails.paymentProofFileName
+          : "";
+      const paymentExtension =
+        getPaymentProofExtension(paymentProofFileName) ||
+        getPaymentProofExtension(paymentStoragePath);
+      const pathsToCleanup = getPaymentProofStoragePathsForCleanup({
+        directPath: paymentStoragePath,
+        teamId,
+        userId,
+      });
+
+      if (paymentExtension || paymentStoragePath.trim().length > 0) {
+        const { error: storageRemoveError } = await storageClient.storage
+          .from(PAYMENT_PROOF_BUCKET_NAME)
+          .remove(pathsToCleanup);
+
+        if (
+          storageRemoveError &&
+          !isStorageObjectMissingError(storageRemoveError.message)
+        ) {
+          if (isRlsViolationError(storageRemoveError.message)) {
+            return fail(
+              `Team deletion is blocked by Supabase Storage policy. Please ask an admin to allow authenticated deletes in the ${PAYMENT_PROOF_BUCKET_NAME} bucket.`,
+              500,
+            );
+          }
+
+          return fail(
+            storageRemoveError.message || "Failed to remove payment proof.",
             500,
           );
         }

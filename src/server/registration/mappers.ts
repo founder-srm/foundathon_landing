@@ -1,5 +1,7 @@
+import { normalizePaymentStatus } from "@/lib/payments";
 import {
   type TeamApprovalStatus,
+  type TeamPaymentStatus,
   type TeamRecord,
   type TeamSubmission,
   teamSubmissionSchema,
@@ -138,6 +140,25 @@ export function toTeamSummary(row: RegistrationRow): TeamSummary {
 const toOptionalString = (value: unknown) =>
   typeof value === "string" && value.trim().length > 0 ? value : undefined;
 
+const toOptionalBoundedString = ({
+  maxLength,
+  minLength,
+  value,
+}: {
+  maxLength: number;
+  minLength: number;
+  value: unknown;
+}) => {
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+  return normalized.length >= minLength && normalized.length <= maxLength
+    ? normalized
+    : undefined;
+};
+
 const toOptionalPositiveInteger = (value: unknown) =>
   typeof value === "number" && Number.isInteger(value) && value > 0
     ? value
@@ -161,6 +182,10 @@ const toOptionalApprovalStatus = (
       return undefined;
   }
 };
+
+const toOptionalPaymentStatus = (
+  value: unknown,
+): TeamPaymentStatus | undefined => normalizePaymentStatus(value);
 
 export function toTeamRecord(row: RegistrationRow): TeamRecord | null {
   const details = row.details ?? {};
@@ -192,6 +217,23 @@ export function toTeamRecord(row: RegistrationRow): TeamRecord | null {
     details.presentationFileSizeBytes,
   );
   const approvalStatus = toOptionalApprovalStatus(row.is_approved);
+  const paymentStatus = toOptionalPaymentStatus(details.paymentStatus);
+  const paymentUtr = toOptionalBoundedString({
+    maxLength: 64,
+    minLength: 6,
+    value: details.paymentUtr,
+  });
+  const paymentSubmittedAt = toOptionalString(details.paymentSubmittedAt);
+  const paymentReviewedAt = toOptionalString(details.paymentReviewedAt);
+  const paymentRejectedReason = toOptionalString(details.paymentRejectedReason);
+  const paymentProofFileName = toOptionalString(details.paymentProofFileName);
+  const paymentProofMimeType = toOptionalString(details.paymentProofMimeType);
+  const paymentProofStoragePath = toOptionalString(
+    details.paymentProofStoragePath,
+  );
+  const paymentProofFileSizeBytes = toOptionalPositiveInteger(
+    details.paymentProofFileSizeBytes,
+  );
 
   return {
     ...parsed.data,
@@ -209,5 +251,14 @@ export function toTeamRecord(row: RegistrationRow): TeamRecord | null {
     ...(presentationFileName ? { presentationFileName } : {}),
     ...(presentationMimeType ? { presentationMimeType } : {}),
     ...(presentationFileSizeBytes ? { presentationFileSizeBytes } : {}),
+    ...(paymentStatus ? { paymentStatus } : {}),
+    ...(paymentUtr ? { paymentUtr } : {}),
+    ...(paymentSubmittedAt ? { paymentSubmittedAt } : {}),
+    ...(paymentReviewedAt ? { paymentReviewedAt } : {}),
+    ...(paymentRejectedReason ? { paymentRejectedReason } : {}),
+    ...(paymentProofFileName ? { paymentProofFileName } : {}),
+    ...(paymentProofMimeType ? { paymentProofMimeType } : {}),
+    ...(paymentProofStoragePath ? { paymentProofStoragePath } : {}),
+    ...(paymentProofFileSizeBytes ? { paymentProofFileSizeBytes } : {}),
   };
 }

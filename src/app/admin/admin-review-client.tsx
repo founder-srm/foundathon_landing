@@ -38,6 +38,31 @@ type AdminReviewSubmissionsResponse = {
   teams: AdminReviewSubmissionTeam[];
 };
 
+type AdminPaymentProofStatus =
+  | "not_submitted"
+  | "submitted"
+  | "approved"
+  | "rejected";
+
+type AdminPaymentProofTeam = {
+  id: string;
+  leadName: string;
+  paymentRejectedReason: string | null;
+  paymentReviewedAt: string | null;
+  paymentStatus: AdminPaymentProofStatus;
+  paymentSubmittedAt: string | null;
+  paymentUtr: string | null;
+  problemStatementId: string | null;
+  problemStatementTitle: string | null;
+  registrationEmail: string;
+  teamName: string;
+};
+
+type AdminPaymentProofsResponse = {
+  statement: AdminReviewStatementFilter;
+  teams: AdminPaymentProofTeam[];
+};
+
 export type TeamSubmissionStatus = "submitted" | "non_submitted";
 
 export type AdminTeamContactRow = {
@@ -60,6 +85,13 @@ type DecisionApiResponse = {
   teamId: string;
 };
 
+type PaymentDecisionApiResponse = {
+  paymentRejectedReason: string | null;
+  paymentReviewedAt: string | null;
+  paymentStatus: "approved" | "rejected";
+  teamId: string;
+};
+
 type AdminReviewClientProps = {
   adminEmail: string;
   initialTeamContacts: AdminTeamContactRow[];
@@ -67,6 +99,14 @@ type AdminReviewClientProps = {
 
 type SubmissionFilter = "all" | TeamSubmissionStatus;
 type SubmissionSortOrder = "submitted_first" | "non_submitted_first";
+type AdminSectionId = "review-queues" | "payment-review" | "contact-directory";
+type AdminSectionNavItem = {
+  count: number;
+  description: string;
+  id: AdminSectionId;
+  label: string;
+  tone: "blue" | "green" | "orange";
+};
 
 const ALL_STATEMENTS = ["all", ...PROBLEM_STATEMENTS.map((item) => item.id)];
 const CONTACT_EXPORT_COLUMNS = [
@@ -111,7 +151,36 @@ const toStatusMeta = (status: AdminReviewApprovalStatus) => {
   }
 };
 
+const toPaymentStatusMeta = (status: AdminPaymentProofStatus) => {
+  switch (status) {
+    case "submitted":
+      return {
+        badgeClass: "border-fnblue/40 bg-fnblue/10 text-fnblue",
+        label: "Under Review",
+      };
+    case "approved":
+      return {
+        badgeClass: "border-fngreen/40 bg-fngreen/10 text-fngreen",
+        label: "Approved",
+      };
+    case "rejected":
+      return {
+        badgeClass: "border-fnred/40 bg-fnred/10 text-fnred",
+        label: "Rejected",
+      };
+    default:
+      return {
+        badgeClass: "border-fnorange/40 bg-fnorange/10 text-fnorange",
+        label: "Not Submitted",
+      };
+  }
+};
+
 const toDisplayDateTime = (value: string) => {
+  if (!value) {
+    return "N/A";
+  }
+
   const parsed = new Date(value);
   if (Number.isNaN(parsed.valueOf())) {
     return value;
@@ -187,16 +256,28 @@ export default function AdminReviewClient({
   const [teams, setTeams] = useState<AdminReviewSubmissionTeam[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
+  const [paymentTeams, setPaymentTeams] = useState<AdminPaymentProofTeam[]>([]);
+  const [isPaymentLoading, setIsPaymentLoading] = useState(true);
+  const [paymentFetchError, setPaymentFetchError] = useState("");
   const [pendingDecision, setPendingDecision] = useState<{
     decision: "accepted" | "rejected";
     teamId: string;
   } | null>(null);
+  const [pendingPaymentDecision, setPendingPaymentDecision] = useState<{
+    decision: "approved" | "rejected";
+    teamId: string;
+  } | null>(null);
+  const [paymentRejectionReasons, setPaymentRejectionReasons] = useState<
+    Record<string, string>
+  >({});
   const [previewTeam, setPreviewTeam] =
     useState<AdminReviewSubmissionTeam | null>(null);
   const [submissionFilter, setSubmissionFilter] =
     useState<SubmissionFilter>("all");
   const [submissionSortOrder, setSubmissionSortOrder] =
     useState<SubmissionSortOrder>("non_submitted_first");
+  const [activeSection, setActiveSection] =
+    useState<AdminSectionId>("review-queues");
 
   const submittedCount = useMemo(
     () =>
@@ -262,7 +343,6 @@ export default function AdminReviewClient({
     }) => {
       setIsLoading(true);
       setFetchError("");
-      setActiveStatement(statement);
 
       try {
         const response = await fetch(
@@ -318,16 +398,107 @@ export default function AdminReviewClient({
     [],
   );
 
+  const fetchPaymentTeams = useCallback(
+    async ({
+      showErrorToast,
+      statement,
+    }: {
+      showErrorToast?: boolean;
+      statement: AdminReviewStatementFilter;
+    }) => {
+      setIsPaymentLoading(true);
+      setPaymentFetchError("");
+
+      try {
+        const response = await fetch(
+          `/api/admin/payment-proofs?statement=${encodeURIComponent(statement)}`,
+        );
+        const data = (await response.json().catch(() => null)) as
+          | AdminPaymentProofsResponse
+          | {
+              error?: string;
+            }
+          | null;
+
+        if (!response.ok || !data || !("teams" in data)) {
+          const error =
+            data && "error" in data && typeof data.error === "string"
+              ? data.error
+              : "Could not load payment proofs.";
+          setPaymentFetchError(error);
+          setPaymentTeams([]);
+
+          if (showErrorToast) {
+            toast({
+              title: "Failed to Load Payment Queue",
+              description: error,
+              variant: "destructive",
+            });
+          }
+          return;
+        }
+
+        setPaymentTeams(data.teams);
+        setPaymentRejectionReasons((current) => {
+          const next = { ...current };
+          for (const team of data.teams) {
+            if (team.paymentRejectedReason && !next[team.id]?.trim().length) {
+              next[team.id] = team.paymentRejectedReason;
+            }
+          }
+          return next;
+        });
+      } catch {
+        const error = "Network issue while loading payment proofs.";
+        setPaymentFetchError(error);
+        setPaymentTeams([]);
+
+        if (showErrorToast) {
+          toast({
+            title: "Network Error",
+            description: error,
+            variant: "destructive",
+          });
+        }
+      } finally {
+        setIsPaymentLoading(false);
+      }
+    },
+    [],
+  );
+
+  const refreshQueues = useCallback(
+    async ({
+      showErrorToast,
+      statement,
+    }: {
+      showErrorToast?: boolean;
+      statement: AdminReviewStatementFilter;
+    }) => {
+      setActiveStatement(statement);
+      await Promise.all([
+        fetchTeams({ showErrorToast, statement }),
+        fetchPaymentTeams({ showErrorToast, statement }),
+      ]);
+    },
+    [fetchPaymentTeams, fetchTeams],
+  );
+
   useEffect(() => {
-    fetchTeams({ statement: "all" }).catch(() => undefined);
-  }, [fetchTeams]);
+    refreshQueues({ statement: "all" }).catch(() => undefined);
+  }, [refreshQueues]);
 
   const onStatementTabClick = (tabId: string) => {
-    if (!isStatementFilter(tabId) || tabId === activeStatement || isLoading) {
+    if (
+      !isStatementFilter(tabId) ||
+      tabId === activeStatement ||
+      isLoading ||
+      isPaymentLoading
+    ) {
       return;
     }
 
-    fetchTeams({ showErrorToast: true, statement: tabId }).catch(
+    refreshQueues({ showErrorToast: true, statement: tabId }).catch(
       () => undefined,
     );
   };
@@ -414,10 +585,210 @@ export default function AdminReviewClient({
     }
   };
 
+  const updatePaymentDecision = async ({
+    decision,
+    teamId,
+  }: {
+    decision: "approved" | "rejected";
+    teamId: string;
+  }) => {
+    const rejectionReason = paymentRejectionReasons[teamId]?.trim() ?? "";
+    if (decision === "rejected" && !rejectionReason) {
+      toast({
+        title: "Rejection Reason Required",
+        description: "Add a rejection reason before rejecting a payment proof.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setPendingPaymentDecision({ decision, teamId });
+
+    try {
+      const response = await fetch(`/api/admin/payment-proofs/${teamId}`, {
+        body: JSON.stringify({
+          decision,
+          ...(decision === "rejected" ? { reason: rejectionReason } : {}),
+        }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        method: "PATCH",
+      });
+
+      const data = (await response.json().catch(() => null)) as
+        | PaymentDecisionApiResponse
+        | { error?: string }
+        | null;
+
+      if (
+        !response.ok ||
+        !data ||
+        !("paymentStatus" in data) ||
+        !("paymentReviewedAt" in data)
+      ) {
+        const error =
+          data && "error" in data && typeof data.error === "string"
+            ? data.error
+            : "Could not update payment status.";
+        toast({
+          title: "Payment Review Failed",
+          description: error,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setPaymentTeams((current) =>
+        current.map((team) =>
+          team.id === teamId
+            ? {
+                ...team,
+                paymentRejectedReason: data.paymentRejectedReason,
+                paymentReviewedAt: data.paymentReviewedAt,
+                paymentStatus: data.paymentStatus,
+              }
+            : team,
+        ),
+      );
+
+      setPaymentRejectionReasons((current) => ({
+        ...current,
+        [teamId]: data.paymentRejectedReason ?? "",
+      }));
+
+      toast({
+        title:
+          decision === "approved" ? "Payment Approved" : "Payment Rejected",
+        description:
+          decision === "approved"
+            ? "Ticket access is now unlocked for this team."
+            : "The team can re-upload a new payment proof now.",
+      });
+    } catch {
+      toast({
+        title: "Network Error",
+        description: "Could not reach the payment review API.",
+        variant: "destructive",
+      });
+    } finally {
+      setPendingPaymentDecision(null);
+    }
+  };
+
   const activeTabCount = useMemo(() => {
     const matchedTab = tabs.find((tab) => tab.id === activeStatement);
     return matchedTab?.count ?? 0;
   }, [activeStatement, tabs]);
+
+  const paymentStatusCounts = useMemo(
+    () =>
+      paymentTeams.reduce(
+        (counts, team) => {
+          counts[team.paymentStatus] += 1;
+          return counts;
+        },
+        {
+          approved: 0,
+          not_submitted: 0,
+          rejected: 0,
+          submitted: 0,
+        } satisfies Record<AdminPaymentProofStatus, number>,
+      ),
+    [paymentTeams],
+  );
+
+  const isRefreshing = isLoading || isPaymentLoading;
+
+  const sectionNavItems = useMemo<AdminSectionNavItem[]>(
+    () => [
+      {
+        count: teams.length,
+        description: "PPT review",
+        id: "review-queues",
+        label: "Review Queues",
+        tone: "blue",
+      },
+      {
+        count: paymentTeams.length,
+        description: "Payment review",
+        id: "payment-review",
+        label: "Payment Queue",
+        tone: "green",
+      },
+      {
+        count: initialTeamContacts.length,
+        description: "Contacts",
+        id: "contact-directory",
+        label: "Contact Directory",
+        tone: "orange",
+      },
+    ],
+    [initialTeamContacts.length, paymentTeams.length, teams.length],
+  );
+
+  const scrollToSection = useCallback((sectionId: AdminSectionId) => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    setActiveSection(sectionId);
+    document.getElementById(sectionId)?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, []);
+
+  useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      typeof IntersectionObserver === "undefined"
+    ) {
+      return;
+    }
+
+    const sectionIds: AdminSectionId[] = [
+      "review-queues",
+      "payment-review",
+      "contact-directory",
+    ];
+    const sectionElements = sectionIds
+      .map((sectionId) => document.getElementById(sectionId))
+      .filter((element): element is HTMLElement => Boolean(element));
+
+    if (sectionElements.length === 0) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visibleEntries = entries
+          .filter((entry) => entry.isIntersecting)
+          .sort(
+            (left, right) => right.intersectionRatio - left.intersectionRatio,
+          );
+
+        const topVisibleId = visibleEntries[0]?.target.id as
+          | AdminSectionId
+          | undefined;
+        if (topVisibleId) {
+          setActiveSection(topVisibleId);
+        }
+      },
+      {
+        rootMargin: "-18% 0px -55% 0px",
+        threshold: [0.12, 0.35, 0.6],
+      },
+    );
+
+    for (const element of sectionElements) {
+      observer.observe(element);
+    }
+
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
 
   const downloadContactsCsv = () => {
     const rows = filteredAndSortedTeamContacts.map((team) => ({
@@ -450,19 +821,98 @@ export default function AdminReviewClient({
   };
 
   return (
-    <main className="min-h-screen bg-gray-200 text-foreground relative overflow-hidden">
+    <main className="relative min-h-screen overflow-x-hidden bg-gray-200 text-foreground">
       <div className="fncontainer relative space-y-8 py-10 md:py-14">
-        <section className="rounded-2xl border border-b-4 border-fnblue bg-background/95 p-5 shadow-xl md:p-8">
+        <section className="sticky top-0 z-30 -mx-1 rounded-2xl border border-foreground/15 bg-background/88 p-3 shadow-xl backdrop-blur supports-[backdrop-filter]:bg-background/78 md:top-2 md:p-4">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-foreground/60">
+                  Quick Navigation
+                </p>
+                <p className="mt-1 text-sm text-foreground/75">
+                  Jump between the long admin sections without losing your
+                  place.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => scrollToSection("review-queues")}
+                className="rounded-full border border-foreground/15 bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-[0.12em] text-foreground/70 transition hover:border-fnblue hover:text-fnblue"
+              >
+                Top
+              </button>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-3">
+              {sectionNavItems.map((item) => {
+                const isActive = activeSection === item.id;
+                const toneClasses =
+                  item.tone === "blue"
+                    ? isActive
+                      ? "border-fnblue bg-fnblue text-white shadow-md"
+                      : "border-fnblue/25 bg-fnblue/8 text-fnblue hover:border-fnblue hover:bg-fnblue/12"
+                    : item.tone === "green"
+                      ? isActive
+                        ? "border-fngreen bg-fngreen text-white shadow-md"
+                        : "border-fngreen/25 bg-fngreen/8 text-fngreen hover:border-fngreen hover:bg-fngreen/12"
+                      : isActive
+                        ? "border-fnorange bg-fnorange text-white shadow-md"
+                        : "border-fnorange/25 bg-fnorange/8 text-fnorange hover:border-fnorange hover:bg-fnorange/12";
+
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => scrollToSection(item.id)}
+                    className={`rounded-xl border px-4 py-3 text-left transition ${toneClasses}`}
+                    aria-pressed={isActive}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-[11px] font-extrabold uppercase tracking-[0.14em]">
+                          {item.label}
+                        </p>
+                        <p
+                          className={`mt-1 text-xs ${
+                            isActive ? "text-white/85" : "text-foreground/70"
+                          }`}
+                        >
+                          {item.description}
+                        </p>
+                      </div>
+                      <span
+                        className={`inline-flex min-w-10 items-center justify-center rounded-full px-2 py-1 text-xs font-black ${
+                          isActive
+                            ? "bg-white/18 text-white"
+                            : "bg-white/75 text-foreground/80"
+                        }`}
+                      >
+                        {item.count}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
+        <section
+          id="review-queues"
+          className="scroll-mt-28 rounded-2xl border border-b-4 border-fnblue bg-background/95 p-5 shadow-xl md:p-8"
+        >
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="inline-flex rounded-full border border-fnblue bg-fnblue/15 px-3 py-1 text-xs font-bold uppercase tracking-wider text-fnblue">
-                Admin PPT Review
+                Admin Review
               </p>
               <h1 className="mt-3 text-3xl font-black uppercase tracking-tight md:text-4xl">
-                Submission Review Queue
+                Review Queues
               </h1>
               <p className="mt-2 text-sm text-foreground/75">
                 Signed in as <span className="font-semibold">{adminEmail}</span>
+                . Manage PPT approvals and payment verification from one place.
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -471,13 +921,13 @@ export default function AdminReviewClient({
                 tone="gray"
                 size="sm"
                 onClick={() =>
-                  fetchTeams({
+                  refreshQueues({
                     showErrorToast: true,
                     statement: activeStatement,
                   }).catch(() => undefined)
                 }
-                disabled={isLoading}
-                loading={isLoading}
+                disabled={isRefreshing}
+                loading={isRefreshing}
                 loadingText="Refreshing..."
               >
                 <RefreshCcw size={15} strokeWidth={2.6} />
@@ -671,7 +1121,218 @@ export default function AdminReviewClient({
           </div>
         </section>
 
-        <section className="rounded-2xl border border-b-4 border-fnblue bg-background/95 p-5 shadow-xl md:p-8">
+        <section
+          id="payment-review"
+          className="scroll-mt-28 rounded-2xl border border-b-4 border-fngreen bg-background/95 p-5 shadow-xl md:p-8"
+        >
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="inline-flex rounded-full border border-fngreen bg-fngreen/15 px-3 py-1 text-xs font-bold uppercase tracking-wider text-fngreen">
+                Payment Verification
+              </p>
+              <h2 className="mt-3 text-2xl font-black uppercase tracking-tight md:text-3xl">
+                Accepted Team Payment Queue
+              </h2>
+              <p className="mt-2 text-sm text-foreground/75">
+                Review Transaction IDs / UTRs and payment proofs before the team
+                ticket unlocks.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 rounded-xl border border-fngreen/25 bg-fngreen/5 p-3 text-xs font-semibold uppercase tracking-[0.12em] text-fngreen md:grid-cols-4">
+            <p>Submitted: {paymentStatusCounts.submitted}</p>
+            <p>Rejected: {paymentStatusCounts.rejected}</p>
+            <p>Pending: {paymentStatusCounts.not_submitted}</p>
+            <p>Approved: {paymentStatusCounts.approved}</p>
+          </div>
+
+          {paymentFetchError ? (
+            <div className="mt-4 rounded-xl border border-fnred/35 bg-fnred/10 p-4 text-sm text-fnred">
+              {paymentFetchError}
+            </div>
+          ) : null}
+
+          <div className="mt-6 space-y-3">
+            {!isPaymentLoading && paymentTeams.length === 0 ? (
+              <div className="rounded-xl border border-foreground/15 bg-white p-6 text-center text-sm text-foreground/70">
+                No accepted teams found for this payment queue tab.
+              </div>
+            ) : null}
+
+            {paymentTeams.map((team) => {
+              const statusMeta = toPaymentStatusMeta(team.paymentStatus);
+              const isPendingRow = pendingPaymentDecision?.teamId === team.id;
+              const rejectionReasonInput =
+                paymentRejectionReasons[team.id] ?? "";
+              const canReviewTeam = team.paymentStatus === "submitted";
+
+              return (
+                <article
+                  key={team.id}
+                  className="rounded-xl border border-foreground/15 bg-white p-4 shadow-sm"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <h2 className="text-base font-black uppercase tracking-tight">
+                        {team.teamName}
+                      </h2>
+                      <p className="mt-1 text-xs text-foreground/70">
+                        Lead:{" "}
+                        <span className="font-semibold text-foreground">
+                          {team.leadName}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-xs text-foreground/70">
+                        Team ID:{" "}
+                        <span className="font-mono text-foreground">
+                          {team.id}
+                        </span>
+                      </p>
+                      <p className="mt-1 text-xs text-foreground/70">
+                        Registration Email:{" "}
+                        <span className="font-semibold text-foreground">
+                          {team.registrationEmail || "N/A"}
+                        </span>
+                      </p>
+                    </div>
+                    <div
+                      className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] ${statusMeta.badgeClass}`}
+                    >
+                      {statusMeta.label}
+                    </div>
+                  </div>
+
+                  <div className="mt-3 grid gap-2 text-xs text-foreground/75 md:grid-cols-2">
+                    <p>
+                      <span className="font-semibold text-foreground">
+                        Statement:
+                      </span>{" "}
+                      {team.problemStatementId
+                        ? `${team.problemStatementId.toUpperCase()} • ${
+                            team.problemStatementTitle ?? "Unknown"
+                          }`
+                        : "Unassigned"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-foreground">
+                        Transaction ID / UTR:
+                      </span>{" "}
+                      {team.paymentUtr || "Not submitted"}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-foreground">
+                        Submitted:
+                      </span>{" "}
+                      {toDisplayDateTime(team.paymentSubmittedAt ?? "")}
+                    </p>
+                    <p>
+                      <span className="font-semibold text-foreground">
+                        Reviewed:
+                      </span>{" "}
+                      {toDisplayDateTime(team.paymentReviewedAt ?? "")}
+                    </p>
+                  </div>
+
+                  {team.paymentRejectedReason ? (
+                    <div className="mt-3 rounded-xl border border-fnred/25 bg-fnred/8 p-3 text-sm text-fnred">
+                      <span className="font-semibold uppercase tracking-[0.1em]">
+                        Last Rejection Reason:
+                      </span>{" "}
+                      {team.paymentRejectedReason}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {team.paymentStatus !== "not_submitted" ? (
+                      <FnButton asChild tone="gray" size="sm">
+                        <a
+                          href={`/api/admin/payment-proofs/${team.id}/file`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          <ExternalLink size={16} strokeWidth={3} />
+                          Preview Proof
+                        </a>
+                      </FnButton>
+                    ) : null}
+                    <FnButton
+                      type="button"
+                      tone="green"
+                      size="sm"
+                      onClick={() =>
+                        updatePaymentDecision({
+                          decision: "approved",
+                          teamId: team.id,
+                        })
+                      }
+                      disabled={!canReviewTeam || isPendingRow}
+                      loading={
+                        isPendingRow &&
+                        pendingPaymentDecision?.decision === "approved"
+                      }
+                      loadingText="Approving..."
+                    >
+                      Approve
+                    </FnButton>
+                    <FnButton
+                      type="button"
+                      tone="red"
+                      size="sm"
+                      onClick={() =>
+                        updatePaymentDecision({
+                          decision: "rejected",
+                          teamId: team.id,
+                        })
+                      }
+                      disabled={!canReviewTeam || isPendingRow}
+                      loading={
+                        isPendingRow &&
+                        pendingPaymentDecision?.decision === "rejected"
+                      }
+                      loadingText="Rejecting..."
+                    >
+                      Reject
+                    </FnButton>
+                  </div>
+
+                  <div className="mt-4 rounded-xl border border-foreground/10 bg-foreground/[0.03] p-3">
+                    <label
+                      htmlFor={`payment-reason-${team.id}`}
+                      className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/60"
+                    >
+                      Rejection Reason
+                    </label>
+                    <textarea
+                      id={`payment-reason-${team.id}`}
+                      value={rejectionReasonInput}
+                      onChange={(event) =>
+                        setPaymentRejectionReasons((current) => ({
+                          ...current,
+                          [team.id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Required only when rejecting a submitted payment proof"
+                      rows={3}
+                      className="mt-2 w-full rounded-xl border border-foreground/15 bg-background px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-fnblue"
+                    />
+                  </div>
+                </article>
+              );
+            })}
+
+            {isPaymentLoading ? (
+              <div className="rounded-xl border border-foreground/15 bg-white p-6 text-center text-sm text-foreground/70">
+                Loading payment review queue...
+              </div>
+            ) : null}
+          </div>
+        </section>
+
+        <section
+          id="contact-directory"
+          className="scroll-mt-28 rounded-2xl border border-b-4 border-fnblue bg-background/95 p-5 shadow-xl md:p-8"
+        >
           <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
               <p className="inline-flex rounded-full border border-fnblue bg-fnblue/15 px-3 py-1 text-xs font-bold uppercase tracking-wider text-fnblue">

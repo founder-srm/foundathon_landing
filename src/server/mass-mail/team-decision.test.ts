@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { ACCEPTED_TEAM_PAYMENT_FORM_URL } from "@/lib/accepted-team";
 
 const mocks = vi.hoisted(() => ({
   getFoundathonResendApiKey: vi.fn(),
@@ -47,14 +46,17 @@ describe("team decision mail service", () => {
     expect(content.subject).toContain("Accepted");
     expect(content.text).toContain("Pitch Panthers");
     expect(content.text).toContain("Localized AI Skills Training Platform");
+    expect(content.text).toContain("INR 300");
     expect(content.text).toContain("Registration Status: ACCEPTED");
-    expect(content.text).toContain(ACCEPTED_TEAM_PAYMENT_FORM_URL);
+    expect(content.text).toContain("INR 300 payment");
+    expect(content.text).toContain("Transaction ID / UTR");
     expect(content.text).toContain("top-right of the Team Status card");
     expect(content.text).toContain(`https://example.com/dashboard/${teamId}`);
     expect(content.html).toContain("Pitch Panthers");
     expect(content.html).toContain("Localized AI Skills Training Platform");
     expect(content.html).toContain("Registration Status:</strong> ACCEPTED");
-    expect(content.html).toContain(ACCEPTED_TEAM_PAYMENT_FORM_URL);
+    expect(content.html).toContain("INR 300 payment</strong>");
+    expect(content.html).toContain("payment proof");
     expect(content.html).toContain("top-right of the Team Status card");
     expect(content.html).toContain(`https://example.com/dashboard/${teamId}`);
   });

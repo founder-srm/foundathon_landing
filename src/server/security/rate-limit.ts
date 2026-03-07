@@ -10,6 +10,10 @@ import { getClientIp } from "@/server/security/client-ip";
 const POLICY_CONFIG = {
   auth_callback_ip: { keyType: "ip", limit: 60, window: "10 m" },
   auth_login_ip: { keyType: "ip", limit: 20, window: "10 m" },
+  payment_proof_upload_ip: { keyType: "ip", limit: 10, window: "1 h" },
+  payment_proof_upload_user: { keyType: "user", limit: 5, window: "1 h" },
+  payment_proof_view_ip: { keyType: "ip", limit: 30, window: "1 h" },
+  payment_proof_view_user: { keyType: "user", limit: 20, window: "1 h" },
   presentation_upload_ip: { keyType: "ip", limit: 10, window: "1 h" },
   presentation_upload_user: { keyType: "user", limit: 5, window: "1 h" },
   problem_lock_ip: { keyType: "ip", limit: 40, window: "10 m" },

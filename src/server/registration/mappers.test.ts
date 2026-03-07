@@ -66,6 +66,31 @@ describe("toTeamRecord", () => {
     expect(team?.presentationFileSizeBytes).toBe(1024);
   });
 
+  it("maps payment metadata from details", () => {
+    const team = toTeamRecord({
+      ...baseRow,
+      details: {
+        ...baseRow.details,
+        paymentProofFileName: "proof.png",
+        paymentProofFileSizeBytes: 2048,
+        paymentProofMimeType: "image/png",
+        paymentProofStoragePath: "payment-proofs/user/team-id/proof.png",
+        paymentRejectedReason: "Mismatch in screenshot",
+        paymentReviewedAt: "2026-02-20T10:10:00.000Z",
+        paymentStatus: "rejected",
+        paymentSubmittedAt: "2026-02-20T10:06:00.000Z",
+        paymentUtr: "UTR123456789",
+      },
+    });
+
+    expect(team).not.toBeNull();
+    expect(team?.paymentStatus).toBe("rejected");
+    expect(team?.paymentUtr).toBe("UTR123456789");
+    expect(team?.paymentRejectedReason).toBe("Mismatch in screenshot");
+    expect(team?.paymentProofFileName).toBe("proof.png");
+    expect(team?.paymentProofFileSizeBytes).toBe(2048);
+  });
+
   it("drops invalid presentation metadata values", () => {
     const team = toTeamRecord({
       ...baseRow,
@@ -82,6 +107,30 @@ describe("toTeamRecord", () => {
     expect(team).not.toHaveProperty("presentationPublicUrl");
     expect(team).not.toHaveProperty("presentationMimeType");
     expect(team).not.toHaveProperty("presentationFileSizeBytes");
+  });
+
+  it("drops invalid payment metadata values", () => {
+    const team = toTeamRecord({
+      ...baseRow,
+      details: {
+        ...baseRow.details,
+        paymentProofFileName: "   ",
+        paymentProofFileSizeBytes: -1,
+        paymentProofMimeType: "",
+        paymentProofStoragePath: "",
+        paymentRejectedReason: "",
+        paymentReviewedAt: "",
+        paymentStatus: "bad_status",
+        paymentSubmittedAt: "",
+        paymentUtr: "123",
+      },
+    });
+
+    expect(team).not.toBeNull();
+    expect(team).not.toHaveProperty("paymentStatus");
+    expect(team).not.toHaveProperty("paymentUtr");
+    expect(team).not.toHaveProperty("paymentProofStoragePath");
+    expect(team).not.toHaveProperty("paymentProofFileSizeBytes");
   });
 
   it("maps approval status from database enum value", () => {

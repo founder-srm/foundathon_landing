@@ -32,8 +32,15 @@ import ModalPortal from "@/components/ui/modal-portal";
 import { useMotionPreferences } from "@/components/ui/motion-preferences";
 import { useRouteProgress } from "@/components/ui/route-progress";
 import { toast } from "@/hooks/use-toast";
-import { ACCEPTED_TEAM_PAYMENT_FORM_URL } from "@/lib/accepted-team";
 import { MOTION_TRANSITIONS, MOTION_VARIANTS } from "@/lib/motion-system";
+import {
+  DEFAULT_PAYMENT_STATUS,
+  getPaymentQrConfig,
+  isPaymentProofExtensionAllowed,
+  isPaymentProofMimeTypeAllowed,
+  normalizePaymentStatus,
+  PAYMENT_PROOF_MAX_FILE_SIZE_BYTES,
+} from "@/lib/payments";
 import {
   isPresentationExtensionAllowed,
   isPresentationMimeTypeAllowed,
@@ -100,6 +107,7 @@ type PresentationInfo = {
 };
 
 type TeamApprovalStatus = NonNullable<TeamRecord["approvalStatus"]>;
+type PaymentStatus = NonNullable<TeamRecord["paymentStatus"]>;
 type ConfirmationStep = "confirm" | "type";
 type TeamTicketThemeId =
   | "aurora-mint"
@@ -141,6 +149,18 @@ type TeamTicketTheme = {
   uiAccentTextClass: string;
   uiChipClass: string;
   uiModalBorderClass: string;
+};
+
+type PaymentInfo = {
+  proofFileName: string;
+  proofFileSizeBytes: number | null;
+  proofMimeType: string;
+  proofStoragePath: string;
+  rejectedReason: string;
+  reviewedAt: string;
+  status: PaymentStatus;
+  submittedAt: string;
+  utr: string;
 };
 
 const MAX_MEMBERS = 5;
@@ -321,6 +341,18 @@ const emptyPresentation = (): PresentationInfo => ({
   publicUrl: "",
   storagePath: "",
   uploadedAt: "",
+});
+
+const emptyPayment = (): PaymentInfo => ({
+  proofFileName: "",
+  proofFileSizeBytes: null,
+  proofMimeType: "",
+  proofStoragePath: "",
+  rejectedReason: "",
+  reviewedAt: "",
+  status: DEFAULT_PAYMENT_STATUS,
+  submittedAt: "",
+  utr: "",
 });
 
 const toSrmLeadEmail = (netId: string) => {
@@ -1400,7 +1432,7 @@ const getTeamApprovalStatusMeta = (status: TeamApprovalStatus) => {
       return {
         badgeClass: "border-fngreen/40 bg-fngreen/10 text-fngreen",
         description:
-          "Your team has been approved by admins. Complete the payment form below, then use the QR icon at the top-right of this card to open your ticket.",
+          "Your team has been approved by admins. Complete the payment section below, then wait for payment approval to unlock your ticket.",
         dotClass: "bg-fngreen",
         label: "Accepted",
         panelClass:
@@ -1439,6 +1471,51 @@ const getTeamApprovalStatusMeta = (status: TeamApprovalStatus) => {
   }
 };
 
+const getPaymentStatusMeta = (status: PaymentStatus) => {
+  switch (status) {
+    case "submitted":
+      return {
+        badgeClass: "border-fnblue/40 bg-fnblue/10 text-fnblue",
+        description:
+          "Your Transaction ID / UTR and payment proof are under admin review. Ticket access stays locked until this is approved.",
+        dotClass: "bg-fnblue",
+        label: "Under Review",
+        panelClass:
+          "border-fnblue bg-linear-to-r from-fnblue/10 via-background to-fnblue/5",
+      };
+    case "approved":
+      return {
+        badgeClass: "border-fngreen/40 bg-fngreen/10 text-fngreen",
+        description:
+          "Payment approved. Your team ticket is now unlocked from the QR icon on the Team Status card.",
+        dotClass: "bg-fngreen",
+        label: "Approved",
+        panelClass:
+          "border-fngreen bg-linear-to-r from-fngreen/15 via-background to-fngreen/5",
+      };
+    case "rejected":
+      return {
+        badgeClass: "border-fnred/40 bg-fnred/10 text-fnred",
+        description:
+          "Your last payment proof was rejected. Review the reason below, then upload a fresh proof and Transaction ID / UTR.",
+        dotClass: "bg-fnred",
+        label: "Rejected",
+        panelClass:
+          "border-fnred bg-linear-to-r from-fnred/12 via-background to-fnred/5",
+      };
+    default:
+      return {
+        badgeClass: "border-fnorange/40 bg-fnorange/10 text-fnorange",
+        description:
+          "Scan the INR 300 UPI QR below, then submit your Transaction ID / UTR and payment proof for admin verification.",
+        dotClass: "bg-fnorange",
+        label: "Not Submitted",
+        panelClass:
+          "border-fnorange bg-linear-to-r from-fnorange/12 via-background to-fnyellow/5",
+      };
+  }
+};
+
 export default function TeamDashboardPage() {
   const params = useParams<{ teamId: string }>();
   const router = useRouter();
@@ -1449,6 +1526,7 @@ export default function TeamDashboardPage() {
   const teamId = params.teamId;
   const createdToastShownRef = useRef(false);
   const presentationFileInputRef = useRef<HTMLInputElement | null>(null);
+  const paymentProofFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [teamType, setTeamType] = useState<TeamType>("srm");
   const [teamName, setTeamName] = useState("");
@@ -1499,11 +1577,17 @@ export default function TeamDashboardPage() {
   const [presentation, setPresentation] = useState<PresentationInfo>(
     emptyPresentation(),
   );
+  const [payment, setPayment] = useState<PaymentInfo>(emptyPayment());
   const [pendingPresentationFile, setPendingPresentationFile] =
     useState<File | null>(null);
+  const [pendingPaymentProofFile, setPendingPaymentProofFile] =
+    useState<File | null>(null);
+  const [paymentUtrInput, setPaymentUtrInput] = useState("");
   const [showPresentationConfirm, setShowPresentationConfirm] = useState(false);
   const [showPresentationPreview, setShowPresentationPreview] = useState(false);
   const [isSubmittingPresentation, setIsSubmittingPresentation] =
+    useState(false);
+  const [isSubmittingPaymentProof, setIsSubmittingPaymentProof] =
     useState(false);
   const [lastSavedMembersSnapshot, setLastSavedMembersSnapshot] = useState("");
   const [problemStatements, setProblemStatements] = useState<
@@ -1514,6 +1598,10 @@ export default function TeamDashboardPage() {
   const [isGeneratingTeamQr, setIsGeneratingTeamQr] = useState(false);
   const [teamQrGenerationError, setTeamQrGenerationError] = useState(false);
   const [showTeamTicketModal, setShowTeamTicketModal] = useState(false);
+  const [paymentQrDataUrl, setPaymentQrDataUrl] = useState("");
+  const [isGeneratingPaymentQr, setIsGeneratingPaymentQr] = useState(false);
+  const [paymentQrGenerationError, setPaymentQrGenerationError] =
+    useState(false);
   const [teamTicketPreviewDataUrl, setTeamTicketPreviewDataUrl] = useState("");
   const [teamTicketThemeId, setTeamTicketThemeId] =
     useState<TeamTicketThemeId>("monopoly-classic");
@@ -1539,11 +1627,24 @@ export default function TeamDashboardPage() {
   const createdQuery = searchParams.get("created");
   const activeTab = parseDashboardTab(rawTab);
   const isPresentationSubmitted = Boolean(presentation.publicUrl);
+  const paymentStatus = payment.status;
   const resolvedTeamApprovalStatus = resolveTeamApprovalStatus({
     dbStatus: teamApprovalStatusFromDb,
     isPresentationSubmitted,
   });
-  const shouldShowAcceptedQr = resolvedTeamApprovalStatus === "accepted";
+  const paymentQrConfig = useMemo(
+    () => getPaymentQrConfig(problemStatement.id),
+    [problemStatement.id],
+  );
+  const canManagePayment =
+    resolvedTeamApprovalStatus === "accepted" &&
+    Boolean(problemStatement.id) &&
+    Boolean(paymentQrConfig);
+  const canUploadPaymentProof =
+    canManagePayment &&
+    (paymentStatus === "not_submitted" || paymentStatus === "rejected");
+  const canOpenTeamTicket =
+    resolvedTeamApprovalStatus === "accepted" && paymentStatus === "approved";
   const selectedTeamTicketTheme = useMemo(
     () => getTeamTicketTheme(teamTicketThemeId),
     [teamTicketThemeId],
@@ -1601,6 +1702,35 @@ export default function TeamDashboardPage() {
       storagePath: team.presentationStoragePath ?? "",
       uploadedAt: team.presentationUploadedAt ?? "",
     });
+  }, []);
+
+  const setProblemStatementFromTeam = useCallback((team: TeamRecord) => {
+    setProblemStatement({
+      cap: team.problemStatementCap ?? null,
+      id: team.problemStatementId ?? "",
+      lockedAt: team.problemStatementLockedAt ?? "",
+      title: team.problemStatementTitle ?? "",
+    });
+  }, []);
+
+  const setPaymentFromTeam = useCallback((team: TeamRecord) => {
+    setPayment({
+      proofFileName: team.paymentProofFileName ?? "",
+      proofFileSizeBytes: team.paymentProofFileSizeBytes ?? null,
+      proofMimeType: team.paymentProofMimeType ?? "",
+      proofStoragePath: team.paymentProofStoragePath ?? "",
+      rejectedReason: team.paymentRejectedReason ?? "",
+      reviewedAt: team.paymentReviewedAt ?? "",
+      status:
+        normalizePaymentStatus(team.paymentStatus) ?? DEFAULT_PAYMENT_STATUS,
+      submittedAt: team.paymentSubmittedAt ?? "",
+      utr: team.paymentUtr ?? "",
+    });
+    setPaymentUtrInput(team.paymentUtr ?? "");
+    setPendingPaymentProofFile(null);
+    if (paymentProofFileInputRef.current) {
+      paymentProofFileInputRef.current.value = "";
+    }
   }, []);
 
   const completedProfiles = useMemo(() => {
@@ -1782,13 +1912,9 @@ export default function TeamDashboardPage() {
         setTeamApprovalStatusFromDb(
           normalizeApprovalStatus(team.approvalStatus),
         );
-        setProblemStatement({
-          cap: team.problemStatementCap ?? null,
-          id: team.problemStatementId ?? "",
-          lockedAt: team.problemStatementLockedAt ?? "",
-          title: team.problemStatementTitle ?? "",
-        });
+        setProblemStatementFromTeam(team);
         setPresentationFromTeam(team);
+        setPaymentFromTeam(team);
 
         if (team.teamType === "srm") {
           setLeadSrm(team.lead);
@@ -1821,7 +1947,14 @@ export default function TeamDashboardPage() {
     };
 
     void loadTeam();
-  }, [router, setPresentationFromTeam, startRouteProgress, teamId]);
+  }, [
+    router,
+    setPaymentFromTeam,
+    setPresentationFromTeam,
+    setProblemStatementFromTeam,
+    startRouteProgress,
+    teamId,
+  ]);
 
   useEffect(() => {
     if (isLoading || problemStatement.id) {
@@ -1898,7 +2031,55 @@ export default function TeamDashboardPage() {
   useEffect(() => {
     let cancelled = false;
 
-    if (!shouldShowAcceptedQr || !teamId) {
+    if (!canManagePayment || !paymentQrConfig) {
+      setPaymentQrDataUrl("");
+      setIsGeneratingPaymentQr(false);
+      setPaymentQrGenerationError(false);
+      return;
+    }
+
+    setIsGeneratingPaymentQr(true);
+    setPaymentQrGenerationError(false);
+
+    void QRCode.toDataURL(paymentQrConfig.upiPayload, {
+      color: {
+        dark: "#0F172A",
+        light: "#FFFFFF",
+      },
+      errorCorrectionLevel: "H",
+      margin: 1,
+      width: 280,
+    })
+      .then((dataUrl: string) => {
+        if (cancelled) {
+          return;
+        }
+        setPaymentQrDataUrl(dataUrl);
+        setPaymentQrGenerationError(false);
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setPaymentQrDataUrl("");
+        setPaymentQrGenerationError(true);
+      })
+      .finally(() => {
+        if (cancelled) {
+          return;
+        }
+        setIsGeneratingPaymentQr(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canManagePayment, paymentQrConfig]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!canOpenTeamTicket || !teamId) {
       setTeamIdQrDataUrl("");
       setIsGeneratingTeamQr(false);
       setTeamQrGenerationError(false);
@@ -1946,7 +2127,7 @@ export default function TeamDashboardPage() {
     return () => {
       cancelled = true;
     };
-  }, [shouldShowAcceptedQr, teamId]);
+  }, [canOpenTeamTicket, teamId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2209,6 +2390,9 @@ export default function TeamDashboardPage() {
       setTeamApprovalStatusFromDb(
         normalizeApprovalStatus(data.team.approvalStatus),
       );
+      setProblemStatementFromTeam(data.team);
+      setPresentationFromTeam(data.team);
+      setPaymentFromTeam(data.team);
       if (data.team.teamType === "srm") {
         setMembersSrm(data.team.members);
       } else {
@@ -2321,12 +2505,9 @@ export default function TeamDashboardPage() {
       setTeamApprovalStatusFromDb(
         normalizeApprovalStatus(patchData.team.approvalStatus),
       );
-      setProblemStatement({
-        cap: patchData.team.problemStatementCap ?? null,
-        id: patchData.team.problemStatementId ?? "",
-        lockedAt: patchData.team.problemStatementLockedAt ?? "",
-        title: patchData.team.problemStatementTitle ?? "",
-      });
+      setProblemStatementFromTeam(patchData.team);
+      setPresentationFromTeam(patchData.team);
+      setPaymentFromTeam(patchData.team);
 
       toast({
         title: "Problem Statement Locked",
@@ -2405,6 +2586,13 @@ export default function TeamDashboardPage() {
     }
   };
 
+  const clearPendingPaymentProofSelection = () => {
+    setPendingPaymentProofFile(null);
+    if (paymentProofFileInputRef.current) {
+      paymentProofFileInputRef.current.value = "";
+    }
+  };
+
   const validatePresentationFile = (file: File) => {
     if (file.size <= 0) {
       return "Presentation file is empty.";
@@ -2420,6 +2608,26 @@ export default function TeamDashboardPage() {
 
     if (file.type && !isPresentationMimeTypeAllowed(file.type)) {
       return "Invalid presentation file type.";
+    }
+
+    return null;
+  };
+
+  const validatePaymentProofFile = (file: File) => {
+    if (file.size <= 0) {
+      return "Payment proof file is empty.";
+    }
+
+    if (file.size > PAYMENT_PROOF_MAX_FILE_SIZE_BYTES) {
+      return "Payment proof file size must be 5 MB or less.";
+    }
+
+    if (!isPaymentProofExtensionAllowed(file.name)) {
+      return "Only PNG, JPG, JPEG, WEBP, or PDF files are allowed.";
+    }
+
+    if (file.type && !isPaymentProofMimeTypeAllowed(file.type)) {
+      return "Invalid payment proof file type.";
     }
 
     return null;
@@ -2449,6 +2657,31 @@ export default function TeamDashboardPage() {
 
     setPendingPresentationFile(selectedFile);
     setShowPresentationConfirm(true);
+  };
+
+  const handlePaymentProofFileChange = (files: FileList | null) => {
+    if (!canUploadPaymentProof || isSubmittingPaymentProof) {
+      clearPendingPaymentProofSelection();
+      return;
+    }
+
+    const selectedFile = files?.[0];
+    if (!selectedFile) {
+      return;
+    }
+
+    const validationError = validatePaymentProofFile(selectedFile);
+    if (validationError) {
+      toast({
+        title: "Invalid Payment Proof",
+        description: validationError,
+        variant: "destructive",
+      });
+      clearPendingPaymentProofSelection();
+      return;
+    }
+
+    setPendingPaymentProofFile(selectedFile);
   };
 
   const submitPresentation = async () => {
@@ -2503,7 +2736,9 @@ export default function TeamDashboardPage() {
               setTeamApprovalStatusFromDb(
                 normalizeApprovalStatus(teamData.team.approvalStatus),
               );
+              setProblemStatementFromTeam(teamData.team);
               setPresentationFromTeam(teamData.team);
+              setPaymentFromTeam(teamData.team);
             }
           } catch {
             // no-op: best effort refresh only
@@ -2527,7 +2762,9 @@ export default function TeamDashboardPage() {
       setTeamApprovalStatusFromDb(
         normalizeApprovalStatus(data.team.approvalStatus),
       );
+      setProblemStatementFromTeam(data.team);
       setPresentationFromTeam(data.team);
+      setPaymentFromTeam(data.team);
       clearPendingPresentationSelection();
       setShowPresentationConfirm(false);
       toast({
@@ -2545,6 +2782,95 @@ export default function TeamDashboardPage() {
       });
     } finally {
       setIsSubmittingPresentation(false);
+    }
+  };
+
+  const submitPaymentProof = async () => {
+    if (!canUploadPaymentProof || isSubmittingPaymentProof) {
+      return;
+    }
+
+    const normalizedUtr = paymentUtrInput.trim();
+    if (normalizedUtr.length < 6 || normalizedUtr.length > 64) {
+      toast({
+        title: "Invalid Transaction ID / UTR",
+        description:
+          "Transaction ID / UTR must be between 6 and 64 characters.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!pendingPaymentProofFile) {
+      toast({
+        title: "Payment Proof Required",
+        description: "Select a PNG, JPG, WEBP, or PDF proof before submitting.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const validationError = validatePaymentProofFile(pendingPaymentProofFile);
+    if (validationError) {
+      toast({
+        title: "Invalid Payment Proof",
+        description: validationError,
+        variant: "destructive",
+      });
+      clearPendingPaymentProofSelection();
+      return;
+    }
+
+    setIsSubmittingPaymentProof(true);
+
+    try {
+      const formData = new FormData();
+      formData.set("file", pendingPaymentProofFile);
+      formData.set("utr", normalizedUtr);
+
+      const response = await fetch(`/api/register/${teamId}/payment-proof`, {
+        body: formData,
+        method: "POST",
+      });
+      const data = (await response.json().catch(() => null)) as {
+        error?: string;
+        team?: TeamRecord;
+      } | null;
+
+      if (!response.ok || !data?.team) {
+        toast({
+          title: "Payment Proof Submission Failed",
+          description:
+            data?.error ??
+            "We couldn't submit your payment proof right now. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setUpdatedAt(data.team.updatedAt);
+      setTeamApprovalStatusFromDb(
+        normalizeApprovalStatus(data.team.approvalStatus),
+      );
+      setProblemStatementFromTeam(data.team);
+      setPresentationFromTeam(data.team);
+      setPaymentFromTeam(data.team);
+      clearPendingPaymentProofSelection();
+      toast({
+        title: "Payment Proof Submitted",
+        description:
+          "Your payment proof is now under admin review. Ticket access will unlock after approval.",
+        variant: "success",
+      });
+    } catch {
+      toast({
+        title: "Payment Proof Submission Failed",
+        description:
+          "Network issue while uploading payment proof. Please try again once connected.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingPaymentProof(false);
     }
   };
 
@@ -2619,14 +2945,24 @@ export default function TeamDashboardPage() {
     );
   };
 
-  const copyTeamId = async () => {
+  const copyText = async ({
+    failureDescription,
+    successDescription,
+    successTitle,
+    text,
+  }: {
+    failureDescription: string;
+    successDescription: string;
+    successTitle: string;
+    text: string;
+  }) => {
     const fallbackCopy = () => {
       if (typeof document === "undefined") {
         return false;
       }
 
       const textarea = document.createElement("textarea");
-      textarea.value = teamId;
+      textarea.value = text;
       textarea.setAttribute("readonly", "");
       textarea.style.position = "absolute";
       textarea.style.left = "-9999px";
@@ -2642,28 +2978,37 @@ export default function TeamDashboardPage() {
         typeof navigator !== "undefined" &&
         typeof navigator.clipboard?.writeText === "function"
       ) {
-        await navigator.clipboard.writeText(teamId);
+        await navigator.clipboard.writeText(text);
       } else if (!fallbackCopy()) {
         throw new Error("Clipboard unavailable");
       }
 
       toast({
-        title: "Team ID Copied",
-        description: "Copied team ID to clipboard.",
+        title: successTitle,
+        description: successDescription,
         variant: "success",
       });
     } catch {
       toast({
         title: "Copy Failed",
-        description:
-          "Couldn't copy the team ID automatically. Please copy it manually.",
+        description: failureDescription,
         variant: "destructive",
       });
     }
   };
 
+  const copyTeamId = async () => {
+    await copyText({
+      failureDescription:
+        "Couldn't copy the team ID automatically. Please copy it manually.",
+      successDescription: "Copied team ID to clipboard.",
+      successTitle: "Team ID Copied",
+      text: teamId,
+    });
+  };
+
   const openTeamTicketModal = () => {
-    if (!shouldShowAcceptedQr || !teamIdQrDataUrl || teamQrGenerationError) {
+    if (!canOpenTeamTicket || !teamIdQrDataUrl || teamQrGenerationError) {
       return;
     }
 
@@ -2834,10 +3179,16 @@ export default function TeamDashboardPage() {
   const teamApprovalStatusMeta = getTeamApprovalStatusMeta(
     resolvedTeamApprovalStatus,
   );
+  const paymentStatusMeta = getPaymentStatusMeta(paymentStatus);
   const presentationLeadEmailLabel = presentationLeadEmail || "lead email";
   const activeTabMeta =
     DASHBOARD_TABS.find((tab) => tab.id === activeTab) ?? DASHBOARD_TABS[0];
   const memberIdLabel = teamType === "srm" ? "NetID" : "College ID";
+  const paymentProofAccept =
+    ".png,.jpg,.jpeg,.webp,.pdf,image/png,image/jpeg,image/webp,application/pdf";
+  const hasUploadedPaymentProof = Boolean(payment.proofStoragePath);
+  const shouldShowPaymentSection =
+    resolvedTeamApprovalStatus === "accepted" && Boolean(problemStatement.id);
   const copyTeamIdButtonClass =
     "inline-flex size-7 items-center justify-center rounded-md border border-foreground/20 bg-white text-foreground/70 transition-colors hover:bg-fnblue/10 hover:text-fnblue focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-fnblue/50";
 
@@ -3062,34 +3413,49 @@ export default function TeamDashboardPage() {
                       <p className="mt-4 max-w-3xl text-sm leading-relaxed text-foreground/80 md:text-base font-medium">
                         {teamApprovalStatusMeta.description}
                       </p>
-                      {shouldShowAcceptedQr ? (
+                      {resolvedTeamApprovalStatus === "accepted" ? (
                         <div className="mt-4 max-w-3xl rounded-2xl border border-fngreen/35 bg-white/85 p-4 shadow-sm">
                           <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-fngreen">
-                            Final Step
+                            Accepted Team Flow
                           </p>
                           <p className="mt-2 text-sm leading-relaxed text-foreground/80">
-                            Use the payment form to complete your fee, then open
-                            the QR icon at the top-right of this Team Status
-                            card to view and download your QR Code ticket.
+                            {canOpenTeamTicket
+                              ? "Payment approved. Use the QR icon at the top-right of this Team Status card to open and download your QR Code ticket."
+                              : canManagePayment
+                                ? "Complete the INR 300 payment section below using the UPI QR, then submit your Transaction ID / UTR and payment proof. Your ticket unlocks right here after admin approval."
+                                : "Your team is accepted. Lock a problem statement to unlock the dashboard payment section."}
                           </p>
                           <div className="mt-3 flex flex-wrap gap-2">
-                            <FnButton asChild tone="green" size="sm">
-                              <a
-                                href={ACCEPTED_TEAM_PAYMENT_FORM_URL}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                            {canManagePayment ? (
+                              <FnButton
+                                type="button"
+                                tone="blue"
+                                size="sm"
+                                onClick={() => {
+                                  if (typeof document === "undefined") {
+                                    return;
+                                  }
+
+                                  document
+                                    .getElementById("dashboard-payment-section")
+                                    ?.scrollIntoView({
+                                      behavior: "smooth",
+                                      block: "start",
+                                    });
+                                }}
                               >
-                                <ExternalLink size={16} strokeWidth={3} />
-                                Open Payment Form
-                              </a>
-                            </FnButton>
+                                Payment Section
+                              </FnButton>
+                            ) : null}
                             <FnButton
                               type="button"
-                              tone="gray"
+                              tone={canOpenTeamTicket ? "green" : "gray"}
                               size="sm"
                               onClick={openTeamTicketModal}
                               disabled={
-                                isGeneratingTeamQr || teamQrGenerationError
+                                !canOpenTeamTicket ||
+                                isGeneratingTeamQr ||
+                                teamQrGenerationError
                               }
                             >
                               <QrCode size={16} strokeWidth={3} />
@@ -3125,7 +3491,7 @@ export default function TeamDashboardPage() {
                             aria-label="Open team ticket"
                             onClick={openTeamTicketModal}
                             disabled={
-                              !shouldShowAcceptedQr ||
+                              !canOpenTeamTicket ||
                               isGeneratingTeamQr ||
                               teamQrGenerationError
                             }
@@ -3137,44 +3503,445 @@ export default function TeamDashboardPage() {
                             role="tooltip"
                             className="pointer-events-none absolute right-0 z-20 -mt-24 w-72 rounded-lg border border-foreground/15 bg-background px-3 py-2 text-xs leading-relaxed text-foreground/80 font-medium opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100"
                           >
-                            {shouldShowAcceptedQr
+                            {canOpenTeamTicket
                               ? "Click the QR icon to open and download your team ticket."
-                              : "Team ticket download unlocks once your team is accepted."}
+                              : "Team ticket download unlocks after your accepted team's payment proof is approved."}
                           </div>
                         </div>
                       </div>
-
-                      {/* {shouldShowAcceptedQr ? (
-                    <div className="w-full rounded-xl border border-fngreen/35 bg-white/90 p-3 shadow-sm md:w-[220px]">
-                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-fngreen">
-                        Team Ticket
-                      </p>
-                      {isGeneratingTeamQr ? (
-                        <p className="mt-2 text-xs leading-relaxed text-foreground/75">
-                          Preparing accepted-team QR...
-                        </p>
-                      ) : teamQrGenerationError ? (
-                        <p className="mt-2 text-xs leading-relaxed text-foreground/75">
-                          Couldn&apos;t generate QR code right now. Please
-                          refresh once.
-                        </p>
-                      ) : null}
-                      <FnButton
-                        type="button"
-                        tone="green"
-                        size="sm"
-                        className="mt-3 w-full justify-center"
-                        onClick={openTeamTicketModal}
-                        disabled={isGeneratingTeamQr || teamQrGenerationError}
-                      >
-                        View QR Ticket
-                      </FnButton>
-                    </div>
-                  ) : null} */}
                     </div>
                   </div>
                 </motion.section>
               </InView>
+
+              {shouldShowPaymentSection ? (
+                <InView
+                  once
+                  viewOptions={SCROLL_FLOW_VIEW_OPTIONS}
+                  transition={{
+                    duration: 0.24,
+                    ease: "easeOut",
+                    delay: 0.04,
+                  }}
+                  variants={SCROLL_FLOW_VARIANTS}
+                >
+                  <motion.section
+                    id="dashboard-payment-section"
+                    initial={isReducedMotion ? false : { opacity: 0, y: 12 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ ...TAB_PANEL_TRANSITION, delay: 0.04 }}
+                    className={`rounded-2xl border border-b-4 p-5 shadow-lg md:p-6 ${paymentStatusMeta.panelClass}`}
+                  >
+                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                      <div>
+                        <p
+                          className={cn(
+                            "text-sm font-extrabold uppercase tracking-wider text-foreground/80",
+                            paymentStatusMeta.dotClass.replace("bg", "text"),
+                          )}
+                        >
+                          Payment
+                        </p>
+                        <div
+                          className={cn(
+                            `mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-bold uppercase tracking-wider ${paymentStatusMeta.badgeClass}`,
+                            paymentStatusMeta.dotClass.replace("bg", "border"),
+                          )}
+                        >
+                          <span
+                            className={`inline-flex size-2 rounded-full ${paymentStatusMeta.dotClass}`}
+                          />
+                          {paymentStatusMeta.label}
+                        </div>
+                        <p className="mt-4 max-w-3xl text-sm font-medium leading-relaxed text-foreground/80 md:text-base">
+                          {paymentStatusMeta.description}
+                        </p>
+                      </div>
+
+                      <div className="rounded-xl border border-foreground/10 bg-white/80 px-4 py-3 text-xs text-foreground/75 shadow-sm">
+                        <p className="font-semibold uppercase tracking-[0.12em] text-foreground/60">
+                          Locked Track
+                        </p>
+                        <p className="mt-1 text-sm font-semibold text-foreground">
+                          {problemStatement.id
+                            ? `${problemStatement.id.toUpperCase()} • ${problemStatement.title || "Unknown"}`
+                            : "Not locked"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {paymentStatus === "rejected" && payment.rejectedReason ? (
+                      <div className="mt-5 rounded-xl border border-fnred/35 bg-fnred/8 p-4 text-sm text-fnred">
+                        <p className="font-bold uppercase tracking-[0.12em]">
+                          Rejection Reason
+                        </p>
+                        <p className="mt-2 leading-relaxed">
+                          {payment.rejectedReason}
+                        </p>
+                      </div>
+                    ) : null}
+
+                    <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
+                      <section className="rounded-2xl border border-foreground/15 bg-white/90 p-4 shadow-sm">
+                        <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-fnblue">
+                          INR 300 UPI QR
+                        </p>
+                        <p className="mt-2 text-sm text-foreground/75">
+                          Scan this statement-specific QR to pay INR 300 for
+                          your team and then upload the payment proof here.
+                        </p>
+
+                        <div className="mt-4 flex min-h-[300px] items-center justify-center rounded-2xl border border-dashed border-foreground/15 bg-foreground/[0.03] p-4">
+                          {isGeneratingPaymentQr ? (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <div className="size-36 animate-pulse rounded-2xl bg-foreground/10" />
+                            </div>
+                          ) : paymentQrGenerationError ? (
+                            <div className="text-center text-sm text-fnred">
+                              Couldn't generate the payment QR right now.
+                              Refresh once and try again.
+                            </div>
+                          ) : paymentQrDataUrl ? (
+                            <Image
+                              src={paymentQrDataUrl}
+                              alt={`UPI QR for ${problemStatement.id}`}
+                              width={280}
+                              height={280}
+                              unoptimized
+                              className="h-auto w-full max-w-[280px] rounded-xl bg-white"
+                            />
+                          ) : (
+                            <div className="text-center text-sm text-foreground/60">
+                              Payment QR will appear here.
+                            </div>
+                          )}
+                        </div>
+
+                        {paymentQrConfig ? (
+                          <p className="mt-3 text-xs text-foreground/60">
+                            {paymentQrConfig.qrLabel}
+                          </p>
+                        ) : null}
+                      </section>
+
+                      <div className="space-y-4">
+                        {paymentQrConfig ? (
+                          <section className="rounded-2xl border border-foreground/15 bg-white/90 p-4 shadow-sm">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-fnblue">
+                                UPI Details
+                              </p>
+                              <p className="text-xs text-foreground/60">
+                                Copy the fields below if you want to test
+                                manually.
+                              </p>
+                            </div>
+
+                            <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                              <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-3">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/60">
+                                      Payee
+                                    </p>
+                                    <p className="mt-1 text-sm font-semibold text-foreground">
+                                      {paymentQrConfig.payeeName}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className={copyTeamIdButtonClass}
+                                    onClick={() =>
+                                      void copyText({
+                                        failureDescription:
+                                          "Couldn't copy the payee name automatically.",
+                                        successDescription:
+                                          "Copied payee name to clipboard.",
+                                        successTitle: "Payee Name Copied",
+                                        text: paymentQrConfig.payeeName,
+                                      })
+                                    }
+                                  >
+                                    <Copy size={14} strokeWidth={2.5} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-3">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/60">
+                                      Amount
+                                    </p>
+                                    <p className="mt-1 text-sm font-semibold text-foreground">
+                                      INR {paymentQrConfig.amountInr}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className={copyTeamIdButtonClass}
+                                    onClick={() =>
+                                      void copyText({
+                                        failureDescription:
+                                          "Couldn't copy the payment amount automatically.",
+                                        successDescription:
+                                          "Copied payment amount to clipboard.",
+                                        successTitle: "Payment Amount Copied",
+                                        text: String(paymentQrConfig.amountInr),
+                                      })
+                                    }
+                                  >
+                                    <Copy size={14} strokeWidth={2.5} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-3">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/60">
+                                      VPA
+                                    </p>
+                                    <p className="mt-1 break-all text-sm font-semibold text-foreground">
+                                      {paymentQrConfig.vpa}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className={copyTeamIdButtonClass}
+                                    onClick={() =>
+                                      void copyText({
+                                        failureDescription:
+                                          "Couldn't copy the VPA automatically.",
+                                        successDescription:
+                                          "Copied VPA to clipboard.",
+                                        successTitle: "VPA Copied",
+                                        text: paymentQrConfig.vpa,
+                                      })
+                                    }
+                                  >
+                                    <Copy size={14} strokeWidth={2.5} />
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div className="rounded-xl border border-foreground/10 bg-foreground/[0.03] p-3">
+                                <div className="flex items-start justify-between gap-2">
+                                  <div>
+                                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-foreground/60">
+                                      Note
+                                    </p>
+                                    <p className="mt-1 text-sm font-semibold text-foreground">
+                                      {paymentQrConfig.note}
+                                    </p>
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className={copyTeamIdButtonClass}
+                                    onClick={() =>
+                                      void copyText({
+                                        failureDescription:
+                                          "Couldn't copy the payment note automatically.",
+                                        successDescription:
+                                          "Copied payment note to clipboard.",
+                                        successTitle: "Payment Note Copied",
+                                        text: paymentQrConfig.note,
+                                      })
+                                    }
+                                  >
+                                    <Copy size={14} strokeWidth={2.5} />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <p className="mt-4 text-xs text-foreground/60">
+                              If your UPI app says the QR is invalid, try paying
+                              manually using the VPA and INR amount shown above.
+                              If that still fails, the configured UPI ID itself
+                              likely needs to be replaced with a live receiving
+                              ID.
+                            </p>
+                          </section>
+                        ) : (
+                          <section className="rounded-2xl border border-fnred/30 bg-fnred/8 p-4 text-sm text-fnred">
+                            We couldn't find a payment QR configuration for this
+                            problem statement. Please contact the admin team.
+                          </section>
+                        )}
+
+                        <section className="rounded-2xl border border-foreground/15 bg-white/90 p-4 shadow-sm">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-fnblue">
+                              Payment Proof
+                            </p>
+                            {hasUploadedPaymentProof ? (
+                              <FnButton asChild tone="gray" size="sm">
+                                <a
+                                  href={`/api/register/${teamId}/payment-proof`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                >
+                                  <ExternalLink size={16} strokeWidth={3} />
+                                  Preview Uploaded Proof
+                                </a>
+                              </FnButton>
+                            ) : null}
+                          </div>
+
+                          <div className="mt-4 grid gap-3 text-sm text-foreground/75 md:grid-cols-2">
+                            <p>
+                              <span className="font-semibold text-foreground">
+                                Current Transaction ID / UTR:
+                              </span>{" "}
+                              {payment.utr || "Not submitted"}
+                            </p>
+                            <p>
+                              <span className="font-semibold text-foreground">
+                                Submitted:
+                              </span>{" "}
+                              {formatDateTime(payment.submittedAt)}
+                            </p>
+                            <p>
+                              <span className="font-semibold text-foreground">
+                                Reviewed:
+                              </span>{" "}
+                              {formatDateTime(payment.reviewedAt)}
+                            </p>
+                            <p>
+                              <span className="font-semibold text-foreground">
+                                Last File:
+                              </span>{" "}
+                              {payment.proofFileName
+                                ? `${payment.proofFileName} (${formatBytes(
+                                    payment.proofFileSizeBytes,
+                                  )})`
+                                : "Not uploaded"}
+                            </p>
+                          </div>
+
+                          {canUploadPaymentProof ? (
+                            <div className="mt-5 rounded-xl border border-b-4 border-fnorange/40 bg-fnorange/5 p-4">
+                              <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                                <label className="block">
+                                  <span className="text-xs font-bold uppercase tracking-[0.12em] text-foreground/60">
+                                    Transaction ID / UTR
+                                  </span>
+                                  <input
+                                    type="text"
+                                    value={paymentUtrInput}
+                                    onChange={(event) =>
+                                      setPaymentUtrInput(event.target.value)
+                                    }
+                                    placeholder="Enter Transaction ID / UTR"
+                                    className="mt-2 w-full rounded-xl border border-foreground/15 bg-background px-4 py-3 text-sm font-medium text-foreground outline-none transition-colors focus:border-fnblue"
+                                  />
+                                </label>
+
+                                <FnButton
+                                  type="button"
+                                  tone="blue"
+                                  onClick={() =>
+                                    paymentProofFileInputRef.current?.click()
+                                  }
+                                  disabled={isSubmittingPaymentProof}
+                                >
+                                  Select Proof File
+                                </FnButton>
+                              </div>
+
+                              <input
+                                ref={paymentProofFileInputRef}
+                                type="file"
+                                accept={paymentProofAccept}
+                                className="hidden"
+                                onChange={(event) =>
+                                  handlePaymentProofFileChange(
+                                    event.target.files,
+                                  )
+                                }
+                              />
+
+                              <div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-foreground/80">
+                                <p>
+                                  Selected file:{" "}
+                                  <span className="font-semibold">
+                                    {pendingPaymentProofFile?.name ||
+                                      "No file selected"}
+                                  </span>
+                                </p>
+                                {pendingPaymentProofFile ? (
+                                  <button
+                                    type="button"
+                                    className="text-xs font-bold uppercase tracking-[0.12em] text-fnred hover:underline"
+                                    onClick={clearPendingPaymentProofSelection}
+                                  >
+                                    Clear
+                                  </button>
+                                ) : null}
+                              </div>
+
+                              <p className="mt-3 text-xs text-foreground/60">
+                                Accepted proof formats: PNG, JPG, WEBP, or PDF
+                                up to 5 MB.
+                              </p>
+
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                <FnButton
+                                  type="button"
+                                  tone="green"
+                                  onClick={submitPaymentProof}
+                                  loading={isSubmittingPaymentProof}
+                                  loadingText="Submitting..."
+                                  disabled={
+                                    isSubmittingPaymentProof ||
+                                    !pendingPaymentProofFile
+                                  }
+                                >
+                                  Submit Payment Proof
+                                </FnButton>
+                              </div>
+                            </div>
+                          ) : paymentStatus === "submitted" ? (
+                            <div className="mt-5 rounded-xl border border-fnblue/30 bg-fnblue/6 p-4 text-sm text-foreground/80">
+                              Your payment proof is under review. This section
+                              becomes editable again only if admins reject the
+                              current submission.
+                            </div>
+                          ) : paymentStatus === "approved" ? (
+                            <div className="mt-5 rounded-xl border border-fngreen/30 bg-fngreen/8 p-4">
+                              <p className="text-sm font-semibold text-foreground">
+                                Payment verified successfully.
+                              </p>
+                              <p className="mt-2 text-sm text-foreground/75">
+                                Your QR Code ticket is now live. Look for the QR
+                                icon at the top-right of the Team Status card or
+                                open it directly below.
+                              </p>
+                              <div className="mt-4 flex flex-wrap gap-2">
+                                <FnButton
+                                  type="button"
+                                  tone="green"
+                                  size="sm"
+                                  onClick={openTeamTicketModal}
+                                  disabled={
+                                    !canOpenTeamTicket ||
+                                    isGeneratingTeamQr ||
+                                    teamQrGenerationError
+                                  }
+                                >
+                                  <QrCode size={16} strokeWidth={3} />
+                                  Open QR Ticket
+                                </FnButton>
+                              </div>
+                            </div>
+                          ) : null}
+                        </section>
+                      </div>
+                    </div>
+                  </motion.section>
+                </InView>
+              ) : null}
 
               <InView
                 once
@@ -4303,7 +5070,7 @@ export default function TeamDashboardPage() {
         </AnimatePresence>
       </div>
 
-      {showTeamTicketModal && shouldShowAcceptedQr ? (
+      {showTeamTicketModal && canOpenTeamTicket ? (
         <ModalPortal>
           <div
             className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/60 px-2 py-2 backdrop-blur-sm sm:items-center sm:px-4 sm:py-6"

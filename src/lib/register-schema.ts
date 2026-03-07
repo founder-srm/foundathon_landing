@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { PAYMENT_STATUS_VALUES } from "@/lib/payments";
 
 export const SRM_MAJOR_DEPARTMENTS = [
   "CTECH",
@@ -140,6 +141,8 @@ export const teamApprovalStatusSchema = z.enum([
   "rejected",
 ]);
 
+export const teamPaymentStatusSchema = z.enum(PAYMENT_STATUS_VALUES);
+
 const problemStatementMetadataSchema = z
   .object({
     problemStatementCap: z.number().int().positive(),
@@ -160,6 +163,20 @@ const presentationMetadataSchema = z
   })
   .partial();
 
+const paymentMetadataSchema = z
+  .object({
+    paymentProofFileName: z.string().trim().min(1),
+    paymentProofFileSizeBytes: z.number().int().positive(),
+    paymentProofMimeType: z.string().trim().min(1),
+    paymentProofStoragePath: z.string().trim().min(1),
+    paymentRejectedReason: z.string().trim().min(1),
+    paymentReviewedAt: z.string().trim().min(1),
+    paymentStatus: teamPaymentStatusSchema,
+    paymentSubmittedAt: z.string().trim().min(1),
+    paymentUtr: z.string().trim().min(6).max(64),
+  })
+  .partial();
+
 export const teamRecordSchema = teamSubmissionSchema.and(
   z
     .object({
@@ -170,7 +187,8 @@ export const teamRecordSchema = teamSubmissionSchema.and(
     })
     .partial({ approvalStatus: true })
     .and(problemStatementMetadataSchema)
-    .and(presentationMetadataSchema),
+    .and(presentationMetadataSchema)
+    .and(paymentMetadataSchema),
 );
 
 export const teamRecordListSchema = z.array(teamRecordSchema);
@@ -178,5 +196,6 @@ export const teamRecordListSchema = z.array(teamRecordSchema);
 export type SrmMember = z.infer<typeof srmMemberSchema>;
 export type NonSrmMember = z.infer<typeof nonSrmMemberSchema>;
 export type TeamApprovalStatus = z.infer<typeof teamApprovalStatusSchema>;
+export type TeamPaymentStatus = z.infer<typeof teamPaymentStatusSchema>;
 export type TeamSubmission = z.infer<typeof teamSubmissionSchema>;
 export type TeamRecord = z.infer<typeof teamRecordSchema>;

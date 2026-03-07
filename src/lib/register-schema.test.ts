@@ -219,6 +219,49 @@ describe("teamRecordSchema", () => {
     expect(parsed.success).toBe(true);
   });
 
+  it("accepts team record payload with payment metadata", () => {
+    const parsed = teamRecordSchema.safeParse({
+      id: "11111111-1111-4111-8111-111111111111",
+      createdAt: "2026-02-20T10:00:00.000Z",
+      updatedAt: "2026-02-20T10:05:00.000Z",
+      teamType: "srm",
+      teamName: "Board Breakers",
+      lead: {
+        name: "Lead One",
+        raNumber: "RA0000000000001",
+        netId: "od7270",
+        dept: "CSE",
+        contact: 9876543210,
+      },
+      members: [
+        {
+          name: "Member One",
+          raNumber: "RA0000000000002",
+          netId: "ab1234",
+          dept: "CSE",
+          contact: 9876543211,
+        },
+        {
+          name: "Member Two",
+          raNumber: "RA0000000000003",
+          netId: "cd5678",
+          dept: "ECE",
+          contact: 9876543212,
+        },
+      ],
+      paymentProofFileName: "proof.png",
+      paymentProofFileSizeBytes: 1024,
+      paymentProofMimeType: "image/png",
+      paymentProofStoragePath: "payment-proofs/user-id/team-id/proof.png",
+      paymentReviewedAt: "2026-03-07T10:10:00.000Z",
+      paymentStatus: "approved",
+      paymentSubmittedAt: "2026-03-07T10:05:00.000Z",
+      paymentUtr: "UTR123456",
+    });
+
+    expect(parsed.success).toBe(true);
+  });
+
   it("rejects invalid presentation metadata values", () => {
     const parsed = teamRecordSchema.safeParse({
       id: "11111111-1111-4111-8111-111111111111",
@@ -250,6 +293,44 @@ describe("teamRecordSchema", () => {
         },
       ],
       presentationFileSizeBytes: 0,
+    });
+
+    expect(parsed.success).toBe(false);
+  });
+
+  it("rejects invalid payment metadata values", () => {
+    const parsed = teamRecordSchema.safeParse({
+      id: "11111111-1111-4111-8111-111111111111",
+      createdAt: "2026-02-20T10:00:00.000Z",
+      updatedAt: "2026-02-20T10:05:00.000Z",
+      teamType: "srm",
+      teamName: "Board Breakers",
+      lead: {
+        name: "Lead One",
+        raNumber: "RA0000000000001",
+        netId: "od7270",
+        dept: "CSE",
+        contact: 9876543210,
+      },
+      members: [
+        {
+          name: "Member One",
+          raNumber: "RA0000000000002",
+          netId: "ab1234",
+          dept: "CSE",
+          contact: 9876543211,
+        },
+        {
+          name: "Member Two",
+          raNumber: "RA0000000000003",
+          netId: "cd5678",
+          dept: "ECE",
+          contact: 9876543212,
+        },
+      ],
+      paymentProofFileSizeBytes: 0,
+      paymentStatus: "pending",
+      paymentUtr: "123",
     });
 
     expect(parsed.success).toBe(false);
